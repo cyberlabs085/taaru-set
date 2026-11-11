@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="taaruGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0D5C3A" />
+      <stop offset="100%" stop-color="#072212" />
+    </linearGradient>
+  </defs>
+  <!-- Fond Squircle Vert Émeraude TAARU SET -->
+  <rect width="64" height="64" rx="18" fill="url(#taaruGrad)" />
+  <rect x="1.5" y="1.5" width="61" height="61" rx="16.5" fill="none" stroke="#22C55E" stroke-opacity="0.35" stroke-width="2" />
+  <!-- Lettre T Majuscule Propre & Nette -->
+  <path d="M19 18 H45 V25 H35.5 V48 H28.5 V25 H19 Z" fill="#FFFFFF" />
+  <!-- Étoile d'éclat Propreté / Étincelle Lime Pro -->
+  <path d="M46 13 L47.6 17.5 L52 19 L47.6 20.5 L46 25 L44.4 20.5 L40 19 L44.4 17.5 Z" fill="#84CC16" />
+</svg>
