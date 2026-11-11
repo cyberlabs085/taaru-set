@@ -341,10 +341,10 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
               <span>TAARU SET • Le charme de la propreté à Dakar</span>
             </div>
 
-            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold text-slate-900 tracking-tight leading-[1.14] mb-5">
-              On vient chez vous. <br />
-              <span className="text-[#16A34A]">
-                Vous profitez du propre.
+            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight mb-5">
+              <span className="block">On vient chez vous</span>
+              <span className="block text-[#16A34A] whitespace-nowrap">
+                Vous profitez du propre
               </span>
             </h1>
 
@@ -404,16 +404,11 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
                   alt="Mamadou et l'équipe TAARU SET avec aspirateur Kärcher professionnel" 
                   className="w-full h-full object-cover object-top hover:scale-105 transition-transform duration-700" 
                 />
-                <div className="absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-slate-950/85 via-slate-900/40 to-transparent"></div>
-                <div className="absolute bottom-4 inset-x-4 flex items-center justify-between text-white">
-                  <div>
-                    <div className="text-[10px] uppercase font-bold text-lime-400">ÉQUIPE OFFICIELLE</div>
-                    <div className="text-sm font-bold">Mamadou & Les Techniciens TAARU SET</div>
-                    <div className="text-[11px] text-lime-200 font-semibold italic mt-0.5">« Le charme de la propreté »</div>
-                  </div>
-                  <div className="px-2.5 py-1 bg-white/20 backdrop-blur-md rounded-xl text-xs font-bold border border-white/30 shrink-0">
-                    DAKAR 🇸🇳
-                  </div>
+                
+                {/* Badge Discret Propre en Haut à Droite */}
+                <div className="absolute top-3.5 right-3.5 px-3 py-1 bg-white/95 backdrop-blur-md rounded-full text-[11px] font-bold text-slate-800 border border-slate-200/80 shadow-xs flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span>Dakar 🇸🇳</span>
                 </div>
               </div>
 
