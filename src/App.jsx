@@ -438,6 +438,9 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
                   src={teamCleanHdImg} 
                   alt="Mamadou et l'équipe TAARU SET avec aspirateur Kärcher professionnel" 
                   className="w-full h-full object-cover object-top hover:scale-105 transition-transform duration-700" 
+                  fetchPriority="high"
+                  loading="eager"
+                  decoding="async"
                 />
                 
                 {/* Badge Discret Propre en Haut à Droite */}
@@ -481,15 +484,15 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6 items-stretch">
             
             {/* CARTE 1 : LAVAGE AUTO MOBILE */}
             <div 
               onClick={() => handleOpenDrawer('auto')}
-              className="group bg-[#FAFAF8] hover:bg-white rounded-[2.2rem] p-6 sm:p-7 border border-slate-200 hover:border-[#16A34A] hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer flex flex-col justify-between relative"
+              className="group bg-[#FAFAF8] hover:bg-white rounded-[2.2rem] p-5 sm:p-6 border border-slate-200 hover:border-[#16A34A] hover:shadow-2xl hover:scale-[1.01] transition-all duration-300 cursor-pointer flex flex-col justify-between relative h-full"
             >
               <div>
-                <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-[#0D5C3A] flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-[#0D5C3A] flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <Car className="w-6 h-6" />
                 </div>
                 <div className="inline-block px-3 py-1 rounded-full bg-emerald-50 text-[#0D5C3A] text-xs font-bold mb-2">
@@ -501,15 +504,22 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
                 </p>
 
                 {/* Encadré Sombre Abonnement Plus Visible Demandé par Mamadou */}
-                <div className="p-3.5 rounded-2xl bg-slate-900 text-white border border-emerald-500/50 shadow-md">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-[10px] uppercase font-black tracking-wider text-lime-400 bg-lime-400/10 px-2 py-0.5 rounded-md">
-                      ★ FORMULE ABONNEMENT (-30%)
+                <div className="mt-4 p-3.5 sm:p-4 rounded-2xl bg-slate-900 text-white border border-emerald-500/50 shadow-md">
+                  <div className="mb-2">
+                    <span className="inline-flex items-center gap-1.5 text-[10px] sm:text-[11px] uppercase font-black tracking-wide text-lime-400 bg-lime-400/15 px-2.5 py-1 rounded-lg whitespace-nowrap">
+                      <Zap className="w-3 h-3 shrink-0" />
+                      <span>FORMULE ABONNEMENT (-30%)</span>
                     </span>
-                    <span className="text-xs font-black text-lime-400 font-mono">30 000 F / mois</span>
                   </div>
-                  <div className="text-xs font-bold text-white">4 lavages programmés par mois</div>
-                  <div className="text-[10px] text-slate-300 mt-0.5">1 passage/semaine garanti chez vous ou au bureau sans commander à chaque fois</div>
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <span className="text-xs sm:text-sm font-bold text-white">4 lavages programmés</span>
+                    <span className="text-xs sm:text-sm font-black text-lime-400 font-mono whitespace-nowrap">
+                      30 000 FCFA / mois
+                    </span>
+                  </div>
+                  <div className="text-[10px] sm:text-[11px] text-slate-300 leading-snug">
+                    1 passage/semaine garanti chez vous ou au bureau
+                  </div>
                 </div>
               </div>
 
@@ -524,26 +534,44 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
             {/* CARTE 2 : TEXTILES & CANAPÉS */}
             <div 
               onClick={() => handleOpenDrawer('textile')}
-              className="group bg-[#FAFAF8] hover:bg-white rounded-[2.2rem] p-6 sm:p-7 border-2 border-emerald-400/90 shadow-md hover:border-[#16A34A] hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer flex flex-col justify-between relative"
+              className="group bg-[#FAFAF8] hover:bg-white rounded-[2.2rem] p-5 sm:p-6 border-2 border-emerald-400/90 shadow-md hover:border-[#16A34A] hover:shadow-2xl hover:scale-[1.01] transition-all duration-300 cursor-pointer flex flex-col justify-between relative h-full"
             >
               <div className="absolute -top-3 right-6 bg-gradient-to-r from-[#0D5C3A] to-[#16A34A] text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-sm">
                 LE PLUS DEMANDÉ
               </div>
 
               <div>
-                <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center mb-5 group-hover:scale-110 transition-transform shadow-md shadow-emerald-900/20">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-md shadow-emerald-900/20">
                   <Sofa className="w-6 h-6" />
                 </div>
                 <div className="inline-block px-3 py-1 rounded-full bg-emerald-50 text-[#0D5C3A] text-xs font-bold mb-2">
                   Dès 3 500 FCFA
                 </div>
                 <h3 className="text-xl font-bold text-slate-900 mb-2">Canapés, Matelas & Tapis</h3>
-                <p className="text-slate-500 text-xs sm:text-sm leading-relaxed mb-6 font-normal">
+                <p className="text-slate-500 text-xs sm:text-sm leading-relaxed mb-4 font-normal">
                   Shampouinage à l'injecteur Kärcher. Élimine les taches rebelles, odeurs et acariens. Tissu quasi-sec en 3 à 5h.
                 </p>
+
+                {/* Encadré Forfait Salon Complet pour équilibrer la hauteur */}
+                <div className="mt-4 p-3.5 sm:p-4 rounded-2xl bg-emerald-50/90 text-slate-900 border border-emerald-200 shadow-xs">
+                  <div className="mb-2">
+                    <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] uppercase font-black tracking-wide text-emerald-800 bg-emerald-200/60 px-2.5 py-1 rounded-lg whitespace-nowrap">
+                      <span>★ FORFAIT SALON (-10%)</span>
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <span className="text-xs sm:text-sm font-bold text-slate-900">Canapé + Fauteuils + Tapis</span>
+                    <span className="text-xs sm:text-sm font-black text-[#0D5C3A] font-mono whitespace-nowrap">
+                      Dès 18 000 FCFA
+                    </span>
+                  </div>
+                  <div className="text-[10px] sm:text-[11px] text-slate-600 leading-snug">
+                    Traitement anti-acariens & séchage express 3-5h
+                  </div>
+                </div>
               </div>
 
-              <div className="pt-4 border-t border-slate-200/60 flex items-center justify-between text-xs font-bold text-[#0D5C3A] group-hover:text-[#16A34A]">
+              <div className="pt-4 border-t border-slate-200/60 flex items-center justify-between text-xs font-bold text-[#0D5C3A] group-hover:text-[#16A34A] mt-5">
                 <span>Voir les formules & Réserver</span>
                 <span className="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center group-hover:translate-x-1 transition-transform">
                   →
@@ -554,22 +582,40 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
             {/* CARTE 3 : FIN DE CHANTIER */}
             <div 
               onClick={() => handleOpenDrawer('chantier')}
-              className="group bg-[#FAFAF8] hover:bg-white rounded-[2.2rem] p-6 sm:p-7 border border-slate-200 hover:border-[#16A34A] hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer flex flex-col justify-between relative"
+              className="group bg-[#FAFAF8] hover:bg-white rounded-[2.2rem] p-5 sm:p-6 border border-slate-200 hover:border-[#16A34A] hover:shadow-2xl hover:scale-[1.01] transition-all duration-300 cursor-pointer flex flex-col justify-between relative h-full"
             >
               <div>
-                <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-[#0D5C3A] flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-[#0D5C3A] flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <Home className="w-6 h-6" />
                 </div>
                 <div className="inline-block px-3 py-1 rounded-full bg-emerald-50 text-[#0D5C3A] text-xs font-bold mb-2">
                   Dès 45 000 FCFA
                 </div>
                 <h3 className="text-xl font-bold text-slate-900 mb-2">Fin de Chantier & Villas</h3>
-                <p className="text-slate-500 text-xs sm:text-sm leading-relaxed mb-6 font-normal">
+                <p className="text-slate-500 text-xs sm:text-sm leading-relaxed mb-4 font-normal">
                   Remise à neuf complète après travaux ou avant emménagement. Décapage ciment, colle, vitres et désinfection totale.
                 </p>
+
+                {/* Encadré Forfait Chantier pour équilibrer la hauteur */}
+                <div className="mt-4 p-3.5 sm:p-4 rounded-2xl bg-slate-100/90 text-slate-900 border border-slate-200 shadow-xs">
+                  <div className="mb-2">
+                    <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] uppercase font-black tracking-wide text-slate-800 bg-slate-200 px-2.5 py-1 rounded-lg whitespace-nowrap">
+                      <span>★ REMISE À NEUF COMPLÈTE</span>
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <span className="text-xs sm:text-sm font-bold text-slate-900">Studios, F3, F4 & Villas</span>
+                    <span className="text-xs sm:text-sm font-black text-[#0D5C3A] font-mono whitespace-nowrap">
+                      Clé en main
+                    </span>
+                  </div>
+                  <div className="text-[10px] sm:text-[11px] text-slate-600 leading-snug">
+                    Décapage ciment, colle, vitres & désinfection totale
+                  </div>
+                </div>
               </div>
 
-              <div className="pt-4 border-t border-slate-200/60 flex items-center justify-between text-xs font-bold text-[#0D5C3A] group-hover:text-[#16A34A]">
+              <div className="pt-4 border-t border-slate-200/60 flex items-center justify-between text-xs font-bold text-[#0D5C3A] group-hover:text-[#16A34A] mt-5">
                 <span>Voir les superficies & Réserver</span>
                 <span className="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center group-hover:translate-x-1 transition-transform">
                   →
@@ -676,25 +722,25 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
                         <div 
                           key={idx}
                           onClick={() => setSelectedPack(pack)}
-                          className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between shadow-md ${
+                          className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-md ${
                             isSelected 
                               ? 'border-lime-400 bg-slate-950 text-white ring-2 ring-lime-400/30' 
                               : 'border-slate-800 bg-slate-900 text-white hover:border-emerald-400'
                           }`}
                         >
-                          <div className="pr-2">
-                            <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-lime-400/20 text-lime-400 text-[10px] font-black uppercase mb-1">
+                          <div>
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-lime-400/20 text-lime-400 text-[10px] font-black uppercase mb-1.5 whitespace-nowrap">
                               <Zap className="w-3 h-3" />
                               <span>FORMULE ABONNEMENT (-30%)</span>
                             </div>
                             <div className="text-sm font-black text-white">{pack.name}</div>
                             <div className="text-[11px] text-slate-300 mt-0.5">{pack.detail}</div>
                           </div>
-                          <div className="text-right shrink-0">
-                            <div className="font-black text-base text-lime-400 font-mono">
-                              {new Intl.NumberFormat('fr-FR').format(pack.price)} F
+                          <div className="text-left sm:text-right shrink-0 mt-1 sm:mt-0">
+                            <div className="font-black text-sm sm:text-base text-lime-400 font-mono whitespace-nowrap">
+                              {new Intl.NumberFormat('fr-FR').format(pack.price)} FCFA / mois
                             </div>
-                            <div className="text-[10px] text-slate-400">/ mois</div>
+                            <div className="text-[10px] text-slate-400">4 passages programmés</div>
                           </div>
                         </div>
                       );
@@ -965,8 +1011,8 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
             </p>
           </div>
 
-          {/* Sélecteur de Thème avec indicateur de bascule automatique toutes les 4s */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 mb-5">
+          {/* Sélecteur de Thème (Voiture / Canapé) */}
+          <div className="flex items-center justify-center mb-5">
             <div className="bg-slate-200/90 p-1.5 rounded-2xl flex items-center gap-1.5 shadow-inner">
               <button
                 type="button"
@@ -993,11 +1039,6 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
                 <span>Canapés & Salons</span>
               </button>
             </div>
-
-            <div className="text-[10px] sm:text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span>Défilement auto Voiture ⇄ Canapé</span>
-            </div>
           </div>
 
           <div 
@@ -1009,11 +1050,13 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
           >
             {sliderTheme === 'auto' ? (
               <>
-                {/* Image APRÈS AUTO : Rénovation pure detailing Range Rover sans personne */}
+                {/* Image APRÈS AUTO : Rénovation pure detailing Range Rover sans personne (Ultra optimisée) */}
                 <img 
-                  src="https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=1200&q=80" 
+                  src="https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=800&q=75" 
                   alt="Carrosserie miroir et rénovation auto impeccable TAARU SET" 
                   className="absolute inset-0 w-full h-full object-cover object-center"
+                  loading="lazy"
+                  decoding="async"
                 />
                 <div className="absolute top-4 right-4 bg-emerald-800/95 text-white text-xs font-black px-3.5 py-1.5 rounded-full backdrop-blur-sm shadow-md z-10">
                   APRÈS : Carrosserie Miroir & Finition Kärcher ✨
@@ -1025,10 +1068,12 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
                   style={{ width: `${sliderPos}%` }}
                 >
                   <img 
-                    src="https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=1200&q=80" 
+                    src="https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=800&q=75" 
                     alt="Véhicule avant nettoyage avec poussière et sable" 
                     className="absolute inset-0 w-full h-full object-cover object-center filter contrast-125 sepia-[0.75] brightness-65 hue-rotate-[-20deg] saturate-150"
                     style={{ width: '100%', minWidth: '100%', height: '100%' }}
+                    loading="lazy"
+                    decoding="async"
                   />
                   <div className="absolute inset-0 bg-amber-950/35 pointer-events-none mix-blend-multiply" />
                   <div className="absolute top-4 left-4 bg-slate-950/95 text-white text-xs font-black px-3.5 py-1.5 rounded-full backdrop-blur-sm shadow-md z-10">
@@ -1038,11 +1083,13 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
               </>
             ) : (
               <>
-                {/* Image APRÈS CANAPÉ */}
+                {/* Image APRÈS CANAPÉ (Ultra optimisée) */}
                 <img 
-                  src="https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1200&q=80" 
+                  src="https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=800&q=75" 
                   alt="Canapé immaculé après passage TAARU SET" 
                   className="absolute inset-0 w-full h-full object-cover"
+                  loading="lazy"
+                  decoding="async"
                 />
                 <div className="absolute top-4 right-4 bg-emerald-800/95 text-white text-xs font-black px-3.5 py-1.5 rounded-full backdrop-blur-sm shadow-md z-10">
                   APRÈS : Tissu Purifié & Rénové ✨
@@ -1054,10 +1101,12 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
                   style={{ width: `${sliderPos}%` }}
                 >
                   <img 
-                    src="https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1200&q=80" 
+                    src="https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=800&q=75" 
                     alt="Canapé avant passage" 
                     className="absolute inset-0 w-full h-full object-cover filter contrast-125 sepia-[0.4] brightness-70"
                     style={{ width: '100%', minWidth: '100%', height: '100%' }}
+                    loading="lazy"
+                    decoding="async"
                   />
                   <div className="absolute top-4 left-4 bg-slate-950/95 text-white text-xs font-black px-3.5 py-1.5 rounded-full backdrop-blur-sm shadow-md z-10">
                     AVANT : Poussière & Taches ❌
