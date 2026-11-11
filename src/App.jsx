@@ -563,12 +563,18 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
                 </div>
               </div>
 
-              {/* ÉTAPE 2 : SÉLECTION DU JOUR (DEMANDÉ PAR MAMADOU) */}
+              {/* ÉTAPE 2 : SÉLECTION DU JOUR (DEMANDÉ PAR MAMADOU + OPTION DATE LIBRE) */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
-                  2. Choisissez le jour d'intervention
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="flex items-center justify-between mb-3">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
+                    2. Choisissez le jour d'intervention
+                  </label>
+                  <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md">
+                    Choisi : {selectedDay}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2.5">
                   {nextDays.map((d) => (
                     <button
                       key={d.id}
@@ -585,14 +591,39 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
                     </button>
                   ))}
                 </div>
+
+                {/* Option Date Personnalisée (Pour ceux dont les jours par défaut n'arrangent pas) */}
+                <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/90 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                    <Calendar className="w-4 h-4 text-[#16A34A]" />
+                    <span>Autre date spécifique sur calendrier :</span>
+                  </div>
+                  <input 
+                    type="date"
+                    min={new Date().toISOString().split('T')[0]}
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        const parts = e.target.value.split('-');
+                        setSelectedDay(`Date sur-mesure : ${parts[2]}/${parts[1]}/${parts[0]}`);
+                      }
+                    }}
+                    className="px-3 py-1.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-800 bg-white focus:outline-none focus:border-[#16A34A] focus:ring-2 focus:ring-emerald-500/20 shadow-2xs"
+                  />
+                </div>
               </div>
 
-              {/* ÉTAPE 3 : SÉLECTION DE L'HEURE (DEMANDÉ PAR MAMADOU) */}
+              {/* ÉTAPE 3 : SÉLECTION DE L'HEURE (CRÉNEAUX + OPTION HEURE LIBRE) */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
-                  3. Choisissez votre créneau horaire
-                </label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="flex items-center justify-between mb-3">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
+                    3. Choisissez votre heure
+                  </label>
+                  <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md">
+                    {selectedTime}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 mb-2.5">
                   {timeSlots.map((slot) => (
                     <button
                       key={slot.id}
@@ -608,6 +639,35 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
                       {selectedTime === slot.id && <Check className="w-4 h-4 text-[#16A34A]" />}
                     </button>
                   ))}
+                </div>
+
+                {/* Option Heure Personnalisée Libre (Pour fixer son heure exacte) */}
+                <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/90 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                    <Clock className="w-4 h-4 text-[#16A34A]" />
+                    <span>Fixer votre heure exacte :</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="time"
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          setSelectedTime(`Heure exacte souhaitée : ${e.target.value}`);
+                        }
+                      }}
+                      className="px-3 py-1.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-800 bg-white focus:outline-none focus:border-[#16A34A] focus:ring-2 focus:ring-emerald-500/20 shadow-2xs"
+                    />
+                    <input 
+                      type="text"
+                      placeholder="ou ex: 07h00, 19h30..."
+                      onChange={(e) => {
+                        if (e.target.value.trim()) {
+                          setSelectedTime(`Heure souhaitée : ${e.target.value.trim()}`);
+                        }
+                      }}
+                      className="w-36 px-3 py-1.5 rounded-xl border border-slate-300 text-xs font-semibold text-slate-800 bg-white focus:outline-none focus:border-[#16A34A]"
+                    />
+                  </div>
                 </div>
               </div>
 
