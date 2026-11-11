@@ -258,6 +258,15 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
     return () => cancelAnimationFrame(animId);
   }, [isSliderHovered]);
 
+  // --- BASCULE AUTOMATIQUE DU THÈME AVANT/APRÈS (VOITURE ⟷ CANAPÉ SANS CLIQUER DEMANDÉ PAR L'UTILISATEUR) ---
+  useEffect(() => {
+    if (isSliderHovered) return;
+    const interval = setInterval(() => {
+      setSliderTheme((prev) => (prev === 'auto' ? 'sofa' : 'auto'));
+    }, 4200); // Alterne automatiquement toutes les 4.2 secondes entre Voiture et Canapé
+    return () => clearInterval(interval);
+  }, [isSliderHovered]);
+
   // --- TÉMOIGNAGES CLIENTS VÉRIFIÉS DAKAR ---
   const testimonialsList = [
     {
@@ -354,32 +363,32 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
       </header>
 
       {/* ========================================================================= */}
-      {/* 2. HERO : RESPIRANT, CHALEUREUX & ÉPURÉ (Zéro effet surchargé)             */}
+      {/* 2. HERO : RESPIRANT, CHALEUREUX & ÉPURÉ (Zéro espace mort, ultra fluide)   */}
       {/* ========================================================================= */}
-      <section className="relative pt-28 sm:pt-40 pb-14 sm:pb-20 px-4 sm:px-6 max-w-6xl mx-auto z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+      <section className="relative pt-20 sm:pt-28 pb-8 sm:pb-12 px-4 sm:px-6 max-w-6xl mx-auto z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-center">
           
           {/* Colonne Gauche : Titre clair, bénéfice direct */}
           <div className="lg:col-span-7 flex flex-col items-start">
             
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-50 border border-emerald-200/80 text-[#0D5C3A] text-xs font-bold mb-5 shadow-2xs">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-50 border border-emerald-200/80 text-[#0D5C3A] text-xs font-bold mb-3.5 shadow-2xs">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
               <span>TAARU SET • Le charme de la propreté à Dakar</span>
             </div>
 
-            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight mb-5">
+            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight mb-3.5">
               <span className="block">On vient chez vous</span>
               <span className="block text-[#16A34A] whitespace-nowrap">
                 Vous profitez du propre
               </span>
             </h1>
 
-            <p className="text-slate-600 text-sm sm:text-base lg:text-lg leading-relaxed max-w-xl mb-7 font-normal">
+            <p className="text-slate-600 text-sm sm:text-base lg:text-lg leading-relaxed max-w-xl mb-5 font-normal">
               Confiez vos canapés, matelas, chantiers et véhicules à notre équipe équipée de machines professionnelles <strong className="text-slate-900 font-semibold">Kärcher</strong>. Choisissez votre service, fixez votre date et nous nous occupons du reste.
             </p>
 
             {/* Boutons d'Action Rapide */}
-            <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto mb-7">
+            <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto mb-5">
               <a 
                 href="#services"
                 className="w-full sm:w-auto px-6 sm:px-7 py-3 sm:py-3.5 rounded-2xl bg-[#0D5C3A] hover:bg-[#16A34A] text-white font-bold text-xs sm:text-sm text-center shadow-lg shadow-emerald-900/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"
@@ -457,22 +466,22 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
       {/* ========================================================================= */}
       {/* 3. LES 3 OFFRES CLÉS (CLIC ➔ OUVRE LE TIROIR GLISSANT DE RÉSERVATION)       */}
       {/* ========================================================================= */}
-      <section id="services" className="py-16 sm:py-20 bg-white border-y border-slate-100 relative z-10">
+      <section id="services" className="py-10 sm:py-14 bg-white border-y border-slate-100 relative z-10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           
-          <div className="text-center max-w-xl mx-auto mb-12 sm:mb-14">
+          <div className="text-center max-w-xl mx-auto mb-7 sm:mb-9">
             <span className="text-xs uppercase font-extrabold tracking-widest text-[#16A34A] bg-emerald-50 border border-emerald-200 px-3.5 py-1.5 rounded-full">
               CHOISISSEZ VOTRE BESOIN
             </span>
-            <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-900 mt-3 tracking-tight">
+            <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-900 mt-2.5 tracking-tight">
               Nos 3 Services Phares
             </h2>
-            <p className="text-slate-500 text-xs sm:text-sm mt-2">
+            <p className="text-slate-500 text-xs sm:text-sm mt-1.5">
               Cliquez sur le service de votre choix pour faire glisser les propositions, choisir votre jour et réserver.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-7">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6">
             
             {/* CARTE 1 : LAVAGE AUTO MOBILE */}
             <div 
@@ -941,14 +950,14 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
       {/* ========================================================================= */}
       {/* 5. SLIDER AVANT / APRÈS (ANIMATION DOUCE AUTONOME • VOITURE EN PRIORITÉ)   */}
       {/* ========================================================================= */}
-      <section id="avant-apres" className="py-16 sm:py-20 bg-[#FAFAF8] relative z-10">
+      <section id="avant-apres" className="py-10 sm:py-14 bg-[#FAFAF8] relative z-10">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
           
-          <div className="text-center mb-8">
+          <div className="text-center mb-5">
             <span className="text-xs uppercase font-extrabold tracking-widest text-[#16A34A] bg-emerald-50 border border-emerald-200 px-3.5 py-1.5 rounded-full">
               RÉSULTAT VISIBLE
             </span>
-            <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-900 mt-3 tracking-tight">
+            <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-900 mt-2.5 tracking-tight">
               L'Effet Avant / Après
             </h2>
             <p className="text-slate-500 text-xs sm:text-sm mt-1">
@@ -956,25 +965,25 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
             </p>
           </div>
 
-          {/* Sélecteur de Thème : Nettoyage Auto en 1er comme demandé par Mamadou */}
-          <div className="flex justify-center mb-7">
+          {/* Sélecteur de Thème avec indicateur de bascule automatique toutes les 4s */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 mb-5">
             <div className="bg-slate-200/90 p-1.5 rounded-2xl flex items-center gap-1.5 shadow-inner">
               <button
                 type="button"
                 onClick={() => setSliderTheme('auto')}
-                className={`px-4 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center gap-2 ${
+                className={`px-4 sm:px-6 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center gap-2 ${
                   sliderTheme === 'auto'
                     ? 'bg-[#0D5C3A] text-white shadow-md'
                     : 'text-slate-700 hover:text-slate-900'
                 }`}
               >
                 <Car className="w-4 h-4" />
-                <span>Rénovation & Lavage Auto</span>
+                <span>Rénovation Auto</span>
               </button>
               <button
                 type="button"
                 onClick={() => setSliderTheme('sofa')}
-                className={`px-4 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center gap-2 ${
+                className={`px-4 sm:px-6 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center gap-2 ${
                   sliderTheme === 'sofa'
                     ? 'bg-[#0D5C3A] text-white shadow-md'
                     : 'text-slate-700 hover:text-slate-900'
@@ -984,10 +993,15 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
                 <span>Canapés & Salons</span>
               </button>
             </div>
+
+            <div className="text-[10px] sm:text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>Défilement auto Voiture ⇄ Canapé</span>
+            </div>
           </div>
 
           <div 
-            className="relative rounded-[2.5rem] overflow-hidden shadow-2xl border-2 border-slate-200 aspect-[16/9] select-none cursor-ew-resize group"
+            className="relative rounded-[2.5rem] overflow-hidden shadow-2xl border-2 border-slate-200 aspect-[16/9] select-none cursor-ew-resize group transition-all duration-500"
             onMouseEnter={() => setIsSliderHovered(true)}
             onMouseLeave={() => setIsSliderHovered(false)}
             onTouchStart={() => setIsSliderHovered(true)}
@@ -995,29 +1009,30 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
           >
             {sliderTheme === 'auto' ? (
               <>
-                {/* Image APRÈS AUTO */}
+                {/* Image APRÈS AUTO : Rénovation pure detailing sans personne */}
                 <img 
-                  src="https://images.unsplash.com/photo-1607860108855-64acf2078ed9?auto=format&fit=crop&w=1200&q=80" 
-                  alt="Nettoyage et rénovation auto impeccable TAARU SET" 
+                  src="https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&w=1200&q=80" 
+                  alt="Carrosserie miroir et rénovation auto impeccable TAARU SET" 
                   className="absolute inset-0 w-full h-full object-cover"
                 />
-                <div className="absolute top-4 right-4 bg-emerald-800/95 text-white text-xs font-black px-3.5 py-1.5 rounded-full backdrop-blur-sm shadow-md">
-                  APRÈS : Véhicule Étincelant & Propre ✨
+                <div className="absolute top-4 right-4 bg-emerald-800/95 text-white text-xs font-black px-3.5 py-1.5 rounded-full backdrop-blur-sm shadow-md z-10">
+                  APRÈS : Carrosserie Miroir & Finition Kärcher ✨
                 </div>
 
-                {/* Image AVANT AUTO */}
+                {/* Image AVANT AUTO : Même véhicule avec simulation de poussière / sable de Dakar */}
                 <div 
                   className="absolute inset-0 overflow-hidden" 
                   style={{ width: `${sliderPos}%` }}
                 >
                   <img 
-                    src="https://images.unsplash.com/photo-1607860108855-64acf2078ed9?auto=format&fit=crop&w=1200&q=80" 
-                    alt="Véhicule avant nettoyage" 
-                    className="absolute inset-0 w-full h-full object-cover filter contrast-125 sepia-[0.5] brightness-70 hue-rotate-15"
+                    src="https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&w=1200&q=80" 
+                    alt="Véhicule avant nettoyage avec poussière et sable" 
+                    className="absolute inset-0 w-full h-full object-cover filter contrast-125 sepia-[0.65] brightness-70 hue-rotate-[-15deg] saturate-150"
                     style={{ width: '100%', minWidth: '100%', height: '100%' }}
                   />
-                  <div className="absolute top-4 left-4 bg-slate-950/95 text-white text-xs font-black px-3.5 py-1.5 rounded-full backdrop-blur-sm shadow-md">
-                    AVANT : Poussière, Sable & Taches ❌
+                  <div className="absolute inset-0 bg-amber-950/25 pointer-events-none mix-blend-multiply" />
+                  <div className="absolute top-4 left-4 bg-slate-950/95 text-white text-xs font-black px-3.5 py-1.5 rounded-full backdrop-blur-sm shadow-md z-10">
+                    AVANT : Poussière, Sable Rouge & Taches ❌
                   </div>
                 </div>
               </>
@@ -1029,7 +1044,7 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
                   alt="Canapé immaculé après passage TAARU SET" 
                   className="absolute inset-0 w-full h-full object-cover"
                 />
-                <div className="absolute top-4 right-4 bg-emerald-800/95 text-white text-xs font-black px-3.5 py-1.5 rounded-full backdrop-blur-sm shadow-md">
+                <div className="absolute top-4 right-4 bg-emerald-800/95 text-white text-xs font-black px-3.5 py-1.5 rounded-full backdrop-blur-sm shadow-md z-10">
                   APRÈS : Tissu Purifié & Rénové ✨
                 </div>
 
@@ -1041,10 +1056,10 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
                   <img 
                     src="https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1200&q=80" 
                     alt="Canapé avant passage" 
-                    className="absolute inset-0 w-full h-full object-cover filter contrast-125 sepia-[0.35] brightness-75"
+                    className="absolute inset-0 w-full h-full object-cover filter contrast-125 sepia-[0.4] brightness-70"
                     style={{ width: '100%', minWidth: '100%', height: '100%' }}
                   />
-                  <div className="absolute top-4 left-4 bg-slate-950/95 text-white text-xs font-black px-3.5 py-1.5 rounded-full backdrop-blur-sm shadow-md">
+                  <div className="absolute top-4 left-4 bg-slate-950/95 text-white text-xs font-black px-3.5 py-1.5 rounded-full backdrop-blur-sm shadow-md z-10">
                     AVANT : Poussière & Taches ❌
                   </div>
                 </div>
@@ -1082,8 +1097,8 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
       {/* ========================================================================= */}
       {/* 6. TÉMOIGNAGES CLIENTS EN RUBAN DÉFILANT CONTINU                          */}
       {/* ========================================================================= */}
-      <section id="temoignages" className="py-16 sm:py-20 bg-white border-t border-slate-100 overflow-hidden relative z-10">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 mb-10">
+      <section id="temoignages" className="py-10 sm:py-14 bg-white border-t border-slate-100 overflow-hidden relative z-10">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 mb-6">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between">
             <div>
               <span className="text-xs uppercase font-extrabold tracking-widest text-[#16A34A] bg-emerald-50 border border-emerald-200 px-3.5 py-1.5 rounded-full">
@@ -1105,22 +1120,22 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
             {testimonialsList.concat(testimonialsList).map((item, idx) => (
               <div 
                 key={idx}
-                className="w-[310px] sm:w-[360px] shrink-0 bg-[#FAFAF8] p-6 rounded-[2rem] border border-slate-200/90 shadow-xs flex flex-col justify-between hover:bg-white hover:border-[#16A34A] hover:shadow-xl transition-all duration-300"
+                className="w-[310px] sm:w-[360px] shrink-0 bg-[#FAFAF8] p-5 sm:p-6 rounded-[2rem] border border-slate-200/90 shadow-xs flex flex-col justify-between hover:bg-white hover:border-[#16A34A] hover:shadow-xl transition-all duration-300"
               >
                 <div>
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center justify-between mb-2.5">
                     <div className="flex text-amber-400 text-xs">★★★★★</div>
                     <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full">
                       Vérifié
                     </span>
                   </div>
-                  <p className="text-slate-600 text-xs sm:text-sm leading-relaxed mb-6 font-medium">
+                  <p className="text-slate-600 text-xs sm:text-sm leading-relaxed mb-4 font-medium">
                     {item.text}
                   </p>
                 </div>
 
                 <div className="flex items-center gap-3 pt-3 border-t border-slate-200/60">
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#0D5C3A] to-[#16A34A] text-white font-bold text-xs flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#0D5C3A] to-[#16A34A] text-white font-bold text-xs flex items-center justify-center">
                     {item.initials}
                   </div>
                   <div>
@@ -1137,15 +1152,15 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
       {/* ========================================================================= */}
       {/* 7. FAQ ÉPURÉE (4 QUESTIONS ESSENTIELLES)                                   */}
       {/* ========================================================================= */}
-      <section className="py-16 sm:py-20 bg-[#FAFAF8] border-t border-slate-100 relative z-10">
+      <section className="py-10 sm:py-14 bg-[#FAFAF8] border-t border-slate-100 relative z-10">
         <div className="max-w-2xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-10">
+          <div className="text-center mb-6">
             <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
               Questions Fréquentes
             </h2>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {[
               {
                 q: "Combien de temps faut-il pour que mon canapé ou matelas sèche ?",
@@ -1171,13 +1186,13 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
                 <button
                   type="button"
                   onClick={() => setFaqOpen(faqOpen === idx ? null : idx)}
-                  className="w-full px-5 py-4 text-left flex items-center justify-between text-sm font-bold text-slate-900 cursor-pointer"
+                  className="w-full px-5 py-3.5 text-left flex items-center justify-between text-xs sm:text-sm font-bold text-slate-900 cursor-pointer"
                 >
                   <span>{faq.q}</span>
                   <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${faqOpen === idx ? 'rotate-180 text-[#16A34A]' : ''}`} />
                 </button>
                 {faqOpen === idx && (
-                  <div className="px-5 pb-4 text-xs text-slate-600 leading-relaxed border-t border-slate-100 pt-3">
+                  <div className="px-5 pb-3.5 text-xs text-slate-600 leading-relaxed border-t border-slate-100 pt-2.5">
                     {faq.a}
                   </div>
                 )}
@@ -1190,7 +1205,7 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
       {/* ========================================================================= */}
       {/* 8. FOOTER STATUTAIRE ÉPURÉ                                                */}
       {/* ========================================================================= */}
-      <footer className="bg-slate-900 text-white py-12 border-t border-slate-800 relative z-10">
+      <footer className="bg-slate-900 text-white py-8 sm:py-10 border-t border-slate-800 relative z-10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-3">
             <img 
