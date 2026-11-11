@@ -1009,28 +1009,28 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
           >
             {sliderTheme === 'auto' ? (
               <>
-                {/* Image APRÈS AUTO : Rénovation pure detailing sans personne */}
+                {/* Image APRÈS AUTO : Rénovation pure detailing Range Rover sans personne */}
                 <img 
-                  src="https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&w=1200&q=80" 
+                  src="https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=1200&q=80" 
                   alt="Carrosserie miroir et rénovation auto impeccable TAARU SET" 
-                  className="absolute inset-0 w-full h-full object-cover"
+                  className="absolute inset-0 w-full h-full object-cover object-center"
                 />
                 <div className="absolute top-4 right-4 bg-emerald-800/95 text-white text-xs font-black px-3.5 py-1.5 rounded-full backdrop-blur-sm shadow-md z-10">
                   APRÈS : Carrosserie Miroir & Finition Kärcher ✨
                 </div>
 
-                {/* Image AVANT AUTO : Même véhicule avec simulation de poussière / sable de Dakar */}
+                {/* Image AVANT AUTO : Véhicule avec poussière, voile terne et sable de Dakar */}
                 <div 
                   className="absolute inset-0 overflow-hidden" 
                   style={{ width: `${sliderPos}%` }}
                 >
                   <img 
-                    src="https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&w=1200&q=80" 
+                    src="https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=1200&q=80" 
                     alt="Véhicule avant nettoyage avec poussière et sable" 
-                    className="absolute inset-0 w-full h-full object-cover filter contrast-125 sepia-[0.65] brightness-70 hue-rotate-[-15deg] saturate-150"
+                    className="absolute inset-0 w-full h-full object-cover object-center filter contrast-125 sepia-[0.75] brightness-65 hue-rotate-[-20deg] saturate-150"
                     style={{ width: '100%', minWidth: '100%', height: '100%' }}
                   />
-                  <div className="absolute inset-0 bg-amber-950/25 pointer-events-none mix-blend-multiply" />
+                  <div className="absolute inset-0 bg-amber-950/35 pointer-events-none mix-blend-multiply" />
                   <div className="absolute top-4 left-4 bg-slate-950/95 text-white text-xs font-black px-3.5 py-1.5 rounded-full backdrop-blur-sm shadow-md z-10">
                     AVANT : Poussière, Sable Rouge & Taches ❌
                   </div>
