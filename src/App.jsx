@@ -16,7 +16,9 @@ export default function App() {
   const [drawerService, setDrawerService] = useState('auto'); // 'auto', 'textile', 'chantier'
   const [selectedPack, setSelectedPack] = useState(null);
   const [selectedDay, setSelectedDay] = useState('');
-  const [recurringDay, setRecurringDay] = useState('Tous les Samedis (4 passages / mois)');
+  const [recurringDay, setRecurringDay] = useState('Tous les Samedis (4 passages)');
+  const [customPassageDates, setCustomPassageDates] = useState(['', '', '', '']);
+  const [subscriptionNotes, setSubscriptionNotes] = useState('');
   const [selectedTime, setSelectedTime] = useState('14h00 - 16h00');
   const [clientQuarter, setClientQuarter] = useState('Almadies');
   const [clientAddress, setClientAddress] = useState('');
@@ -203,12 +205,28 @@ export default function App() {
     const formatPrice = (val) => new Intl.NumberFormat('fr-FR').format(val) + " FCFA";
     const isSub = selectedPack.isSubscription;
 
+    let subDetail = recurringDay;
+    if (isSub && recurringDay.includes('libres')) {
+      const datesList = customPassageDates
+        .map((d, i) => {
+          if (!d) return null;
+          const p = d.split('-');
+          return `P${i + 1}: ${p[2]}/${p[1]}`;
+        })
+        .filter(Boolean)
+        .join(', ');
+
+      const datesText = datesList ? `Dates: ${datesList}` : 'Dates à caler';
+      const notesText = subscriptionNotes ? ` (${subscriptionNotes})` : '';
+      subDetail = `4 dates libres [${datesText}${notesText}]`;
+    }
+
     const message = 
 `Bonjour Mamadou (TAARU SET), je souhaite réserver une intervention :
 
 🛠️ *Service :* ${currentService.title}
 📦 *Formule :* ${selectedPack.name} (${formatPrice(selectedPack.price)})
-${isSub ? `🔄 *Formule Abonnement :* 4 lavages dans le mois\n🗓️ *Jour fixe sélectionné :* ${recurringDay}` : `📅 *Date souhaitée :* ${selectedDay || 'Premier créneau disponible'}`}
+${isSub ? `🔄 *Formule Abonnement :* 4 lavages dans le mois\n🗓️ *Planning sélectionné :* ${subDetail}` : `📅 *Date souhaitée :* ${selectedDay || 'Premier créneau disponible'}`}
 ⏰ *Créneau / Heure :* ${selectedTime}
 📍 *Quartier :* ${clientQuarter}
 🏠 *Adresse / Repère :* ${clientAddress || 'À préciser sur WhatsApp'}
@@ -226,7 +244,7 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
       pack: selectedPack.name,
       price: formatPrice(selectedPack.price),
       isSub: isSub,
-      dateInfo: isSub ? `Abonnement : ${recurringDay}` : (selectedDay || 'Prochain jour ouvré'),
+      dateInfo: isSub ? `Abonnement : ${subDetail}` : (selectedDay || 'Prochain jour ouvré'),
       time: selectedTime,
       quarter: clientQuarter,
       address: clientAddress || 'Précisée sur WhatsApp',
@@ -773,17 +791,19 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
-                    {selectedPack?.isSubscription ? "2. Choisissez votre jour fixe de passage chaque semaine" : "2. Choisissez le jour d'intervention"}
+                    {selectedPack?.isSubscription ? "2. Planning de vos 4 passages du mois" : "2. Choisissez le jour d'intervention"}
                   </label>
                   <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md">
-                    {selectedPack?.isSubscription ? recurringDay : (selectedDay || 'À définir')}
+                    {selectedPack?.isSubscription 
+                      ? (recurringDay.includes('libres') ? '4 dates libres' : recurringDay.replace(' (4 passages)', '')) 
+                      : (selectedDay || 'À définir')}
                   </span>
                 </div>
 
                 {selectedPack?.isSubscription ? (
-                  <div className="space-y-2">
-                    <p className="text-[11px] text-slate-500 mb-2">
-                      L'équipe passera 4 fois dans le mois, le jour fixe que vous aurez sélectionné :
+                  <div className="space-y-3">
+                    <p className="text-[11px] text-slate-500">
+                      L'équipe passera 4 fois dans le mois. Choisissez un jour fixe par semaine OU 4 dates libres :
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {[
@@ -792,7 +812,7 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
                         'Tous les Lundis (4 passages)',
                         'Tous les Mercredis (4 passages)',
                         'Tous les Vendredis (4 passages)',
-                        'Autre jour fixe au choix'
+                        '4 dates libres au choix dans le mois ✨'
                       ].map((item) => (
                         <button
                           key={item}
@@ -808,6 +828,53 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
                         </button>
                       ))}
                     </div>
+
+                    {/* SÉLECTEUR INTERACTIF POUR LES 4 DATES LIBRES (PROPOSITION 1 VALIDÉE) */}
+                    {recurringDay === '4 dates libres au choix dans le mois ✨' && (
+                      <div className="p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-3 animate-in fade-in duration-200">
+                        <div className="flex items-center gap-1.5 text-xs font-black text-[#0D5C3A]">
+                          <Calendar className="w-4 h-4 text-[#16A34A]" />
+                          <span>Choisissez vos 4 passages dans le mois :</span>
+                        </div>
+                        <p className="text-[11px] text-slate-600 leading-relaxed">
+                          Sélectionnez les 4 jours qui vous arrangent ou laissez Mamadou caler avec vous sur WhatsApp :
+                        </p>
+                        
+                        <div className="grid grid-cols-2 gap-2">
+                          {[0, 1, 2, 3].map((idx) => (
+                            <div key={idx} className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs">
+                              <label className="block text-[10px] font-extrabold uppercase tracking-wider text-[#0D5C3A] mb-1">
+                                Passage #{idx + 1}
+                              </label>
+                              <input 
+                                type="date"
+                                min={new Date().toISOString().split('T')[0]}
+                                value={customPassageDates[idx] || ''}
+                                onChange={(e) => {
+                                  const updated = [...customPassageDates];
+                                  updated[idx] = e.target.value;
+                                  setCustomPassageDates(updated);
+                                }}
+                                className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-[#16A34A] focus:ring-1 focus:ring-emerald-500/20"
+                              />
+                            </div>
+                          ))}
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                            Préférences ou rythme souhaité (optionnel) :
+                          </label>
+                          <input 
+                            type="text"
+                            placeholder="Ex : 1er et 3ème samedi, 2ème et 4ème vendredi..."
+                            value={subscriptionNotes}
+                            onChange={(e) => setSubscriptionNotes(e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-800 bg-white placeholder:text-slate-400 focus:outline-none focus:border-[#16A34A] focus:ring-2 focus:ring-emerald-500/20 shadow-2xs"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <>
