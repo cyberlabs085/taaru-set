@@ -1127,7 +1127,7 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
           </div>
 
           <div 
-            className="relative rounded-[2.5rem] overflow-hidden shadow-2xl border-2 border-slate-200 aspect-[16/9] select-none cursor-ew-resize group transition-all duration-500"
+            className="@container relative rounded-[2.5rem] overflow-hidden shadow-2xl border-2 border-slate-200 aspect-[16/9] select-none cursor-ew-resize group transition-all duration-500"
             onMouseEnter={() => setIsSliderHovered(true)}
             onMouseLeave={() => setIsSliderHovered(false)}
             onTouchStart={() => setIsSliderHovered(true)}
@@ -1153,8 +1153,8 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
                   src="https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=800&q=75" 
                   alt="Carrosserie miroir et rénovation auto impeccable TAARU SET" 
                   className="absolute inset-0 w-full h-full object-cover object-center"
-                  loading="lazy"
-                  decoding="async"
+                  loading="eager"
+                  decoding="sync"
                 />
 
                 {/* Image AVANT AUTO : VRAIE VOITURE AVEC BOUE, POUSSIÈRE ET SABLE RÉEL */}
@@ -1165,10 +1165,9 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
                   <img 
                     src={dirtyCarBeforeImg} 
                     alt="Véhicule avant nettoyage recouvert de boue et poussière" 
-                    className="absolute inset-0 w-full h-full object-cover object-center"
-                    style={{ width: '100%', minWidth: '100%', height: '100%' }}
-                    loading="lazy"
-                    decoding="async"
+                    className="absolute top-0 left-0 h-full w-[100cqw] max-w-none object-cover object-center"
+                    loading="eager"
+                    decoding="sync"
                   />
                 </div>
               </>
@@ -1181,8 +1180,8 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
                   src="https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=800&q=75" 
                   alt="Canapé immaculé après passage TAARU SET" 
                   className="absolute inset-0 w-full h-full object-cover"
-                  loading="lazy"
-                  decoding="async"
+                  loading="eager"
+                  decoding="sync"
                 />
 
                 {/* Image AVANT CANAPÉ */}
@@ -1193,10 +1192,9 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
                   <img 
                     src="https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=800&q=75" 
                     alt="Canapé avant passage avec taches et poussière" 
-                    className="absolute inset-0 w-full h-full object-cover filter contrast-125 sepia-[0.55] brightness-70"
-                    style={{ width: '100%', minWidth: '100%', height: '100%' }}
-                    loading="lazy"
-                    decoding="async"
+                    className="absolute top-0 left-0 h-full w-[100cqw] max-w-none object-cover filter contrast-125 sepia-[0.55] brightness-70"
+                    loading="eager"
+                    decoding="sync"
                   />
                   <div className="absolute inset-0 bg-stone-900/30 pointer-events-none mix-blend-multiply" />
                 </div>
@@ -1210,8 +1208,8 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
                   src="https://images.unsplash.com/photo-1646592474151-d3841bff594a?auto=format&fit=crop&w=800&q=75" 
                   alt="Villa neuve et sol décapé après passage TAARU SET" 
                   className="absolute inset-0 w-full h-full object-cover"
-                  loading="lazy"
-                  decoding="async"
+                  loading="eager"
+                  decoding="sync"
                 />
 
                 {/* Image AVANT FIN DE CHANTIER (Résidus de poussière de ciment et peinture) */}
@@ -1222,10 +1220,9 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
                   <img 
                     src="https://images.unsplash.com/photo-1646592474151-d3841bff594a?auto=format&fit=crop&w=800&q=75" 
                     alt="Sol et pièces avant décapage avec poussière de chantier" 
-                    className="absolute inset-0 w-full h-full object-cover filter contrast-125 brightness-75 sepia-[0.4]"
-                    style={{ width: '100%', minWidth: '100%', height: '100%' }}
-                    loading="lazy"
-                    decoding="async"
+                    className="absolute top-0 left-0 h-full w-[100cqw] max-w-none object-cover filter contrast-125 brightness-75 sepia-[0.4]"
+                    loading="eager"
+                    decoding="sync"
                   />
                   <div className="absolute inset-0 bg-stone-500/35 pointer-events-none mix-blend-multiply" />
                 </div>
