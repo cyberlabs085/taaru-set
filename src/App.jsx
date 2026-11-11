@@ -5,8 +5,10 @@ import {
   Car, Home, Sofa, RefreshCw, Calculator, Send, Zap, Award, ThumbsUp, X, Calendar, User, Navigation
 } from 'lucide-react';
 
-// Vraie Photo officielle de Mamadou et équipe TAARU SET
-import teamLobbyImg from './assets/team_lobby.jpg';
+// Vraie Photo officielle HD de Mamadou et équipe TAARU SET (Sans stickers TikTok)
+import teamCleanHdImg from './assets/team_clean_hd.jpg';
+// Logo officiel TAARU SET
+import logoOfficialSq from './assets/logo_official_sq.jpg';
 
 export default function App() {
   // --- ÉTATS DU VOLET GLISSANT DE RÉSERVATION (Demandé par Mamadou) ---
@@ -285,15 +287,21 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
       <header className="fixed top-2.5 sm:top-5 inset-x-3 sm:inset-x-6 z-40 flex justify-center pointer-events-none">
         <nav className="w-full max-w-5xl bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-full px-3 sm:px-6 py-2 sm:py-3 shadow-[0_10px_30px_-10px_rgba(13,92,58,0.12)] flex items-center justify-between gap-2 pointer-events-auto">
           
-          {/* Logo Minimaliste Épuré (Monogramme Arrondi + TAARU SET) */}
-          <a href="#" className="flex items-center gap-2 group shrink-0">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-2xl bg-gradient-to-br from-[#0D5C3A] to-[#16A34A] flex items-center justify-center text-white shadow-md shadow-emerald-900/20 group-hover:scale-105 transition-transform">
-              <span className="font-extrabold text-sm sm:text-base tracking-tight">T</span>
-              <Sparkles className="w-3 h-3 text-lime-300 -ml-1 -mt-1.5" />
-            </div>
-            <div className="flex items-center gap-1 font-extrabold text-base sm:text-lg tracking-tight text-slate-900 leading-none">
-              <span>TAARU</span>
-              <span className="text-[#16A34A]">SET</span>
+          {/* Logo Officiel TAARU SET (Monogramme + Typographie + Slogan) */}
+          <a href="#" className="flex items-center gap-2.5 group shrink-0">
+            <img 
+              src={logoOfficialSq} 
+              alt="TAARU SET Logo Officiel" 
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-2xl object-cover shadow-sm group-hover:scale-105 transition-transform" 
+            />
+            <div className="flex flex-col">
+              <div className="flex items-center gap-1 font-extrabold text-sm sm:text-base tracking-tight text-slate-900 leading-none">
+                <span>TAARU</span>
+                <span className="text-[#16A34A]">SET</span>
+              </div>
+              <span className="text-[9px] sm:text-[10px] font-semibold text-slate-500 tracking-tight leading-none mt-0.5">
+                Le charme de la propreté
+              </span>
             </div>
           </a>
 
@@ -330,7 +338,7 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
             
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-50 border border-emerald-200/80 text-[#0D5C3A] text-xs font-bold mb-5 shadow-2xs">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span>Nettoyage & Rénovation à Domicile à Dakar</span>
+              <span>TAARU SET • Le charme de la propreté à Dakar</span>
             </div>
 
             <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold text-slate-900 tracking-tight leading-[1.14] mb-5">
@@ -392,17 +400,18 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
             >
               <div className="relative rounded-[2rem] overflow-hidden bg-slate-100 aspect-[4/5] shadow-inner">
                 <img 
-                  src={teamLobbyImg} 
+                  src={teamCleanHdImg} 
                   alt="Mamadou et l'équipe TAARU SET avec aspirateur Kärcher professionnel" 
                   className="w-full h-full object-cover object-top hover:scale-105 transition-transform duration-700" 
                 />
-                <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-slate-950/80 via-slate-900/30 to-transparent"></div>
+                <div className="absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-slate-950/85 via-slate-900/40 to-transparent"></div>
                 <div className="absolute bottom-4 inset-x-4 flex items-center justify-between text-white">
                   <div>
                     <div className="text-[10px] uppercase font-bold text-lime-400">ÉQUIPE OFFICIELLE</div>
                     <div className="text-sm font-bold">Mamadou & Les Techniciens TAARU SET</div>
+                    <div className="text-[11px] text-lime-200 font-semibold italic mt-0.5">« Le charme de la propreté »</div>
                   </div>
-                  <div className="px-2.5 py-1 bg-white/20 backdrop-blur-md rounded-xl text-xs font-bold border border-white/30">
+                  <div className="px-2.5 py-1 bg-white/20 backdrop-blur-md rounded-xl text-xs font-bold border border-white/30 shrink-0">
                     DAKAR 🇸🇳
                   </div>
                 </div>
@@ -1021,11 +1030,16 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
       {/* ========================================================================= */}
       <footer className="bg-slate-900 text-white py-12 border-t border-slate-800 relative z-10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#0D5C3A] to-[#16A34A] flex items-center justify-center font-bold text-sm">
-              T
+          <div className="flex items-center gap-3">
+            <img 
+              src={logoOfficialSq} 
+              alt="TAARU SET Logo" 
+              className="w-10 h-10 rounded-2xl object-cover shadow-sm" 
+            />
+            <div className="flex flex-col">
+              <span className="font-bold text-base tracking-tight">TAARU SET DAKAR</span>
+              <span className="text-[11px] text-emerald-400 font-semibold tracking-wide">Le charme de la propreté</span>
             </div>
-            <span className="font-bold text-base tracking-tight">TAARU SET DAKAR</span>
           </div>
 
           <div className="text-xs text-slate-400 text-center sm:text-left">
