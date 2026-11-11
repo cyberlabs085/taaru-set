@@ -51,3 +51,4 @@ npm run build
 ---
 
 *Conçu & Développé par l'agence **Daro TECH** pour TAARU SET Dakar.*
+
