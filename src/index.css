@@ -1,14 +1,14 @@
 @import "tailwindcss";
 
 @theme {
-  --color-taarudark: #092B17;
+  --color-taarudark: #072212;
   --color-taarumedium: #0D5C3A;
   --color-taaru: #15803D;
   --color-taarulight: #16A34A;
   --color-taarulime: #84CC16;
   --color-mint: #10B981;
-  --color-sand: #F8FAF7;
-  --color-creme: #F2F7F4;
+  --color-sand: #FAFAF8;
+  --color-creme: #F4F7F4;
   --color-charbon: #0F172A;
   --color-textemuted: #64748B;
 
@@ -17,19 +17,19 @@
   --font-mono: "JetBrains Mono", monospace;
 }
 
-/* Grille subtile */
+/* Grille numérique de fond subtile & élégante */
 .bg-grid-subtle {
   background-image: 
-    linear-gradient(to right, rgba(22, 163, 74, 0.05) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(22, 163, 74, 0.05) 1px, transparent 1px);
-  background-size: 32px 32px;
+    linear-gradient(to right, rgba(13, 92, 58, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(13, 92, 58, 0.04) 1px, transparent 1px);
+  background-size: 36px 36px;
 }
 
 /* Micro-Interactions Magnétiques */
 .btn-magnetic {
   position: relative;
   overflow: hidden;
-  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow 0.3s ease;
+  transition: transform 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow 0.28s ease;
 }
 .btn-magnetic:hover {
   transform: translateY(-2px) scale(1.02);
@@ -42,10 +42,26 @@
   transition: transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow 0.25s ease;
 }
 
+/* Animation fluide du tiroir de réservation avec inertie physique */
+@keyframes drawerSlideIn {
+  0% {
+    transform: translateX(100%);
+    opacity: 0.7;
+  }
+  100% {
+    transform: translateX(0%);
+    opacity: 1;
+  }
+}
+
+.drawer-slide-in {
+  animation: drawerSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 /* Pulsation WhatsApp Flottant */
 @keyframes pulseGlow {
-  0%, 100% { transform: scale(1); box-shadow: 0 10px 30px -5px rgba(16, 185, 129, 0.5); }
-  50% { transform: scale(1.06); box-shadow: 0 15px 40px -5px rgba(16, 185, 129, 0.75); }
+  0%, 100% { transform: scale(1); box-shadow: 0 10px 30px -5px rgba(22, 163, 74, 0.45); }
+  50% { transform: scale(1.06); box-shadow: 0 15px 40px -5px rgba(22, 163, 74, 0.7); }
 }
 .whatsapp-float-btn {
   animation: pulseGlow 2.8s infinite ease-in-out;
@@ -72,9 +88,8 @@
   animation-play-state: paused;
 }
 
-/* Masque de fondu latéral pour adoucir les bords gauche et droite */
+/* Masque de fondu latéral pour adoucir les bords */
 .mask-fade-horizontal {
-  mask-image: linear-gradient(to right, transparent 0%, black 6%, black 94%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 6%, black 94%, transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);
 }
-
