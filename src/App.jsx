@@ -16,14 +16,17 @@ export default function App() {
   const [drawerService, setDrawerService] = useState('auto'); // 'auto', 'textile', 'chantier'
   const [selectedPack, setSelectedPack] = useState(null);
   const [selectedDay, setSelectedDay] = useState('');
+  const [recurringDay, setRecurringDay] = useState('Tous les Samedis (4 passages / mois)');
   const [selectedTime, setSelectedTime] = useState('14h00 - 16h00');
   const [clientQuarter, setClientQuarter] = useState('Almadies');
   const [clientAddress, setClientAddress] = useState('');
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('');
+  const [reservationSummary, setReservationSummary] = useState(null); // Modale de Récapitulatif
 
   // --- AUTRES ÉTATS ---
   const [sliderPos, setSliderPos] = useState(50);
+  const [sliderTheme, setSliderTheme] = useState('auto'); // 'auto' par défaut pour mettre en avant la voiture, ou 'sofa'
   const [isSliderHovered, setIsSliderHovered] = useState(false);
   const [faqOpen, setFaqOpen] = useState(null);
 
@@ -140,7 +143,12 @@ export default function App() {
         { name: 'SUV / 4x4 (Extérieur Express)', price: 5000, detail: 'Finition brillante sans rayures, passage de roues & vitres' },
         { name: 'SUV / 4x4 (Extérieur + Profond Intérieur)', price: 20000, detail: 'Nettoyage VIP complet à domicile, désinfection habitacle' },
         { name: 'Pick-up / Minivan (Profond Intérieur & Ext.)', price: 30000, detail: 'Traitement gros gabarit, shampouinage complet' },
-        { name: 'Pack Mensuel Sérénité (4 lavages / mois)', price: 30000, detail: '2 lavages simples + 2 lavages approfondis dans le mois' }
+        { 
+          name: 'Pack Mensuel Sérénité (4 lavages / mois)', 
+          price: 30000, 
+          isSubscription: true, 
+          detail: '4 passages programmés (1/semaine) à domicile ou bureau • Le plus économique (-30%)' 
+        }
       ]
     },
     textile: {
@@ -187,19 +195,20 @@ export default function App() {
     setIsDrawerOpen(true);
   };
 
-  // --- ENVOI WHATSAPP ---
+  // --- ENVOI WHATSAPP & OUVERTURE RÉCAPITULATIF (Demandé par Mamadou) ---
   const handleConfirmReservation = () => {
     if (!selectedPack) return;
 
     const currentService = servicesConfig[drawerService];
     const formatPrice = (val) => new Intl.NumberFormat('fr-FR').format(val) + " FCFA";
+    const isSub = selectedPack.isSubscription;
 
     const message = 
 `Bonjour Mamadou (TAARU SET), je souhaite réserver une intervention :
 
 🛠️ *Service :* ${currentService.title}
 📦 *Formule :* ${selectedPack.name} (${formatPrice(selectedPack.price)})
-📅 *Date souhaitée :* ${selectedDay}
+${isSub ? `🔄 *Formule Abonnement :* 4 lavages dans le mois\n🗓️ *Jour fixe sélectionné :* ${recurringDay}` : `📅 *Date souhaitée :* ${selectedDay || 'Premier créneau disponible'}`}
 ⏰ *Créneau / Heure :* ${selectedTime}
 📍 *Quartier :* ${clientQuarter}
 🏠 *Adresse / Repère :* ${clientAddress || 'À préciser sur WhatsApp'}
@@ -208,7 +217,24 @@ ${clientPhone ? `📞 *Téléphone :* ${clientPhone}` : ''}
 
 Merci de me confirmer la réservation et le déplacement de l'équipe !`;
 
+    // 1. Envoi direct sur le WhatsApp officiel de Mamadou (+221 77 154 86 10)
     window.open(`https://wa.me/221771548610?text=${encodeURIComponent(message)}`, '_blank');
+
+    // 2. Affichage immédiat du récapitulatif avec confirmation sur l'écran du client
+    setReservationSummary({
+      service: currentService.title,
+      pack: selectedPack.name,
+      price: formatPrice(selectedPack.price),
+      isSub: isSub,
+      dateInfo: isSub ? `Abonnement : ${recurringDay}` : (selectedDay || 'Prochain jour ouvré'),
+      time: selectedTime,
+      quarter: clientQuarter,
+      address: clientAddress || 'Précisée sur WhatsApp',
+      name: clientName || 'Client Dakar',
+      phone: clientPhone || 'Précisé sur WhatsApp'
+    });
+
+    setIsDrawerOpen(false);
   };
 
   // --- ANIMATION AUTOMATIQUE DU SLIDER AVANT/APRÈS ---
@@ -461,12 +487,24 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
                   Dès 3 000 FCFA
                 </div>
                 <h3 className="text-xl font-bold text-slate-900 mb-2">Lavage Auto Mobile</h3>
-                <p className="text-slate-500 text-xs sm:text-sm leading-relaxed mb-6 font-normal">
+                <p className="text-slate-500 text-xs sm:text-sm leading-relaxed mb-4 font-normal">
                   À votre domicile ou bureau à Dakar. Finition soignée sans rayures, aspiration totale et shampouinage habitacle.
                 </p>
+
+                {/* Encadré Sombre Abonnement Plus Visible Demandé par Mamadou */}
+                <div className="p-3.5 rounded-2xl bg-slate-900 text-white border border-emerald-500/50 shadow-md">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] uppercase font-black tracking-wider text-lime-400 bg-lime-400/10 px-2 py-0.5 rounded-md">
+                      ★ FORMULE ABONNEMENT (-30%)
+                    </span>
+                    <span className="text-xs font-black text-lime-400 font-mono">30 000 F / mois</span>
+                  </div>
+                  <div className="text-xs font-bold text-white">4 lavages programmés par mois</div>
+                  <div className="text-[10px] text-slate-300 mt-0.5">1 passage/semaine garanti chez vous ou au bureau sans commander à chaque fois</div>
+                </div>
               </div>
 
-              <div className="pt-4 border-t border-slate-200/60 flex items-center justify-between text-xs font-bold text-[#0D5C3A] group-hover:text-[#16A34A]">
+              <div className="pt-4 border-t border-slate-200/60 flex items-center justify-between text-xs font-bold text-[#0D5C3A] group-hover:text-[#16A34A] mt-5">
                 <span>Voir les packs & Réserver</span>
                 <span className="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center group-hover:translate-x-1 transition-transform">
                   →
@@ -620,75 +658,142 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
                   1. Choisissez votre formule
                 </label>
                 <div className="space-y-2.5">
-                  {servicesConfig[drawerService].packs.map((pack, idx) => (
-                    <div 
-                      key={idx}
-                      onClick={() => setSelectedPack(pack)}
-                      className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
-                        selectedPack?.name === pack.name 
-                          ? 'border-[#16A34A] bg-emerald-50/70 shadow-xs ring-2 ring-emerald-500/20' 
-                          : 'border-slate-200 hover:border-slate-300 bg-white'
-                      }`}
-                    >
-                      <div className="pr-2">
-                        <div className="text-sm font-bold text-slate-900">{pack.name}</div>
-                        <div className="text-[11px] text-slate-500 mt-0.5">{pack.detail}</div>
+                  {servicesConfig[drawerService].packs.map((pack, idx) => {
+                    const isSelected = selectedPack?.name === pack.name;
+                    const isSub = pack.isSubscription;
+
+                    if (isSub) {
+                      return (
+                        <div 
+                          key={idx}
+                          onClick={() => setSelectedPack(pack)}
+                          className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between shadow-md ${
+                            isSelected 
+                              ? 'border-lime-400 bg-slate-950 text-white ring-2 ring-lime-400/30' 
+                              : 'border-slate-800 bg-slate-900 text-white hover:border-emerald-400'
+                          }`}
+                        >
+                          <div className="pr-2">
+                            <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-lime-400/20 text-lime-400 text-[10px] font-black uppercase mb-1">
+                              <Zap className="w-3 h-3" />
+                              <span>FORMULE ABONNEMENT (-30%)</span>
+                            </div>
+                            <div className="text-sm font-black text-white">{pack.name}</div>
+                            <div className="text-[11px] text-slate-300 mt-0.5">{pack.detail}</div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="font-black text-base text-lime-400 font-mono">
+                              {new Intl.NumberFormat('fr-FR').format(pack.price)} F
+                            </div>
+                            <div className="text-[10px] text-slate-400">/ mois</div>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div 
+                        key={idx}
+                        onClick={() => setSelectedPack(pack)}
+                        className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                          isSelected 
+                            ? 'border-[#16A34A] bg-emerald-50/70 shadow-xs ring-2 ring-emerald-500/20' 
+                            : 'border-slate-200 hover:border-slate-300 bg-white'
+                        }`}
+                      >
+                        <div className="pr-2">
+                          <div className="text-sm font-bold text-slate-900">{pack.name}</div>
+                          <div className="text-[11px] text-slate-500 mt-0.5">{pack.detail}</div>
+                        </div>
+                        <div className="font-bold text-sm text-[#0D5C3A] shrink-0 font-mono">
+                          {new Intl.NumberFormat('fr-FR').format(pack.price)} F
+                        </div>
                       </div>
-                      <div className="font-bold text-sm text-[#0D5C3A] shrink-0 font-mono">
-                        {new Intl.NumberFormat('fr-FR').format(pack.price)} F
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* ÉTAPE 2 : SÉLECTION DU JOUR (RAPIDE + DATE SUR-MESURE) */}
+              {/* ÉTAPE 2 : SÉLECTION DU JOUR (RAPIDE + DATE SUR-MESURE OU JOUR FIXE ABONNEMENT) */}
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
-                    2. Choisissez le jour d'intervention
+                    {selectedPack?.isSubscription ? "2. Choisissez votre jour fixe de passage chaque semaine" : "2. Choisissez le jour d'intervention"}
                   </label>
                   <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md">
-                    Choisi : {selectedDay}
+                    {selectedPack?.isSubscription ? recurringDay : (selectedDay || 'À définir')}
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2.5">
-                  {nextDays.map((d) => (
-                    <button
-                      key={d.id}
-                      type="button"
-                      onClick={() => setSelectedDay(d.id)}
-                      className={`p-2.5 rounded-2xl border text-center transition-all cursor-pointer ${
-                        selectedDay === d.id
-                          ? 'border-[#16A34A] bg-[#0D5C3A] text-white shadow-sm'
-                          : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300'
-                      }`}
-                    >
-                      <div className="text-[11px] font-bold">{d.short}</div>
-                      <div className="text-xs font-semibold opacity-90">{d.dateNum}</div>
-                    </button>
-                  ))}
-                </div>
-
-                {/* Option Date Libre / Calendrier */}
-                <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/90 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                  <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
-                    <Calendar className="w-4 h-4 text-[#16A34A]" />
-                    <span>Autre date spécifique sur calendrier :</span>
+                {selectedPack?.isSubscription ? (
+                  <div className="space-y-2">
+                    <p className="text-[11px] text-slate-500 mb-2">
+                      L'équipe passera 4 fois dans le mois, le jour fixe que vous aurez sélectionné :
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {[
+                        'Tous les Samedis (4 passages)',
+                        'Tous les Dimanches (4 passages)',
+                        'Tous les Lundis (4 passages)',
+                        'Tous les Mercredis (4 passages)',
+                        'Tous les Vendredis (4 passages)',
+                        'Autre jour fixe au choix'
+                      ].map((item) => (
+                        <button
+                          key={item}
+                          type="button"
+                          onClick={() => setRecurringDay(item)}
+                          className={`p-2.5 rounded-xl border text-xs font-bold transition-all text-left cursor-pointer ${
+                            recurringDay === item
+                              ? 'border-[#16A34A] bg-[#0D5C3A] text-white shadow-sm'
+                              : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300'
+                          }`}
+                        >
+                          {item}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <input 
-                    type="date"
-                    min={new Date().toISOString().split('T')[0]}
-                    onChange={(e) => {
-                      if (e.target.value) {
-                        const parts = e.target.value.split('-');
-                        setSelectedDay(`Date sur-mesure : ${parts[2]}/${parts[1]}/${parts[0]}`);
-                      }
-                    }}
-                    className="px-3 py-1.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-800 bg-white focus:outline-none focus:border-[#16A34A] focus:ring-2 focus:ring-emerald-500/20 shadow-2xs"
-                  />
-                </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2.5">
+                      {nextDays.map((d) => (
+                        <button
+                          key={d.id}
+                          type="button"
+                          onClick={() => setSelectedDay(d.id)}
+                          className={`p-2.5 rounded-2xl border text-center transition-all cursor-pointer ${
+                            selectedDay === d.id
+                              ? 'border-[#16A34A] bg-[#0D5C3A] text-white shadow-sm'
+                              : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300'
+                          }`}
+                        >
+                          <div className="text-[11px] font-bold">{d.short}</div>
+                          <div className="text-xs font-semibold opacity-90">{d.dateNum}</div>
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Option Date Libre / Calendrier */}
+                    <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/90 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                      <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                        <Calendar className="w-4 h-4 text-[#16A34A]" />
+                        <span>Autre date spécifique sur calendrier :</span>
+                      </div>
+                      <input 
+                        type="date"
+                        min={new Date().toISOString().split('T')[0]}
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            const parts = e.target.value.split('-');
+                            setSelectedDay(`Date sur-mesure : ${parts[2]}/${parts[1]}/${parts[0]}`);
+                          }
+                        }}
+                        className="px-3 py-1.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-800 bg-white focus:outline-none focus:border-[#16A34A] focus:ring-2 focus:ring-emerald-500/20 shadow-2xs"
+                      />
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* ÉTAPE 3 : SÉLECTION DE L'HEURE (CRÉNEAUX + HEURE LIBRE) */}
@@ -834,12 +939,12 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
       )}
 
       {/* ========================================================================= */}
-      {/* 5. SLIDER AVANT / APRÈS (ANIMATION DOUCE AUTONOME)                         */}
+      {/* 5. SLIDER AVANT / APRÈS (ANIMATION DOUCE AUTONOME • VOITURE EN PRIORITÉ)   */}
       {/* ========================================================================= */}
       <section id="avant-apres" className="py-16 sm:py-20 bg-[#FAFAF8] relative z-10">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
           
-          <div className="text-center mb-10">
+          <div className="text-center mb-8">
             <span className="text-xs uppercase font-extrabold tracking-widest text-[#16A34A] bg-emerald-50 border border-emerald-200 px-3.5 py-1.5 rounded-full">
               RÉSULTAT VISIBLE
             </span>
@@ -847,8 +952,38 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
               L'Effet Avant / Après
             </h2>
             <p className="text-slate-500 text-xs sm:text-sm mt-1">
-              Observez la puissance du décapage et du shampouinage vapeur Kärcher.
+              Observez la puissance de notre nettoyage haute précision à Dakar.
             </p>
+          </div>
+
+          {/* Sélecteur de Thème : Nettoyage Auto en 1er comme demandé par Mamadou */}
+          <div className="flex justify-center mb-7">
+            <div className="bg-slate-200/90 p-1.5 rounded-2xl flex items-center gap-1.5 shadow-inner">
+              <button
+                type="button"
+                onClick={() => setSliderTheme('auto')}
+                className={`px-4 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center gap-2 ${
+                  sliderTheme === 'auto'
+                    ? 'bg-[#0D5C3A] text-white shadow-md'
+                    : 'text-slate-700 hover:text-slate-900'
+                }`}
+              >
+                <Car className="w-4 h-4" />
+                <span>Rénovation & Lavage Auto</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSliderTheme('sofa')}
+                className={`px-4 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center gap-2 ${
+                  sliderTheme === 'sofa'
+                    ? 'bg-[#0D5C3A] text-white shadow-md'
+                    : 'text-slate-700 hover:text-slate-900'
+                }`}
+              >
+                <Sofa className="w-4 h-4" />
+                <span>Canapés & Salons</span>
+              </button>
+            </div>
           </div>
 
           <div 
@@ -858,31 +993,63 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
             onTouchStart={() => setIsSliderHovered(true)}
             onTouchEnd={() => setIsSliderHovered(false)}
           >
-            {/* Image APRÈS */}
-            <img 
-              src="https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1200&q=80" 
-              alt="Canapé immaculé après passage TAARU SET" 
-              className="absolute inset-0 w-full h-full object-cover"
-            />
-            <div className="absolute top-4 right-4 bg-emerald-800/90 text-white text-xs font-bold px-3 py-1.5 rounded-full backdrop-blur-sm">
-              APRÈS : Propre & Rénové ✨
-            </div>
+            {sliderTheme === 'auto' ? (
+              <>
+                {/* Image APRÈS AUTO */}
+                <img 
+                  src="https://images.unsplash.com/photo-1607860108855-64acf2078ed9?auto=format&fit=crop&w=1200&q=80" 
+                  alt="Nettoyage et rénovation auto impeccable TAARU SET" 
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+                <div className="absolute top-4 right-4 bg-emerald-800/95 text-white text-xs font-black px-3.5 py-1.5 rounded-full backdrop-blur-sm shadow-md">
+                  APRÈS : Véhicule Étincelant & Propre ✨
+                </div>
 
-            {/* Image AVANT */}
-            <div 
-              className="absolute inset-0 overflow-hidden" 
-              style={{ width: `${sliderPos}%` }}
-            >
-              <img 
-                src="https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1200&q=80" 
-                alt="Canapé avant passage" 
-                className="absolute inset-0 w-full h-full object-cover filter contrast-125 sepia-[0.35] brightness-75"
-                style={{ width: '100%', minWidth: '100%', height: '100%' }}
-              />
-              <div className="absolute top-4 left-4 bg-slate-900/90 text-white text-xs font-bold px-3 py-1.5 rounded-full backdrop-blur-sm">
-                AVANT : Poussière & Taches ❌
-              </div>
-            </div>
+                {/* Image AVANT AUTO */}
+                <div 
+                  className="absolute inset-0 overflow-hidden" 
+                  style={{ width: `${sliderPos}%` }}
+                >
+                  <img 
+                    src="https://images.unsplash.com/photo-1607860108855-64acf2078ed9?auto=format&fit=crop&w=1200&q=80" 
+                    alt="Véhicule avant nettoyage" 
+                    className="absolute inset-0 w-full h-full object-cover filter contrast-125 sepia-[0.5] brightness-70 hue-rotate-15"
+                    style={{ width: '100%', minWidth: '100%', height: '100%' }}
+                  />
+                  <div className="absolute top-4 left-4 bg-slate-950/95 text-white text-xs font-black px-3.5 py-1.5 rounded-full backdrop-blur-sm shadow-md">
+                    AVANT : Poussière, Sable & Taches ❌
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Image APRÈS CANAPÉ */}
+                <img 
+                  src="https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1200&q=80" 
+                  alt="Canapé immaculé après passage TAARU SET" 
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+                <div className="absolute top-4 right-4 bg-emerald-800/95 text-white text-xs font-black px-3.5 py-1.5 rounded-full backdrop-blur-sm shadow-md">
+                  APRÈS : Tissu Purifié & Rénové ✨
+                </div>
+
+                {/* Image AVANT CANAPÉ */}
+                <div 
+                  className="absolute inset-0 overflow-hidden" 
+                  style={{ width: `${sliderPos}%` }}
+                >
+                  <img 
+                    src="https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1200&q=80" 
+                    alt="Canapé avant passage" 
+                    className="absolute inset-0 w-full h-full object-cover filter contrast-125 sepia-[0.35] brightness-75"
+                    style={{ width: '100%', minWidth: '100%', height: '100%' }}
+                  />
+                  <div className="absolute top-4 left-4 bg-slate-950/95 text-white text-xs font-black px-3.5 py-1.5 rounded-full backdrop-blur-sm shadow-md">
+                    AVANT : Poussière & Taches ❌
+                  </div>
+                </div>
+              </>
+            )}
 
             {/* Poignée centrale */}
             <div 
@@ -1052,6 +1219,88 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
           </a>
         </div>
       </footer>
+
+      {/* ========================================================================= */}
+      {/* MODALE DE RÉCAPITULATIF & CONFIRMATION DE DEMANDE (Demandée par Mamadou)  */}
+      {/* ========================================================================= */}
+      {reservationSummary && (
+        <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-md">
+          <div className="relative w-full max-w-lg bg-white rounded-[2.5rem] p-6 sm:p-8 shadow-2xl border border-slate-100 flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-200">
+            
+            {/* Icône de Succès Animée */}
+            <div className="w-16 h-16 rounded-full bg-emerald-100 text-[#16A34A] flex items-center justify-center mb-4 shadow-lg shadow-emerald-500/20">
+              <Check className="w-8 h-8 stroke-[3]" />
+            </div>
+
+            <span className="text-[11px] uppercase font-black tracking-widest text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full mb-2">
+              DEMANDE TRANSMISE SUR WHATSAPP
+            </span>
+
+            <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight mb-2">
+              Votre demande a bien été envoyée !
+            </h3>
+
+            <p className="text-slate-600 text-xs sm:text-sm leading-relaxed mb-6 font-medium max-w-md">
+              Mamadou et l'équipe <strong className="text-slate-900">TAARU SET</strong> ont reçu votre récapitulatif sur WhatsApp. Nous vous contactons pour confirmer l'horaire précis et le déplacement de l'équipe.
+            </p>
+
+            {/* Fiche Récapitulative */}
+            <div className="w-full bg-[#FAFAF8] rounded-2xl p-4 sm:p-5 border border-slate-200/80 text-left space-y-2.5 text-xs mb-6 font-medium">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                <span className="text-slate-500">Service :</span>
+                <span className="font-bold text-slate-900">{reservationSummary.service}</span>
+              </div>
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                <span className="text-slate-500">Formule :</span>
+                <span className="font-bold text-slate-900">{reservationSummary.pack}</span>
+              </div>
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                <span className="text-slate-500">Tarif total :</span>
+                <span className="font-black text-[#0D5C3A] font-mono text-sm">{reservationSummary.price}</span>
+              </div>
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                <span className="text-slate-500">Date / Fréquence :</span>
+                <span className="font-bold text-slate-900">{reservationSummary.dateInfo}</span>
+              </div>
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                <span className="text-slate-500">Créneau :</span>
+                <span className="font-bold text-slate-900">{reservationSummary.time}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">Lieu d'intervention :</span>
+                <span className="font-bold text-slate-900 text-right">{reservationSummary.quarter} • {reservationSummary.address}</span>
+              </div>
+            </div>
+
+            {/* Statut Rassurant */}
+            <div className="w-full mb-6 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-bold flex items-center justify-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>Statut : En attente de confirmation par Mamadou (Délai moyen : 15 min)</span>
+            </div>
+
+            {/* Boutons d'Action */}
+            <div className="flex flex-col sm:flex-row gap-2.5 w-full">
+              <button
+                type="button"
+                onClick={() => setReservationSummary(null)}
+                className="w-full py-3.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold text-xs transition-colors cursor-pointer"
+              >
+                Fermer
+              </button>
+              <a
+                href="https://wa.me/221771548610"
+                target="_blank"
+                rel="noreferrer"
+                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#0D5C3A] to-[#16A34A] text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-900/20"
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span>Rouvrir la discussion WhatsApp</span>
+              </a>
+            </div>
+
+          </div>
+        </div>
+      )}
 
       {/* BOUTON FLOTTANT WHATSAPP DIRECT */}
       <a 

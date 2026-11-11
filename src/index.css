@@ -12,8 +12,8 @@
   --color-charbon: #0F172A;
   --color-textemuted: #64748B;
 
-  --font-serif: "Outfit", Georgia, serif;
-  --font-sans: "Outfit", "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-serif: "Nunito", "Outfit", Georgia, serif;
+  --font-sans: "Nunito", "Outfit", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", monospace;
 }
 
