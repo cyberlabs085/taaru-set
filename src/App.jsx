@@ -282,8 +282,8 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
       {/* ========================================================================= */}
       {/* 1. NAVBAR PARFAITEMENT ÉQUILIBRÉE SUR MOBILE ET DESKTOP (ZÉRO COLLISION) */}
       {/* ========================================================================= */}
-      <header className="fixed top-3 sm:top-5 inset-x-0 z-40 flex justify-center px-3 sm:px-6 pointer-events-none">
-        <nav className="w-full max-w-5xl bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-full px-3.5 sm:px-6 py-2.5 sm:py-3 shadow-[0_10px_30px_-10px_rgba(13,92,58,0.12)] flex items-center justify-between pointer-events-auto">
+      <header className="fixed top-2.5 sm:top-5 inset-x-0 z-40 flex justify-center px-3 sm:px-6 pointer-events-none">
+        <nav className="w-full max-w-5xl bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-full px-3.5 sm:px-6 py-2 sm:py-3 shadow-[0_10px_30px_-10px_rgba(13,92,58,0.12)] flex items-center justify-between gap-3 pointer-events-auto">
           
           {/* Logo Minimaliste Épuré (Monogramme Arrondi + TAARU SET) */}
           <a href="#" className="flex items-center gap-2 group shrink-0">
@@ -304,14 +304,14 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
             <a href="#temoignages" className="hover:text-[#16A34A] transition-colors">Avis Clients</a>
           </div>
 
-          {/* CTA Principal : Concis sur mobile (Réserver) et Complet sur ordi */}
+          {/* CTA Principal : Concis et parfaitement dimensionné sur mobile */}
           <div className="flex items-center shrink-0">
             <button 
               onClick={() => handleOpenDrawer('auto')}
-              className="px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-full bg-gradient-to-r from-[#0D5C3A] to-[#16A34A] hover:opacity-95 text-white text-xs sm:text-sm font-bold shadow-md shadow-emerald-900/15 hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-1.5 sm:gap-2 shrink-0 cursor-pointer"
+              className="px-3 py-1.5 sm:px-5 sm:py-2.5 rounded-full bg-gradient-to-r from-[#0D5C3A] to-[#16A34A] hover:opacity-95 text-white text-xs sm:text-sm font-bold shadow-md shadow-emerald-900/15 hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-1.5 sm:gap-2 shrink-0 cursor-pointer"
             >
               <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-              <span className="sm:hidden font-extrabold text-xs">Réserver</span>
+              <span className="sm:hidden font-extrabold text-[11px]">Réserver</span>
               <span className="hidden sm:inline font-extrabold">Réserver une intervention</span>
             </button>
           </div>
