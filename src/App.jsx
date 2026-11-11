@@ -1048,6 +1048,19 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
             onTouchStart={() => setIsSliderHovered(true)}
             onTouchEnd={() => setIsSliderHovered(false)}
           >
+            {/* Badges Fixes Haut Gauche (AVANT) et Haut Droite (APRÈS) : ZÉRO COLLISION sur Mobile & Ordi */}
+            <div className="absolute top-3 sm:top-4 left-3 sm:left-4 z-20 pointer-events-none">
+              <span className="px-3 sm:px-3.5 py-1 sm:py-1.5 rounded-full bg-slate-950/90 backdrop-blur-md text-white text-[10px] sm:text-xs font-black tracking-wider uppercase border border-white/20 shadow-md">
+                AVANT ❌
+              </span>
+            </div>
+
+            <div className="absolute top-3 sm:top-4 right-3 sm:right-4 z-20 pointer-events-none">
+              <span className="px-3 sm:px-3.5 py-1 sm:py-1.5 rounded-full bg-emerald-800/95 backdrop-blur-md text-white text-[10px] sm:text-xs font-black tracking-wider uppercase border border-emerald-400/30 shadow-md">
+                APRÈS ✨
+              </span>
+            </div>
+
             {sliderTheme === 'auto' ? (
               <>
                 {/* Image APRÈS AUTO : Rénovation pure detailing Range Rover sans personne (Ultra optimisée) */}
@@ -1058,9 +1071,6 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
                   loading="lazy"
                   decoding="async"
                 />
-                <div className="absolute top-4 right-4 bg-emerald-800/95 text-white text-xs font-black px-3.5 py-1.5 rounded-full backdrop-blur-sm shadow-md z-10">
-                  APRÈS : Carrosserie Miroir & Finition Kärcher ✨
-                </div>
 
                 {/* Image AVANT AUTO : Véhicule avec poussière, voile terne et sable de Dakar */}
                 <div 
@@ -1076,9 +1086,6 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
                     decoding="async"
                   />
                   <div className="absolute inset-0 bg-amber-950/35 pointer-events-none mix-blend-multiply" />
-                  <div className="absolute top-4 left-4 bg-slate-950/95 text-white text-xs font-black px-3.5 py-1.5 rounded-full backdrop-blur-sm shadow-md z-10">
-                    AVANT : Poussière, Sable Rouge & Taches ❌
-                  </div>
                 </div>
               </>
             ) : (
@@ -1091,9 +1098,6 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
                   loading="lazy"
                   decoding="async"
                 />
-                <div className="absolute top-4 right-4 bg-emerald-800/95 text-white text-xs font-black px-3.5 py-1.5 rounded-full backdrop-blur-sm shadow-md z-10">
-                  APRÈS : Tissu Purifié & Rénové ✨
-                </div>
 
                 {/* Image AVANT CANAPÉ */}
                 <div 
@@ -1108,9 +1112,6 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
                     loading="lazy"
                     decoding="async"
                   />
-                  <div className="absolute top-4 left-4 bg-slate-950/95 text-white text-xs font-black px-3.5 py-1.5 rounded-full backdrop-blur-sm shadow-md z-10">
-                    AVANT : Poussière & Taches ❌
-                  </div>
                 </div>
               </>
             )}
