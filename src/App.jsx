@@ -334,9 +334,9 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
             </div>
 
             <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold text-slate-900 tracking-tight leading-[1.14] mb-5">
-              Le propre impeccable, <br />
+              On vient chez vous. <br />
               <span className="text-[#16A34A]">
-                sans bouger de chez vous.
+                Vous profitez du propre.
               </span>
             </h1>
 
