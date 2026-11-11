@@ -9,6 +9,8 @@ import {
 import teamCleanHdImg from './assets/team_clean_hd.jpg';
 // Logo officiel TAARU SET
 import logoOfficialSq from './assets/logo_official_sq.jpg';
+// Vraie photo de véhicule sale avant nettoyage (Poussière, boue et sable réel de Dakar)
+import dirtyCarBeforeImg from './assets/dirty_car_before.jpg';
 
 export default function App() {
   // --- ÉTATS DU VOLET GLISSANT DE RÉSERVATION (Demandé par Mamadou) ---
@@ -276,12 +278,16 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
     return () => cancelAnimationFrame(animId);
   }, [isSliderHovered]);
 
-  // --- BASCULE AUTOMATIQUE DU THÈME AVANT/APRÈS (VOITURE ⟷ CANAPÉ SANS CLIQUER DEMANDÉ PAR L'UTILISATEUR) ---
+  // --- BASCULE AUTOMATIQUE DU THÈME AVANT/APRÈS (VOITURE ⟷ CANAPÉ ⟷ FIN DE CHANTIER SANS CLIQUER) ---
   useEffect(() => {
     if (isSliderHovered) return;
     const interval = setInterval(() => {
-      setSliderTheme((prev) => (prev === 'auto' ? 'sofa' : 'auto'));
-    }, 4200); // Alterne automatiquement toutes les 4.2 secondes entre Voiture et Canapé
+      setSliderTheme((prev) => {
+        if (prev === 'auto') return 'sofa';
+        if (prev === 'sofa') return 'chantier';
+        return 'auto';
+      });
+    }, 4500); // Alterne automatiquement toutes les 4.5 secondes entre les 3 services
     return () => clearInterval(interval);
   }, [isSliderHovered]);
 
@@ -1078,13 +1084,13 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
             </p>
           </div>
 
-          {/* Sélecteur de Thème (Voiture / Canapé) */}
+          {/* Sélecteur de Thème (Voiture / Canapé / Fin de Chantier) */}
           <div className="flex items-center justify-center mb-5">
-            <div className="bg-slate-200/90 p-1.5 rounded-2xl flex items-center gap-1.5 shadow-inner">
+            <div className="bg-slate-200/90 p-1.5 rounded-2xl flex items-center gap-1 sm:gap-1.5 shadow-inner max-w-full overflow-x-auto">
               <button
                 type="button"
                 onClick={() => setSliderTheme('auto')}
-                className={`px-4 sm:px-6 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center gap-2 ${
+                className={`px-3.5 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
                   sliderTheme === 'auto'
                     ? 'bg-[#0D5C3A] text-white shadow-md'
                     : 'text-slate-700 hover:text-slate-900'
@@ -1096,7 +1102,7 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
               <button
                 type="button"
                 onClick={() => setSliderTheme('sofa')}
-                className={`px-4 sm:px-6 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center gap-2 ${
+                className={`px-3.5 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
                   sliderTheme === 'sofa'
                     ? 'bg-[#0D5C3A] text-white shadow-md'
                     : 'text-slate-700 hover:text-slate-900'
@@ -1104,6 +1110,18 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
               >
                 <Sofa className="w-4 h-4" />
                 <span>Canapés & Salons</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSliderTheme('chantier')}
+                className={`px-3.5 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
+                  sliderTheme === 'chantier'
+                    ? 'bg-[#0D5C3A] text-white shadow-md'
+                    : 'text-slate-700 hover:text-slate-900'
+                }`}
+              >
+                <Home className="w-4 h-4" />
+                <span>Fin de Chantier</span>
               </button>
             </div>
           </div>
@@ -1128,9 +1146,9 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
               </span>
             </div>
 
-            {sliderTheme === 'auto' ? (
+            {sliderTheme === 'auto' && (
               <>
-                {/* Image APRÈS AUTO : Rénovation pure detailing Range Rover sans personne (Ultra optimisée) */}
+                {/* Image APRÈS AUTO : Rénovation pure detailing Range Rover impeccable */}
                 <img 
                   src="https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=800&q=75" 
                   alt="Carrosserie miroir et rénovation auto impeccable TAARU SET" 
@@ -1139,25 +1157,26 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
                   decoding="async"
                 />
 
-                {/* Image AVANT AUTO : Véhicule avec poussière, voile terne et sable de Dakar */}
+                {/* Image AVANT AUTO : VRAIE VOITURE AVEC BOUE, POUSSIÈRE ET SABLE RÉEL */}
                 <div 
                   className="absolute inset-0 overflow-hidden" 
                   style={{ width: `${sliderPos}%` }}
                 >
                   <img 
-                    src="https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=800&q=75" 
-                    alt="Véhicule avant nettoyage avec poussière et sable" 
-                    className="absolute inset-0 w-full h-full object-cover object-center filter contrast-125 sepia-[0.75] brightness-65 hue-rotate-[-20deg] saturate-150"
+                    src={dirtyCarBeforeImg} 
+                    alt="Véhicule avant nettoyage recouvert de boue et poussière" 
+                    className="absolute inset-0 w-full h-full object-cover object-center"
                     style={{ width: '100%', minWidth: '100%', height: '100%' }}
                     loading="lazy"
                     decoding="async"
                   />
-                  <div className="absolute inset-0 bg-amber-950/35 pointer-events-none mix-blend-multiply" />
                 </div>
               </>
-            ) : (
+            )}
+
+            {sliderTheme === 'sofa' && (
               <>
-                {/* Image APRÈS CANAPÉ (Ultra optimisée) */}
+                {/* Image APRÈS CANAPÉ */}
                 <img 
                   src="https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=800&q=75" 
                   alt="Canapé immaculé après passage TAARU SET" 
@@ -1173,12 +1192,42 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
                 >
                   <img 
                     src="https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=800&q=75" 
-                    alt="Canapé avant passage" 
-                    className="absolute inset-0 w-full h-full object-cover filter contrast-125 sepia-[0.4] brightness-70"
+                    alt="Canapé avant passage avec taches et poussière" 
+                    className="absolute inset-0 w-full h-full object-cover filter contrast-125 sepia-[0.55] brightness-70"
                     style={{ width: '100%', minWidth: '100%', height: '100%' }}
                     loading="lazy"
                     decoding="async"
                   />
+                  <div className="absolute inset-0 bg-stone-900/30 pointer-events-none mix-blend-multiply" />
+                </div>
+              </>
+            )}
+
+            {sliderTheme === 'chantier' && (
+              <>
+                {/* Image APRÈS FIN DE CHANTIER (Sol immaculé, murs blancs décapés) */}
+                <img 
+                  src="https://images.unsplash.com/photo-1646592474151-d3841bff594a?auto=format&fit=crop&w=800&q=75" 
+                  alt="Villa neuve et sol décapé après passage TAARU SET" 
+                  className="absolute inset-0 w-full h-full object-cover"
+                  loading="lazy"
+                  decoding="async"
+                />
+
+                {/* Image AVANT FIN DE CHANTIER (Résidus de poussière de ciment et peinture) */}
+                <div 
+                  className="absolute inset-0 overflow-hidden" 
+                  style={{ width: `${sliderPos}%` }}
+                >
+                  <img 
+                    src="https://images.unsplash.com/photo-1646592474151-d3841bff594a?auto=format&fit=crop&w=800&q=75" 
+                    alt="Sol et pièces avant décapage avec poussière de chantier" 
+                    className="absolute inset-0 w-full h-full object-cover filter contrast-125 brightness-75 sepia-[0.4]"
+                    style={{ width: '100%', minWidth: '100%', height: '100%' }}
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  <div className="absolute inset-0 bg-stone-500/35 pointer-events-none mix-blend-multiply" />
                 </div>
               </>
             )}
@@ -1206,6 +1255,33 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
               onChange={(e) => setSliderPos(Number(e.target.value))}
               className="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize z-20"
             />
+          </div>
+
+          {/* Légende Dynamique du Résultat */}
+          <div className="mt-4 p-3 sm:p-4 rounded-2xl bg-white border border-slate-200/90 shadow-xs flex items-center justify-between gap-3 text-left">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-emerald-100 text-[#0D5C3A] flex items-center justify-center shrink-0 shadow-2xs">
+                {sliderTheme === 'auto' ? <Car className="w-5 h-5" /> : sliderTheme === 'sofa' ? <Sofa className="w-5 h-5" /> : <Home className="w-5 h-5" />}
+              </div>
+              <div>
+                <div className="text-xs sm:text-sm font-extrabold text-slate-900">
+                  {sliderTheme === 'auto' && 'Rénovation Carrosserie & Habitacle : Décapage du sable rouge et film routier'}
+                  {sliderTheme === 'sofa' && 'Désinfection & Shampouinage Kärcher : Élimination des taches, acariens et odeurs'}
+                  {sliderTheme === 'chantier' && 'Remise en État Clé en Main : Décapage ciment, résidus de colle, sols et vitres'}
+                </div>
+                <div className="text-[11px] text-slate-500 mt-0.5">
+                  Résultat garanti par l'équipe TAARU SET avec matériel professionnel Kärcher.
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleOpenDrawer(sliderTheme === 'chantier' ? 'chantier' : sliderTheme === 'sofa' ? 'textile' : 'auto')}
+              className="hidden sm:flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#0D5C3A] text-white text-xs font-bold hover:bg-[#16A34A] transition-colors shrink-0 cursor-pointer"
+            >
+              <span>Réserver</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
           </div>
 
         </div>
