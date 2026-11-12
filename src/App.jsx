@@ -11,6 +11,8 @@ import teamCleanHdImg from './assets/team_clean_hd.jpg';
 import logoOfficialSq from './assets/logo_official_sq.jpg';
 // Vraie photo de véhicule sale avant nettoyage (Poussière, boue et sable réel de Dakar)
 import dirtyCarBeforeImg from './assets/dirty_car_before.jpg';
+// Vraie photo de chantier brut / fin de travaux avant décapage et nettoyage
+import chantierBeforeImg from './assets/chantier_before.jpg';
 
 export default function App() {
   // --- ÉTATS DU VOLET GLISSANT DE RÉSERVATION (Demandé par Mamadou) ---
@@ -1203,28 +1205,27 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
 
             {sliderTheme === 'chantier' && (
               <>
-                {/* Image APRÈS FIN DE CHANTIER (Sol immaculé, murs blancs décapés) */}
+                {/* Image APRÈS FIN DE CHANTIER : Villa de standing après remise à neuf complète */}
                 <img 
-                  src="https://images.unsplash.com/photo-1646592474151-d3841bff594a?auto=format&fit=crop&w=800&q=75" 
-                  alt="Villa neuve et sol décapé après passage TAARU SET" 
-                  className="absolute inset-0 w-full h-full object-cover"
+                  src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=800&q=75" 
+                  alt="Villa de standing étincelante et prête à emménager TAARU SET" 
+                  className="absolute inset-0 w-full h-full object-cover object-center"
                   loading="eager"
                   decoding="sync"
                 />
 
-                {/* Image AVANT FIN DE CHANTIER (Résidus de poussière de ciment et peinture) */}
+                {/* Image AVANT FIN DE CHANTIER : VRAI CHANTIER EN TRAVAUX AVEC POUSSIÈRE, ESCABEAU, BÉTON ET PEINTURE */}
                 <div 
                   className="absolute inset-0 overflow-hidden" 
                   style={{ width: `${sliderPos}%` }}
                 >
                   <img 
-                    src="https://images.unsplash.com/photo-1646592474151-d3841bff594a?auto=format&fit=crop&w=800&q=75" 
-                    alt="Sol et pièces avant décapage avec poussière de chantier" 
-                    className="absolute top-0 left-0 h-full w-[100cqw] max-w-none object-cover filter contrast-125 brightness-75 sepia-[0.4]"
+                    src={chantierBeforeImg} 
+                    alt="Chantier brut avant décapage avec seaux de peinture, poussière et gravats" 
+                    className="absolute top-0 left-0 h-full w-[100cqw] max-w-none object-cover object-center"
                     loading="eager"
                     decoding="sync"
                   />
-                  <div className="absolute inset-0 bg-stone-500/35 pointer-events-none mix-blend-multiply" />
                 </div>
               </>
             )}
