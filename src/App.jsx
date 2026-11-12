@@ -14,7 +14,262 @@ import dirtyCarBeforeImg from './assets/dirty_car_before.jpg';
 import cleanCarAfterImg from './assets/clean_car_after.jpg';
 import chantierBeforeImg from './assets/chantier_before.jpg';
 import chantierAfterImg from './assets/chantier_after.jpg';
+import sofaBeforeImg from './assets/sofa_before.jpg';
 import cleanSofaAfterImg from './assets/clean_sofa_after.jpg';
+
+// ============================================================================
+// COMPOSANT COMPARATEUR AVANT / APRÈS (AUTONOME & GPU ACCÉLÉRÉ • 0 RE-RENDER APP)
+// ============================================================================
+function BeforeAfterSection({ handleOpenDrawer }) {
+  const [sliderTheme, setSliderTheme] = useState('auto');
+  const [sliderPos, setSliderPos] = useState(50);
+  const [isHovered, setIsHovered] = useState(false);
+
+  // Animation sinusoïdale fluide au repos
+  useEffect(() => {
+    let animId;
+    let startTimestamp = null;
+
+    const animateLoop = (timestamp) => {
+      if (!isHovered) {
+        if (!startTimestamp) startTimestamp = timestamp;
+        const elapsed = (timestamp - startTimestamp) / 1000;
+        const pos = 50 + 26 * Math.sin(elapsed * 1.35);
+        setSliderPos(Number(pos.toFixed(1)));
+      } else {
+        startTimestamp = null;
+      }
+      animId = requestAnimationFrame(animateLoop);
+    };
+
+    animId = requestAnimationFrame(animateLoop);
+    return () => cancelAnimationFrame(animId);
+  }, [isHovered]);
+
+  // Rotation des thèmes toutes les 5.5s
+  useEffect(() => {
+    if (isHovered) return;
+    const interval = setInterval(() => {
+      setSliderTheme((prev) => {
+        if (prev === 'auto') return 'sofa';
+        if (prev === 'sofa') return 'chantier';
+        return 'auto';
+      });
+    }, 5500);
+    return () => clearInterval(interval);
+  }, [isHovered]);
+
+  return (
+    <section id="avant-apres" className="py-10 sm:py-14 bg-[#FAFAF8] relative z-10 border-t border-slate-200/60">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6">
+        
+        <div className="text-center mb-5">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-[#0D5C3A] text-xs font-mono font-bold tracking-wider uppercase mb-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+            <span>CONTRÔLE QUALITÉ • CONSTAT DIRECT</span>
+          </div>
+          <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+            Résultats Avant & Après Traitement
+          </h2>
+          <p className="text-slate-500 text-xs sm:text-sm mt-1 max-w-lg mx-auto">
+            Glissez le séparateur pour observer le décapage de la poussière dakaroise et des résidus de chantier.
+          </p>
+        </div>
+
+        {/* Sélecteur de Thème */}
+        <div className="flex items-center justify-center mb-5">
+          <div className="bg-slate-200/90 p-1.5 rounded-2xl flex items-center gap-1 sm:gap-1.5 shadow-inner max-w-full overflow-x-auto">
+            <button
+              type="button"
+              onClick={() => setSliderTheme('auto')}
+              className={`px-3.5 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
+                sliderTheme === 'auto'
+                  ? 'bg-[#0D5C3A] text-white shadow-md'
+                  : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200/60'
+              }`}
+            >
+              <Car className="w-4 h-4" />
+              <span>Rénovation Auto</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSliderTheme('sofa')}
+              className={`px-3.5 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
+                sliderTheme === 'sofa'
+                  ? 'bg-[#0D5C3A] text-white shadow-md'
+                  : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200/60'
+              }`}
+            >
+              <Sofa className="w-4 h-4" />
+              <span>Canapés & Salons</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSliderTheme('chantier')}
+              className={`px-3.5 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
+                sliderTheme === 'chantier'
+                  ? 'bg-[#0D5C3A] text-white shadow-md'
+                  : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200/60'
+              }`}
+            >
+              <Home className="w-4 h-4" />
+              <span>Fin de Chantier</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Cadre Comparateur 16/9 */}
+        <div 
+          className="@container relative rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden shadow-2xl border-2 border-slate-200 aspect-[16/9] select-none cursor-ew-resize group"
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+          onTouchStart={() => setIsHovered(true)}
+          onTouchEnd={() => setIsHovered(false)}
+        >
+          {/* Badge Gauche Fixe : AVANT INTERVENTION */}
+          <div className="absolute top-3 sm:top-4 left-3 sm:left-4 z-20 pointer-events-none">
+            <span className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1 sm:py-1.5 rounded-full bg-slate-950/85 backdrop-blur-md text-white text-[10px] sm:text-xs font-black tracking-wider uppercase border border-white/20 shadow-md">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+              <span>AVANT INTERVENTION</span>
+            </span>
+          </div>
+
+          {/* Badge Droite Fixe : RÉSULTAT NETTOYÉ */}
+          <div className="absolute top-3 sm:top-4 right-3 sm:right-4 z-20 pointer-events-none">
+            <span className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1 sm:py-1.5 rounded-full bg-emerald-950/85 backdrop-blur-md text-white text-[10px] sm:text-xs font-black tracking-wider uppercase border border-emerald-400/30 shadow-md">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+              <span>RÉSULTAT NETTOYÉ</span>
+            </span>
+          </div>
+
+          {/* 1. AUTO */}
+          {sliderTheme === 'auto' && (
+            <>
+              <img 
+                src={cleanCarAfterImg} 
+                alt="Carrosserie miroir et rénovation auto impeccable TAARU SET" 
+                className="absolute inset-0 w-full h-full object-cover object-center"
+                loading="eager"
+                decoding="sync"
+              />
+              <div 
+                className="absolute inset-0 overflow-hidden" 
+                style={{ width: `${sliderPos}%` }}
+              >
+                <img 
+                  src={dirtyCarBeforeImg} 
+                  alt="Véhicule avant nettoyage recouvert de boue et poussière" 
+                  className="absolute top-0 left-0 h-full w-[100cqw] max-w-none object-cover object-center"
+                  loading="eager"
+                  decoding="sync"
+                />
+              </div>
+            </>
+          )}
+
+          {/* 2. CANAPÉ (VRAIE PHOTO AVANT & VRAIE PHOTO APRÈS SANS FILTRE CSS) */}
+          {sliderTheme === 'sofa' && (
+            <>
+              <img 
+                src={cleanSofaAfterImg} 
+                alt="Canapé immaculé après passage TAARU SET" 
+                className="absolute inset-0 w-full h-full object-cover object-center"
+                loading="eager"
+                decoding="sync"
+              />
+              <div 
+                className="absolute inset-0 overflow-hidden" 
+                style={{ width: `${sliderPos}%` }}
+              >
+                <img 
+                  src={sofaBeforeImg} 
+                  alt="Canapé avant passage avec taches et poussière incrustée" 
+                  className="absolute top-0 left-0 h-full w-[100cqw] max-w-none object-cover object-center"
+                  loading="eager"
+                  decoding="sync"
+                />
+              </div>
+            </>
+          )}
+
+          {/* 3. FIN DE CHANTIER (VRAIE PHOTO AVANT & VRAIE PHOTO APRÈS) */}
+          {sliderTheme === 'chantier' && (
+            <>
+              <img 
+                src={chantierAfterImg} 
+                alt="Villa de standing étincelante et prête à emménager TAARU SET" 
+                className="absolute inset-0 w-full h-full object-cover object-center"
+                loading="eager"
+                decoding="sync"
+              />
+              <div 
+                className="absolute inset-0 overflow-hidden" 
+                style={{ width: `${sliderPos}%` }}
+              >
+                <img 
+                  src={chantierBeforeImg} 
+                  alt="Chantier brut avant décapage avec seaux de peinture, poussière et gravats" 
+                  className="absolute top-0 left-0 h-full w-[100cqw] max-w-none object-cover object-center"
+                  loading="eager"
+                  decoding="sync"
+                />
+              </div>
+            </>
+          )}
+
+          {/* Poignée centrale */}
+          <div 
+            className="absolute top-0 bottom-0 w-1 bg-white cursor-ew-resize flex items-center justify-center shadow-lg pointer-events-none"
+            style={{ left: `${sliderPos}%` }}
+          >
+            <div className="w-8 h-8 rounded-full bg-white text-[#0D5C3A] font-extrabold text-xs flex items-center justify-center shadow-md border border-slate-200">
+              ↔
+            </div>
+          </div>
+
+          {/* Contrôle par curseur / toucher direct */}
+          <input 
+            type="range" 
+            min="5" 
+            max="95" 
+            value={sliderPos} 
+            onChange={(e) => setSliderPos(Number(e.target.value))}
+            className="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize z-20"
+            aria-label="Glisser pour comparer l'état avant et après nettoyage"
+          />
+        </div>
+
+        {/* Fiche Technique Bas de Comparateur */}
+        <div className="mt-4 p-3.5 sm:p-4 rounded-2xl bg-white border border-slate-200/90 shadow-xs flex items-center justify-between gap-3 text-left">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-[#0D5C3A] flex items-center justify-center shrink-0 border border-emerald-100 shadow-2xs">
+              {sliderTheme === 'auto' ? <Car className="w-5 h-5" /> : sliderTheme === 'sofa' ? <Sofa className="w-5 h-5" /> : <Home className="w-5 h-5" />}
+            </div>
+            <div>
+              <div className="text-xs sm:text-sm font-extrabold text-slate-900">
+                {sliderTheme === 'auto' && 'Rénovation Carrosserie & Habitacle : Décapage du sable rouge et film routier'}
+                {sliderTheme === 'sofa' && 'Désinfection & Shampouinage Textile : Élimination des taches, odeurs et acariens'}
+                {sliderTheme === 'chantier' && 'Remise en État Clé en Main : Décapage ciment, résidus de colle, sols et baies vitrées'}
+              </div>
+              <div className="text-[11px] text-slate-500 mt-0.5">
+                Intervention réalisée avec injecteur-extracteur thermique Kärcher professionnel.
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => handleOpenDrawer(sliderTheme === 'chantier' ? 'chantier' : sliderTheme === 'sofa' ? 'textile' : 'auto')}
+            className="hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#0D5C3A] text-white text-xs font-bold hover:bg-[#16A34A] transition-colors shrink-0 cursor-pointer shadow-sm"
+          >
+            <span>Réserver ce service</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+      </div>
+    </section>
+  );
+}
 
 export default function App() {
   // --- ÉTATS DU VOLET GLISSANT DE RÉSERVATION (Demandé par Mamadou) ---
@@ -33,9 +288,6 @@ export default function App() {
   const [reservationSummary, setReservationSummary] = useState(null); // Modale de Récapitulatif
 
   // --- AUTRES ÉTATS ---
-  const [sliderPos, setSliderPos] = useState(50);
-  const [sliderTheme, setSliderTheme] = useState('auto'); // 'auto' par défaut pour mettre en avant la voiture, ou 'sofa'
-  const [isSliderHovered, setIsSliderHovered] = useState(false);
   const [faqOpen, setFaqOpen] = useState(null);
 
   // --- TILT 3D DE LA CARTE HERO ---
@@ -48,7 +300,7 @@ export default function App() {
   };
   const handleMouseLeaveHero = () => setTilt({ x: 0, y: 0 });
 
-  // --- CANVAS DYNAMIQUE PARTICULES PROPRETÉ ---
+  // --- CANVAS DYNAMIQUE PARTICULES PROPRETÉ (OPTIMISÉ & SANS LATENCE) ---
   const canvasRef = useRef(null);
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -63,18 +315,24 @@ export default function App() {
     resize();
     window.addEventListener('resize', resize);
 
-    const particles = Array.from({ length: 28 }, () => ({
+    // 16 particules légères à faible opacité
+    const particles = Array.from({ length: 16 }, () => ({
       x: Math.random() * canvas.width,
       y: Math.random() * canvas.height,
-      radius: Math.random() * 2.5 + 1,
-      speedY: Math.random() * 0.4 + 0.15,
-      speedX: (Math.random() - 0.5) * 0.3,
-      opacity: Math.random() * 0.3 + 0.1
+      radius: Math.random() * 2 + 1,
+      speedY: Math.random() * 0.3 + 0.1,
+      speedX: (Math.random() - 0.5) * 0.2,
+      opacity: Math.random() * 0.2 + 0.08
     }));
 
     const render = () => {
+      if (document.hidden) {
+        animationFrameId = requestAnimationFrame(render);
+        return;
+      }
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      particles.forEach((p) => {
+      for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
         p.y -= p.speedY;
         p.x += p.speedX;
         if (p.y < -10) {
@@ -85,7 +343,7 @@ export default function App() {
         ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(22, 163, 74, ${p.opacity})`;
         ctx.fill();
-      });
+      }
       animationFrameId = requestAnimationFrame(render);
     };
     render();
@@ -212,7 +470,7 @@ export default function App() {
     const isSub = selectedPack.isSubscription;
 
     let subDetail = recurringDay;
-    if (isSub && recurringDay.includes('libres')) {
+    if (isSub && (recurringDay.includes('libres') || recurringDay.includes('personnalisées'))) {
       const datesList = customPassageDates
         .map((d, i) => {
           if (!d) return null;
@@ -228,18 +486,18 @@ export default function App() {
     }
 
     const message = 
-`Bonjour Mamadou (TAARU SET), je souhaite réserver une intervention :
+`Bonjour Mamadou (TAARU SET), je souhaite réserver une prestation :
 
-🛠️ *Service :* ${currentService.title}
-📦 *Formule :* ${selectedPack.name} (${formatPrice(selectedPack.price)})
-${isSub ? `🔄 *Formule Abonnement :* 4 lavages dans le mois\n🗓️ *Planning sélectionné :* ${subDetail}` : `📅 *Date souhaitée :* ${selectedDay || 'Premier créneau disponible'}`}
-⏰ *Créneau / Heure :* ${selectedTime}
-📍 *Quartier :* ${clientQuarter}
-🏠 *Adresse / Repère :* ${clientAddress || 'À préciser sur WhatsApp'}
-👤 *Nom du client :* ${clientName || 'Client Dakar'}
-${clientPhone ? `📞 *Téléphone :* ${clientPhone}` : ''}
+*Service :* ${currentService.title}
+*Formule :* ${selectedPack.name} (${formatPrice(selectedPack.price)})
+${isSub ? `*Formule Abonnement :* 4 passages programmés\n*Planning :* ${subDetail}` : `*Date souhaitée :* ${selectedDay || 'Premier créneau disponible'}`}
+*Créneau horaire :* ${selectedTime}
+*Quartier :* ${clientQuarter}
+*Adresse :* ${clientAddress || 'Précisée sur WhatsApp'}
+*Client :* ${clientName || 'Client Dakar'}
+${clientPhone ? `*Téléphone :* ${clientPhone}` : ''}
 
-Merci de me confirmer la réservation et le déplacement de l'équipe !`;
+Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.`;
 
     // 1. Envoi direct sur le WhatsApp officiel de Mamadou (+221 77 154 86 10)
     window.open(`https://wa.me/221771548610?text=${encodeURIComponent(message)}`, '_blank');
@@ -260,40 +518,6 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
 
     setIsDrawerOpen(false);
   };
-
-  // --- ANIMATION AUTOMATIQUE DU SLIDER AVANT/APRÈS ---
-  useEffect(() => {
-    let animId;
-    let startTimestamp = null;
-
-    const animateLoop = (timestamp) => {
-      if (!isSliderHovered) {
-        if (!startTimestamp) startTimestamp = timestamp;
-        const elapsed = (timestamp - startTimestamp) / 1000;
-        const pos = 50 + 26 * Math.sin(elapsed * 1.5);
-        setSliderPos(Number(pos.toFixed(1)));
-      } else {
-        startTimestamp = null;
-      }
-      animId = requestAnimationFrame(animateLoop);
-    };
-
-    animId = requestAnimationFrame(animateLoop);
-    return () => cancelAnimationFrame(animId);
-  }, [isSliderHovered]);
-
-  // --- BASCULE AUTOMATIQUE DU THÈME AVANT/APRÈS (VOITURE ⟷ CANAPÉ ⟷ FIN DE CHANTIER SANS CLIQUER) ---
-  useEffect(() => {
-    if (isSliderHovered) return;
-    const interval = setInterval(() => {
-      setSliderTheme((prev) => {
-        if (prev === 'auto') return 'sofa';
-        if (prev === 'sofa') return 'chantier';
-        return 'auto';
-      });
-    }, 4500); // Alterne automatiquement toutes les 4.5 secondes entre les 3 services
-    return () => clearInterval(interval);
-  }, [isSliderHovered]);
 
   // --- TÉMOIGNAGES CLIENTS VÉRIFIÉS DAKAR ---
   const testimonialsList = [
@@ -399,9 +623,9 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
           {/* Colonne Gauche : Titre clair, bénéfice direct */}
           <div className="lg:col-span-7 flex flex-col items-start">
             
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-50 border border-emerald-200/80 text-[#0D5C3A] text-xs font-bold mb-3.5 shadow-2xs">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span>TAARU SET • Le charme de la propreté à Dakar</span>
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900 text-white text-[11px] font-mono tracking-wide mb-3.5 shadow-sm border border-slate-800">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span className="text-slate-200 font-medium">DISPONIBLE AUJOURD'HUI • DAKAR & ENVIRONS</span>
             </div>
 
             <h1 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight mb-3.5">
@@ -480,8 +704,8 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
 
               {/* Badge Flottant Confiance */}
               <div className="absolute -bottom-3 -left-3 sm:-bottom-4 sm:-left-4 bg-white px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl shadow-xl border border-slate-100 flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-emerald-100 text-[#0D5C3A] flex items-center justify-center font-bold text-sm">
-                  ★
+                <div className="w-8 h-8 rounded-xl bg-emerald-100 text-[#0D5C3A] flex items-center justify-center shrink-0">
+                  <Award className="w-4 h-4 text-[#0D5C3A]" />
                 </div>
                 <div>
                   <div className="text-xs font-bold text-slate-900">+500 Clients Satisfaits</div>
@@ -532,21 +756,29 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
                 </p>
 
                 {/* Encadré Sombre Abonnement Plus Visible Demandé par Mamadou */}
-                <div className="mt-4 p-3.5 sm:p-4 rounded-2xl bg-slate-900 text-white border border-emerald-500/50 shadow-md">
-                  <div className="mb-2">
+                <div className="mt-4 p-4 rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950 text-white border border-emerald-500/50 shadow-lg">
+                  <div className="mb-3">
                     <span className="inline-flex items-center gap-1.5 text-[10px] sm:text-[11px] uppercase font-black tracking-wide text-lime-400 bg-lime-400/15 px-2.5 py-1 rounded-lg whitespace-nowrap">
                       <Zap className="w-3 h-3 shrink-0" />
                       <span>FORMULE ABONNEMENT (-30%)</span>
                     </span>
                   </div>
-                  <div className="flex items-center justify-between gap-2 mb-1.5">
-                    <span className="text-xs sm:text-sm font-bold text-white">4 lavages programmés</span>
-                    <span className="text-xs sm:text-sm font-black text-lime-400 font-mono whitespace-nowrap">
-                      30 000 FCFA / mois
-                    </span>
-                  </div>
-                  <div className="text-[10px] sm:text-[11px] text-slate-300 leading-snug">
-                    1 passage/semaine garanti chez vous ou au bureau
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-800">
+                    <div>
+                      <div className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-lime-400 shrink-0"></span>
+                        <span>4 lavages programmés</span>
+                      </div>
+                      <div className="text-[10px] sm:text-[11px] text-slate-300 mt-0.5">
+                        1 passage par semaine garanti
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-xs sm:text-sm font-black text-lime-400 font-mono whitespace-nowrap">
+                        30 000 F / mois
+                      </div>
+                      <div className="text-[9px] text-slate-400 font-medium">Sans réengager</div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -581,20 +813,28 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
                 </p>
 
                 {/* Encadré Forfait Salon Complet pour équilibrer la hauteur */}
-                <div className="mt-4 p-3.5 sm:p-4 rounded-2xl bg-emerald-50/90 text-slate-900 border border-emerald-200 shadow-xs">
-                  <div className="mb-2">
-                    <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] uppercase font-black tracking-wide text-emerald-800 bg-emerald-200/60 px-2.5 py-1 rounded-lg whitespace-nowrap">
-                      <span>★ FORFAIT SALON (-10%)</span>
+                <div className="mt-4 p-4 rounded-2xl bg-emerald-50/90 text-slate-900 border border-emerald-200 shadow-sm">
+                  <div className="mb-3">
+                    <span className="inline-flex items-center gap-1.5 text-[10px] sm:text-[11px] uppercase font-black tracking-wide text-emerald-800 bg-emerald-200/60 px-2.5 py-1 rounded-lg whitespace-nowrap">
+                      <span>FORFAIT SALON COMPLET (-10%)</span>
                     </span>
                   </div>
-                  <div className="flex items-center justify-between gap-2 mb-1.5">
-                    <span className="text-xs sm:text-sm font-bold text-slate-900">Canapé + Fauteuils + Tapis</span>
-                    <span className="text-xs sm:text-sm font-black text-[#0D5C3A] font-mono whitespace-nowrap">
-                      Dès 18 000 FCFA
-                    </span>
-                  </div>
-                  <div className="text-[10px] sm:text-[11px] text-slate-600 leading-snug">
-                    Traitement anti-acariens & séchage express 3-5h
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-emerald-200/80">
+                    <div>
+                      <div className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 shrink-0"></span>
+                        <span>Canapé + Fauteuils + Tapis</span>
+                      </div>
+                      <div className="text-[10px] sm:text-[11px] text-slate-600 mt-0.5">
+                        Séchage express 3 à 5h
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-xs sm:text-sm font-black text-[#0D5C3A] font-mono whitespace-nowrap">
+                        Dès 18 000 F
+                      </div>
+                      <div className="text-[9px] text-slate-500 font-medium">Tout compris</div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -625,20 +865,28 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
                 </p>
 
                 {/* Encadré Forfait Chantier pour équilibrer la hauteur */}
-                <div className="mt-4 p-3.5 sm:p-4 rounded-2xl bg-slate-100/90 text-slate-900 border border-slate-200 shadow-xs">
-                  <div className="mb-2">
-                    <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] uppercase font-black tracking-wide text-slate-800 bg-slate-200 px-2.5 py-1 rounded-lg whitespace-nowrap">
-                      <span>★ REMISE À NEUF COMPLÈTE</span>
+                <div className="mt-4 p-4 rounded-2xl bg-slate-100/90 text-slate-900 border border-slate-200 shadow-sm">
+                  <div className="mb-3">
+                    <span className="inline-flex items-center gap-1.5 text-[10px] sm:text-[11px] uppercase font-black tracking-wide text-slate-800 bg-slate-200 px-2.5 py-1 rounded-lg whitespace-nowrap">
+                      <span>REMISE À NEUF CLÉ EN MAIN</span>
                     </span>
                   </div>
-                  <div className="flex items-center justify-between gap-2 mb-1.5">
-                    <span className="text-xs sm:text-sm font-bold text-slate-900">Studios, F3, F4 & Villas</span>
-                    <span className="text-xs sm:text-sm font-black text-[#0D5C3A] font-mono whitespace-nowrap">
-                      Clé en main
-                    </span>
-                  </div>
-                  <div className="text-[10px] sm:text-[11px] text-slate-600 leading-snug">
-                    Décapage ciment, colle, vitres & désinfection totale
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200">
+                    <div>
+                      <div className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-700 shrink-0"></span>
+                        <span>Studios, F3, F4 & Villas</span>
+                      </div>
+                      <div className="text-[10px] sm:text-[11px] text-slate-600 mt-0.5">
+                        Décapage ciment & vitres
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-xs sm:text-sm font-black text-slate-900 font-mono whitespace-nowrap">
+                        Dès 45 000 F
+                      </div>
+                      <div className="text-[9px] text-slate-500 font-medium">Sur devis rapide</div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -764,11 +1012,11 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
                             <div className="text-sm font-black text-white">{pack.name}</div>
                             <div className="text-[11px] text-slate-300 mt-0.5">{pack.detail}</div>
                           </div>
-                          <div className="text-left sm:text-right shrink-0 mt-1 sm:mt-0">
+                          <div className="text-left sm:text-right shrink-0 mt-2 sm:mt-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800">
                             <div className="font-black text-sm sm:text-base text-lime-400 font-mono whitespace-nowrap">
-                              {new Intl.NumberFormat('fr-FR').format(pack.price)} FCFA / mois
+                              {new Intl.NumberFormat('fr-FR').format(pack.price)} F / mois
                             </div>
-                            <div className="text-[10px] text-slate-400">4 passages programmés</div>
+                            <div className="text-[10px] text-slate-300 font-medium">4 passages programmés</div>
                           </div>
                         </div>
                       );
@@ -805,7 +1053,7 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
                   </label>
                   <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md">
                     {selectedPack?.isSubscription 
-                      ? (recurringDay.includes('libres') ? '4 dates libres' : recurringDay.replace(' (4 passages)', '')) 
+                      ? ((recurringDay.includes('libres') || recurringDay.includes('personnalisées')) ? '4 dates au choix' : recurringDay.replace(' (4 passages)', '')) 
                       : (selectedDay || 'À définir')}
                   </span>
                 </div>
@@ -822,7 +1070,7 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
                         'Tous les Lundis (4 passages)',
                         'Tous les Mercredis (4 passages)',
                         'Tous les Vendredis (4 passages)',
-                        '4 dates libres au choix dans le mois ✨'
+                        '4 dates personnalisées dans le mois'
                       ].map((item) => (
                         <button
                           key={item}
@@ -840,7 +1088,7 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
                     </div>
 
                     {/* SÉLECTEUR INTERACTIF POUR LES 4 DATES LIBRES (PROPOSITION 1 VALIDÉE) */}
-                    {recurringDay === '4 dates libres au choix dans le mois ✨' && (
+                    {recurringDay === '4 dates personnalisées dans le mois' && (
                       <div className="p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-3 animate-in fade-in duration-200">
                         <div className="flex items-center gap-1.5 text-xs font-black text-[#0D5C3A]">
                           <Calendar className="w-4 h-4 text-[#16A34A]" />
@@ -1071,221 +1319,9 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
       )}
 
       {/* ========================================================================= */}
-      {/* 5. SLIDER AVANT / APRÈS (ANIMATION DOUCE AUTONOME • VOITURE EN PRIORITÉ)   */}
+      {/* 5. SLIDER AVANT / APRÈS (COMPOSANT AUTONOME HAUTE PERFORMANCE 60 FPS)      */}
       {/* ========================================================================= */}
-      <section id="avant-apres" className="py-10 sm:py-14 bg-[#FAFAF8] relative z-10">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6">
-          
-          <div className="text-center mb-5">
-            <span className="text-xs uppercase font-extrabold tracking-widest text-[#16A34A] bg-emerald-50 border border-emerald-200 px-3.5 py-1.5 rounded-full">
-              RÉSULTAT VISIBLE
-            </span>
-            <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-900 mt-2.5 tracking-tight">
-              L'Effet Avant / Après
-            </h2>
-            <p className="text-slate-500 text-xs sm:text-sm mt-1">
-              Observez la puissance de notre nettoyage haute précision à Dakar.
-            </p>
-          </div>
-
-          {/* Sélecteur de Thème (Voiture / Canapé / Fin de Chantier) */}
-          <div className="flex items-center justify-center mb-5">
-            <div className="bg-slate-200/90 p-1.5 rounded-2xl flex items-center gap-1 sm:gap-1.5 shadow-inner max-w-full overflow-x-auto">
-              <button
-                type="button"
-                onClick={() => setSliderTheme('auto')}
-                className={`px-3.5 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
-                  sliderTheme === 'auto'
-                    ? 'bg-[#0D5C3A] text-white shadow-md'
-                    : 'text-slate-700 hover:text-slate-900'
-                }`}
-              >
-                <Car className="w-4 h-4" />
-                <span>Rénovation Auto</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setSliderTheme('sofa')}
-                className={`px-3.5 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
-                  sliderTheme === 'sofa'
-                    ? 'bg-[#0D5C3A] text-white shadow-md'
-                    : 'text-slate-700 hover:text-slate-900'
-                }`}
-              >
-                <Sofa className="w-4 h-4" />
-                <span>Canapés & Salons</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setSliderTheme('chantier')}
-                className={`px-3.5 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
-                  sliderTheme === 'chantier'
-                    ? 'bg-[#0D5C3A] text-white shadow-md'
-                    : 'text-slate-700 hover:text-slate-900'
-                }`}
-              >
-                <Home className="w-4 h-4" />
-                <span>Fin de Chantier</span>
-              </button>
-            </div>
-          </div>
-
-          <div 
-            className="@container relative rounded-[2.5rem] overflow-hidden shadow-2xl border-2 border-slate-200 aspect-[16/9] select-none cursor-ew-resize group transition-all duration-500"
-            onMouseEnter={() => setIsSliderHovered(true)}
-            onMouseLeave={() => setIsSliderHovered(false)}
-            onTouchStart={() => setIsSliderHovered(true)}
-            onTouchEnd={() => setIsSliderHovered(false)}
-          >
-            {/* Badges Fixes Haut Gauche (AVANT) et Haut Droite (APRÈS) : ZÉRO COLLISION sur Mobile & Ordi */}
-            <div className="absolute top-3 sm:top-4 left-3 sm:left-4 z-20 pointer-events-none">
-              <span className="px-3 sm:px-3.5 py-1 sm:py-1.5 rounded-full bg-slate-950/90 backdrop-blur-md text-white text-[10px] sm:text-xs font-black tracking-wider uppercase border border-white/20 shadow-md">
-                AVANT ❌
-              </span>
-            </div>
-
-            <div className="absolute top-3 sm:top-4 right-3 sm:right-4 z-20 pointer-events-none">
-              <span className="px-3 sm:px-3.5 py-1 sm:py-1.5 rounded-full bg-emerald-800/95 backdrop-blur-md text-white text-[10px] sm:text-xs font-black tracking-wider uppercase border border-emerald-400/30 shadow-md">
-                APRÈS ✨
-              </span>
-            </div>
-
-            {sliderTheme === 'auto' && (
-              <>
-                {/* Image APRÈS AUTO : Rénovation pure detailing Range Rover impeccable */}
-                <img 
-                  src={cleanCarAfterImg} 
-                  alt="Carrosserie miroir et rénovation auto impeccable TAARU SET" 
-                  className="absolute inset-0 w-full h-full object-cover object-center"
-                  loading="eager"
-                  decoding="sync"
-                />
-
-                {/* Image AVANT AUTO : VRAIE VOITURE AVEC BOUE, POUSSIÈRE ET SABLE RÉEL */}
-                <div 
-                  className="absolute inset-0 overflow-hidden" 
-                  style={{ width: `${sliderPos}%` }}
-                >
-                  <img 
-                    src={dirtyCarBeforeImg} 
-                    alt="Véhicule avant nettoyage recouvert de boue et poussière" 
-                    className="absolute top-0 left-0 h-full w-[100cqw] max-w-none object-cover object-center"
-                    loading="eager"
-                    decoding="sync"
-                  />
-                </div>
-              </>
-            )}
-
-            {sliderTheme === 'sofa' && (
-              <>
-                {/* Image APRÈS CANAPÉ : Canapé velours émeraude nettoyé à neuf */}
-                <img 
-                  src={cleanSofaAfterImg} 
-                  alt="Canapé immaculé après passage TAARU SET" 
-                  className="absolute inset-0 w-full h-full object-cover object-center"
-                  loading="eager"
-                  decoding="sync"
-                />
-
-                {/* Image AVANT CANAPÉ */}
-                <div 
-                  className="absolute inset-0 overflow-hidden" 
-                  style={{ width: `${sliderPos}%` }}
-                >
-                  <img 
-                    src={cleanSofaAfterImg} 
-                    alt="Canapé avant passage avec taches et poussière" 
-                    className="absolute top-0 left-0 h-full w-[100cqw] max-w-none object-cover object-center filter contrast-125 sepia-[0.55] brightness-70"
-                    loading="eager"
-                    decoding="sync"
-                  />
-                  <div className="absolute inset-0 bg-stone-900/30 pointer-events-none mix-blend-multiply" />
-                </div>
-              </>
-            )}
-
-            {sliderTheme === 'chantier' && (
-              <>
-                {/* Image APRÈS FIN DE CHANTIER : Villa de standing étincelante et prête à emménager */}
-                <img 
-                  src={chantierAfterImg} 
-                  alt="Villa de standing étincelante et prête à emménager TAARU SET" 
-                  className="absolute inset-0 w-full h-full object-cover object-center"
-                  loading="eager"
-                  decoding="sync"
-                />
-
-                {/* Image AVANT FIN DE CHANTIER : VRAI CHANTIER EN TRAVAUX AVEC POUSSIÈRE, ESCABEAU, BÉTON ET PEINTURE */}
-                <div 
-                  className="absolute inset-0 overflow-hidden" 
-                  style={{ width: `${sliderPos}%` }}
-                >
-                  <img 
-                    src={chantierBeforeImg} 
-                    alt="Chantier brut avant décapage avec seaux de peinture, poussière et gravats" 
-                    className="absolute top-0 left-0 h-full w-[100cqw] max-w-none object-cover object-center"
-                    loading="eager"
-                    decoding="sync"
-                  />
-                </div>
-              </>
-            )}
-
-            {/* Poignée centrale */}
-            <div 
-              className="absolute top-0 bottom-0 w-1 bg-white cursor-ew-resize flex items-center justify-center shadow-lg"
-              style={{ left: `${sliderPos}%` }}
-            >
-              <div className="w-8 h-8 rounded-full bg-white text-[#0D5C3A] font-extrabold text-xs flex items-center justify-center shadow-md">
-                ↔
-              </div>
-            </div>
-
-            {/* Message de survol */}
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 px-3.5 py-1 rounded-full bg-slate-900/80 backdrop-blur-md text-white text-[11px] font-bold border border-white/20 shadow-lg pointer-events-none">
-              Glissez pour comparer à tout moment
-            </div>
-
-            <input 
-              type="range" 
-              min="5" 
-              max="95" 
-              value={sliderPos} 
-              onChange={(e) => setSliderPos(Number(e.target.value))}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize z-20"
-            />
-          </div>
-
-          {/* Légende Dynamique du Résultat */}
-          <div className="mt-4 p-3 sm:p-4 rounded-2xl bg-white border border-slate-200/90 shadow-xs flex items-center justify-between gap-3 text-left">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-emerald-100 text-[#0D5C3A] flex items-center justify-center shrink-0 shadow-2xs">
-                {sliderTheme === 'auto' ? <Car className="w-5 h-5" /> : sliderTheme === 'sofa' ? <Sofa className="w-5 h-5" /> : <Home className="w-5 h-5" />}
-              </div>
-              <div>
-                <div className="text-xs sm:text-sm font-extrabold text-slate-900">
-                  {sliderTheme === 'auto' && 'Rénovation Carrosserie & Habitacle : Décapage du sable rouge et film routier'}
-                  {sliderTheme === 'sofa' && 'Désinfection & Shampouinage Kärcher : Élimination des taches, acariens et odeurs'}
-                  {sliderTheme === 'chantier' && 'Remise en État Clé en Main : Décapage ciment, résidus de colle, sols et vitres'}
-                </div>
-                <div className="text-[11px] text-slate-500 mt-0.5">
-                  Résultat garanti par l'équipe TAARU SET avec matériel professionnel Kärcher.
-                </div>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => handleOpenDrawer(sliderTheme === 'chantier' ? 'chantier' : sliderTheme === 'sofa' ? 'textile' : 'auto')}
-              className="hidden sm:flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#0D5C3A] text-white text-xs font-bold hover:bg-[#16A34A] transition-colors shrink-0 cursor-pointer"
-            >
-              <span>Réserver</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-        </div>
-      </section>
+      <BeforeAfterSection handleOpenDrawer={handleOpenDrawer} />
 
       {/* ========================================================================= */}
       {/* 6. TÉMOIGNAGES CLIENTS EN RUBAN DÉFILANT CONTINU                          */}
@@ -1301,9 +1337,6 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
                 Ils nous font confiance à Dakar
               </h2>
             </div>
-            <div className="text-xs text-slate-500 mt-2 sm:mt-0 font-medium">
-              Survolez un avis pour stopper le défilement
-            </div>
           </div>
         </div>
 
@@ -1317,9 +1350,14 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
               >
                 <div>
                   <div className="flex items-center justify-between mb-2.5">
-                    <div className="flex text-amber-400 text-xs">★★★★★</div>
-                    <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full">
-                      Vérifié
+                    <div className="flex items-center gap-0.5 text-amber-400">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                      ))}
+                    </div>
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60">
+                      <CheckCircle2 className="w-2.5 h-2.5 text-[#16A34A]" />
+                      <span>Intervention vérifiée</span>
                     </span>
                   </div>
                   <p className="text-slate-600 text-xs sm:text-sm leading-relaxed mb-4 font-medium">
