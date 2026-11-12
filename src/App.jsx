@@ -2,14 +2,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Sparkles, CheckCircle2, Phone, MessageSquare, Clock, ShieldCheck, 
   MapPin, ArrowRight, ChevronDown, ChevronLeft, ChevronRight, Check, Star, Wrench, Droplets, 
-  Car, Home, Sofa, RefreshCw, Calculator, Send, Zap, Award, ThumbsUp, X, Calendar, User, Navigation
+  Car, Home, Sofa, RefreshCw, Calculator, Send, Zap, Award, ThumbsUp, X, Calendar, User, Navigation,
+  Building2, Truck, FileText, Menu, ExternalLink, HelpCircle
 } from 'lucide-react';
 
 // Vraie Photo officielle HD de Mamadou et équipe TAARU SET (Sans stickers TikTok)
 import teamCleanHdImg from './assets/team_clean_hd.jpg';
 // Logo officiel TAARU SET
 import logoOfficialSq from './assets/logo_official_sq.jpg';
-// Vraies photos locales haute performance pour le comparateur Avant / Après
+// Vraies photos locales haute performance pour le comparateur Avant / Après (100% cohérentes même cadrage)
 import dirtyCarBeforeImg from './assets/dirty_car_before.jpg';
 import cleanCarAfterImg from './assets/clean_car_after.jpg';
 import chantierBeforeImg from './assets/chantier_before.jpg';
@@ -60,29 +61,29 @@ function BeforeAfterSection({ handleOpenDrawer }) {
   }, [isHovered]);
 
   return (
-    <section id="avant-apres" className="py-10 sm:py-14 bg-[#FAFAF8] relative z-10 border-t border-slate-200/60">
+    <section id="avant-apres" className="py-12 sm:py-16 bg-[#FAFAF8] relative z-10 border-t border-slate-200/60">
       <div className="max-w-4xl mx-auto px-4 sm:px-6">
         
-        <div className="text-center mb-5">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-[#0D5C3A] text-xs font-mono font-bold tracking-wider uppercase mb-2">
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-[#0D5C3A] text-xs font-bold tracking-wider uppercase mb-2.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-            <span>CONTRÔLE QUALITÉ • CONSTAT DIRECT</span>
+            <span>RÉSULTATS OBSERVÉS • PHOTOS SANS FILTRE</span>
           </div>
           <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-            Résultats Avant & Après Traitement
+            Résultats Avant & Après Intervention
           </h2>
-          <p className="text-slate-500 text-xs sm:text-sm mt-1 max-w-lg mx-auto">
-            Glissez le séparateur pour observer le décapage de la poussière dakaroise et des résidus de chantier.
+          <p className="text-slate-600 text-xs sm:text-sm mt-1.5 max-w-lg mx-auto font-normal">
+            Glissez le séparateur pour observer le décapage de la poussière dakaroise, des taches de tissu et des résidus de chantier. Même véhicule, même canapé, même pièce.
           </p>
         </div>
 
         {/* Sélecteur de Thème */}
-        <div className="flex items-center justify-center mb-5">
+        <div className="flex items-center justify-center mb-6">
           <div className="bg-slate-200/90 p-1.5 rounded-2xl flex items-center gap-1 sm:gap-1.5 shadow-inner max-w-full overflow-x-auto">
             <button
               type="button"
               onClick={() => setSliderTheme('auto')}
-              className={`px-3.5 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
+              className={`px-3.5 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition-all cursor-pointer flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
                 sliderTheme === 'auto'
                   ? 'bg-[#0D5C3A] text-white shadow-md'
                   : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200/60'
@@ -94,7 +95,7 @@ function BeforeAfterSection({ handleOpenDrawer }) {
             <button
               type="button"
               onClick={() => setSliderTheme('sofa')}
-              className={`px-3.5 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
+              className={`px-3.5 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition-all cursor-pointer flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
                 sliderTheme === 'sofa'
                   ? 'bg-[#0D5C3A] text-white shadow-md'
                   : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200/60'
@@ -106,7 +107,7 @@ function BeforeAfterSection({ handleOpenDrawer }) {
             <button
               type="button"
               onClick={() => setSliderTheme('chantier')}
-              className={`px-3.5 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
+              className={`px-3.5 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition-all cursor-pointer flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
                 sliderTheme === 'chantier'
                   ? 'bg-[#0D5C3A] text-white shadow-md'
                   : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200/60'
@@ -142,12 +143,12 @@ function BeforeAfterSection({ handleOpenDrawer }) {
             </span>
           </div>
 
-          {/* 1. AUTO */}
+          {/* 1. AUTO (MÊME VÉHICULE AVANT / APRÈS) */}
           {sliderTheme === 'auto' && (
             <>
               <img 
                 src={cleanCarAfterImg} 
-                alt="Carrosserie miroir et rénovation auto impeccable TAARU SET" 
+                alt="Carrosserie brillante et pneus rénovés par TAARU SET" 
                 className="absolute inset-0 w-full h-full object-cover object-center"
                 loading="eager"
                 decoding="sync"
@@ -158,7 +159,7 @@ function BeforeAfterSection({ handleOpenDrawer }) {
               >
                 <img 
                   src={dirtyCarBeforeImg} 
-                  alt="Véhicule avant nettoyage recouvert de boue et poussière" 
+                  alt="Véhicule avant intervention recouvert de poussière dakaroise et boue" 
                   className="absolute top-0 left-0 h-full w-[100cqw] max-w-none object-cover object-center"
                   loading="eager"
                   decoding="sync"
@@ -167,12 +168,12 @@ function BeforeAfterSection({ handleOpenDrawer }) {
             </>
           )}
 
-          {/* 2. CANAPÉ (VRAIE PHOTO AVANT & VRAIE PHOTO APRÈS SANS FILTRE CSS) */}
+          {/* 2. CANAPÉ (MÊME CANAPÉ AVANT / APRÈS AVEC TACHES NETTES) */}
           {sliderTheme === 'sofa' && (
             <>
               <img 
                 src={cleanSofaAfterImg} 
-                alt="Canapé immaculé après passage TAARU SET" 
+                alt="Canapé velours régénéré et purifié par injecteur Kärcher" 
                 className="absolute inset-0 w-full h-full object-cover object-center"
                 loading="eager"
                 decoding="sync"
@@ -183,7 +184,7 @@ function BeforeAfterSection({ handleOpenDrawer }) {
               >
                 <img 
                   src={sofaBeforeImg} 
-                  alt="Canapé avant passage avec taches et poussière incrustée" 
+                  alt="Canapé avant intervention avec auréoles de transpiration, taches et poussière" 
                   className="absolute top-0 left-0 h-full w-[100cqw] max-w-none object-cover object-center"
                   loading="eager"
                   decoding="sync"
@@ -197,7 +198,7 @@ function BeforeAfterSection({ handleOpenDrawer }) {
             <>
               <img 
                 src={chantierAfterImg} 
-                alt="Villa de standing étincelante et prête à emménager TAARU SET" 
+                alt="Villa étincelante et prête à emménager TAARU SET" 
                 className="absolute inset-0 w-full h-full object-cover object-center"
                 loading="eager"
                 decoding="sync"
@@ -208,7 +209,7 @@ function BeforeAfterSection({ handleOpenDrawer }) {
               >
                 <img 
                   src={chantierBeforeImg} 
-                  alt="Chantier brut avant décapage avec seaux de peinture, poussière et gravats" 
+                  alt="Chantier brut avant décapage avec poussière, peinture et gravats" 
                   className="absolute top-0 left-0 h-full w-[100cqw] max-w-none object-cover object-center"
                   loading="eager"
                   decoding="sync"
@@ -219,49 +220,48 @@ function BeforeAfterSection({ handleOpenDrawer }) {
 
           {/* Poignée centrale */}
           <div 
-            className="absolute top-0 bottom-0 w-1 bg-white cursor-ew-resize flex items-center justify-center shadow-lg pointer-events-none"
+            className="absolute top-0 bottom-0 w-1 bg-white cursor-ew-resize flex items-center justify-center shadow-lg"
             style={{ left: `${sliderPos}%` }}
           >
-            <div className="w-8 h-8 rounded-full bg-white text-[#0D5C3A] font-extrabold text-xs flex items-center justify-center shadow-md border border-slate-200">
+            <div className="w-8 h-8 rounded-full bg-white text-[#0D5C3A] font-extrabold text-xs flex items-center justify-center shadow-md">
               ↔
             </div>
           </div>
 
-          {/* Contrôle par curseur / toucher direct */}
           <input 
             type="range" 
             min="5" 
             max="95" 
             value={sliderPos} 
             onChange={(e) => setSliderPos(Number(e.target.value))}
+            aria-label="Séparateur avant et après intervention"
             className="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize z-20"
-            aria-label="Glisser pour comparer l'état avant et après nettoyage"
           />
         </div>
 
-        {/* Fiche Technique Bas de Comparateur */}
+        {/* Légende Dynamique du Résultat */}
         <div className="mt-4 p-3.5 sm:p-4 rounded-2xl bg-white border border-slate-200/90 shadow-xs flex items-center justify-between gap-3 text-left">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-[#0D5C3A] flex items-center justify-center shrink-0 border border-emerald-100 shadow-2xs">
+            <div className="w-9 h-9 rounded-xl bg-emerald-100 text-[#0D5C3A] flex items-center justify-center shrink-0">
               {sliderTheme === 'auto' ? <Car className="w-5 h-5" /> : sliderTheme === 'sofa' ? <Sofa className="w-5 h-5" /> : <Home className="w-5 h-5" />}
             </div>
             <div>
               <div className="text-xs sm:text-sm font-extrabold text-slate-900">
-                {sliderTheme === 'auto' && 'Rénovation Carrosserie & Habitacle : Décapage du sable rouge et film routier'}
-                {sliderTheme === 'sofa' && 'Désinfection & Shampouinage Textile : Élimination des taches, odeurs et acariens'}
-                {sliderTheme === 'chantier' && 'Remise en État Clé en Main : Décapage ciment, résidus de colle, sols et baies vitrées'}
+                {sliderTheme === 'auto' && 'Rénovation Carrosserie & Habitacle : Décapage du film routier et poussière'}
+                {sliderTheme === 'sofa' && 'Shampouinage Kärcher : Élimination des taches, acariens et odeurs'}
+                {sliderTheme === 'chantier' && 'Remise à Neuf Clé en Main : Décapage ciment, colle, vitres et faïences'}
               </div>
               <div className="text-[11px] text-slate-500 mt-0.5">
-                Intervention réalisée avec injecteur-extracteur thermique Kärcher professionnel.
+                Résultat garanti par l'équipe TAARU SET avec matériel professionnel Kärcher.
               </div>
             </div>
           </div>
           <button
             type="button"
             onClick={() => handleOpenDrawer(sliderTheme === 'chantier' ? 'chantier' : sliderTheme === 'sofa' ? 'textile' : 'auto')}
-            className="hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#0D5C3A] text-white text-xs font-bold hover:bg-[#16A34A] transition-colors shrink-0 cursor-pointer shadow-sm"
+            className="hidden sm:flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#0D5C3A] text-white text-xs font-bold hover:bg-[#16A34A] transition-colors shrink-0 cursor-pointer"
           >
-            <span>Réserver ce service</span>
+            <span>Réserver</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -271,20 +271,32 @@ function BeforeAfterSection({ handleOpenDrawer }) {
   );
 }
 
+// ============================================================================
+// COMPOSANT PRINCIPAL APPLICATION
+// ============================================================================
 export default function App() {
+  // Navigation mobile
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Modale Mentions Légales
+  const [legalModalOpen, setLegalModalOpen] = useState(false);
+
   // --- ÉTATS DU VOLET GLISSANT DE RÉSERVATION (Demandé par Mamadou) ---
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [drawerService, setDrawerService] = useState('auto'); // 'auto', 'textile', 'chantier'
   const [selectedPack, setSelectedPack] = useState(null);
-  const [selectedDay, setSelectedDay] = useState('');
+  const [selectedDay, setSelectedDay] = useState(''); // Sans présélection (choix obligatoire)
   const [recurringDay, setRecurringDay] = useState('Tous les Samedis (4 passages)');
   const [customPassageDates, setCustomPassageDates] = useState(['', '', '', '']);
   const [subscriptionNotes, setSubscriptionNotes] = useState('');
-  const [selectedTime, setSelectedTime] = useState('14h00 - 16h00');
+  const [selectedTime, setSelectedTime] = useState(''); // Sans présélection (choix obligatoire)
   const [clientQuarter, setClientQuarter] = useState('Almadies');
+  const [customQuarter, setCustomQuarter] = useState('');
   const [clientAddress, setClientAddress] = useState('');
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('');
+  const [phoneError, setPhoneError] = useState('');
+  const [validationError, setValidationError] = useState('');
   const [reservationSummary, setReservationSummary] = useState(null); // Modale de Récapitulatif
 
   // --- AUTRES ÉTATS ---
@@ -294,8 +306,8 @@ export default function App() {
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
   const handleMouseMoveHero = (e) => {
     const card = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - card.left) / card.width - 0.5) * 12;
-    const y = ((e.clientY - card.top) / card.height - 0.5) * -12;
+    const x = ((e.clientX - card.left) / card.width - 0.5) * 10;
+    const y = ((e.clientY - card.top) / card.height - 0.5) * -10;
     setTilt({ x, y });
   };
   const handleMouseLeaveHero = () => setTilt({ x: 0, y: 0 });
@@ -315,8 +327,7 @@ export default function App() {
     resize();
     window.addEventListener('resize', resize);
 
-    // 16 particules légères à faible opacité
-    const particles = Array.from({ length: 16 }, () => ({
+    const particles = Array.from({ length: 14 }, () => ({
       x: Math.random() * canvas.width,
       y: Math.random() * canvas.height,
       radius: Math.random() * 2 + 1,
@@ -354,46 +365,44 @@ export default function App() {
     };
   }, []);
 
-  // --- LISTE DES JOURS DYNAMIQUES (Prochains 7 jours) ---
-  const getNextDays = () => {
-    const days = [];
-    const dayNames = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
-    const monthNames = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
-    
-    for (let i = 0; i < 7; i++) {
-      const d = new Date();
-      d.setDate(d.getDate() + i);
-      const name = i === 0 ? "Aujourd'hui" : i === 1 ? "Demain" : dayNames[d.getDay()];
-      const label = `${name} (${d.getDate()} ${monthNames[d.getMonth()]})`;
-      days.push({ id: label, short: name, dateNum: `${d.getDate()} ${monthNames[d.getMonth()]}` });
+  // Formatage des montants FCFA
+  const formatPrice = (val) => new Intl.NumberFormat('fr-FR').format(val) + ' FCFA';
+
+  // Validation du téléphone en direct
+  const handlePhoneChange = (val) => {
+    setClientPhone(val);
+    const cleaned = val.replace(/[\\s.-]/g, '');
+    if (cleaned && !/^(?:\\+?221)?[7][05678]\\d{7}$/.test(cleaned)) {
+      setPhoneError('Numéro mobile sénégalais recommandé (ex: 77 154 86 10)');
+    } else {
+      setPhoneError('');
     }
-    return days;
   };
 
-  const nextDays = getNextDays();
+  // Jours rapides
+  const nextDays = [
+    { id: 'Aujourd\'hui (Urgence)', short: 'Aujourd\'hui', dateNum: 'Dès que possible' },
+    { id: 'Demain', short: 'Demain', dateNum: 'Créneau garanti' },
+    { id: 'Ce Samedi', short: 'Samedi', dateNum: 'Week-end' },
+    { id: 'Ce Dimanche', short: 'Dimanche', dateNum: 'Week-end' }
+  ];
 
-  useEffect(() => {
-    if (nextDays.length > 0 && !selectedDay) {
-      setSelectedDay(nextDays[1].id); // Demain par défaut
-    }
-  }, []);
-
-  // --- CRÉNEAUX HORAIRES ---
+  // Créneaux horaires
   const timeSlots = [
-    { id: '08h30 - 10h30', label: '08h30 - 10h30 (Matin)' },
-    { id: '11h00 - 13h00', label: '11h00 - 13h00 (Midi)' },
-    { id: '14h00 - 16h00', label: '14h00 - 16h00 (Après-midi)' },
-    { id: '16h30 - 18h30', label: '16h30 - 18h30 (Fin de journée)' }
+    { id: 'Matinée (08h30 - 11h30)', period: 'Matin' },
+    { id: 'Midi (11h30 - 14h00)', period: 'Midi' },
+    { id: 'Après-midi (14h00 - 16h30)', period: 'Après-midi' },
+    { id: 'Fin de journée (16h30 - 19h00)', period: 'Soir' }
   ];
 
-  // --- QUARTIERS FRÉQUENTS DAKAR ---
+  // 17 Quartiers de Dakar & banlieue + option Autre
   const dakarQuarters = [
-    'Almadies', 'Mermoz', 'Ngor / Virage', 'Ouakam', 'Point E', 
-    'Fann Résidence', 'Plateau', 'Sacré-Cœur', 'Yoff', 'Maristes', 
-    'Liberté 6', 'Grand Dakar', 'Guédiawaye', 'Autre zone'
+    'Almadies', 'Ngor / Virage', 'Yoff', 'Ouakam', 'Mermoz', 'Point E', 'Fann Résidence', 
+    'Plateau', 'Sacré-Cœur', 'Maristes', 'Liberté 1 à 6', 'Hann Bel-Air', 
+    'Parcelles Assainies', 'Pikine', 'Guédiawaye', 'Keur Massar', 'Rufisque / Diamniadio', 'Autre quartier'
   ];
 
-  // --- DONNÉES DES 3 PÔLES TAARU SET ---
+  // Données des 3 pôles TAARU SET
   const servicesConfig = {
     auto: {
       id: 'auto',
@@ -451,22 +460,34 @@ export default function App() {
     }
   };
 
-  // --- OUVERTURE DU TIROIR GLISSANT ---
+  // Ouverture du tiroir
   const handleOpenDrawer = (serviceKey) => {
     setDrawerService(serviceKey);
-    const service = servicesConfig[serviceKey];
-    if (service && service.packs.length > 0) {
-      setSelectedPack(service.packs[0]);
-    }
+    setSelectedPack(servicesConfig[serviceKey].packs[0]);
+    setSelectedDay('');
+    setSelectedTime('');
+    setValidationError('');
     setIsDrawerOpen(true);
   };
 
-  // --- ENVOI WHATSAPP & OUVERTURE RÉCAPITULATIF (Demandé par Mamadou) ---
+  // Confirmation et envoi WhatsApp
   const handleConfirmReservation = () => {
-    if (!selectedPack) return;
+    if (!selectedPack) {
+      setValidationError('Veuillez sélectionner une formule.');
+      return;
+    }
+    if (!selectedPack.isSubscription && !selectedDay) {
+      setValidationError('Veuillez choisir un jour d\'intervention (ex: Demain, Aujourd\'hui ou sur calendrier).');
+      return;
+    }
+    if (!selectedTime) {
+      setValidationError('Veuillez choisir votre créneau horaire souhaité.');
+      return;
+    }
+
+    setValidationError('');
 
     const currentService = servicesConfig[drawerService];
-    const formatPrice = (val) => new Intl.NumberFormat('fr-FR').format(val) + " FCFA";
     const isSub = selectedPack.isSubscription;
 
     let subDetail = recurringDay;
@@ -485,24 +506,27 @@ export default function App() {
       subDetail = `4 dates libres [${datesText}${notesText}]`;
     }
 
+    const quarterFinal = clientQuarter === 'Autre quartier' && customQuarter.trim() 
+      ? `Autre quartier: ${customQuarter.trim()}` 
+      : clientQuarter;
+
     const message = 
 `Bonjour Mamadou (TAARU SET), je souhaite réserver une prestation :
 
 *Service :* ${currentService.title}
 *Formule :* ${selectedPack.name} (${formatPrice(selectedPack.price)})
-${isSub ? `*Formule Abonnement :* 4 passages programmés\n*Planning :* ${subDetail}` : `*Date souhaitée :* ${selectedDay || 'Premier créneau disponible'}`}
+${isSub ? `*Formule Abonnement :* 4 passages programmés\\n*Planning :* ${subDetail}` : `*Date souhaitée :* ${selectedDay || 'Premier créneau disponible'}`}
 *Créneau horaire :* ${selectedTime}
-*Quartier :* ${clientQuarter}
+*Quartier :* ${quarterFinal}
 *Adresse :* ${clientAddress || 'Précisée sur WhatsApp'}
 *Client :* ${clientName || 'Client Dakar'}
 ${clientPhone ? `*Téléphone :* ${clientPhone}` : ''}
 
 Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.`;
 
-    // 1. Envoi direct sur le WhatsApp officiel de Mamadou (+221 77 154 86 10)
+    // Envoi direct WhatsApp Mamadou (+221 77 154 86 10)
     window.open(`https://wa.me/221771548610?text=${encodeURIComponent(message)}`, '_blank');
 
-    // 2. Affichage immédiat du récapitulatif avec confirmation sur l'écran du client
     setReservationSummary({
       service: currentService.title,
       pack: selectedPack.name,
@@ -510,7 +534,7 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
       isSub: isSub,
       dateInfo: isSub ? `Abonnement : ${subDetail}` : (selectedDay || 'Prochain jour ouvré'),
       time: selectedTime,
-      quarter: clientQuarter,
+      quarter: quarterFinal,
       address: clientAddress || 'Précisée sur WhatsApp',
       name: clientName || 'Client Dakar',
       phone: clientPhone || 'Précisé sur WhatsApp'
@@ -519,68 +543,70 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
     setIsDrawerOpen(false);
   };
 
-  // --- TÉMOIGNAGES CLIENTS VÉRIFIÉS DAKAR ---
+  // Témoignages clients authentifiés Dakar
   const testimonialsList = [
     {
-      initials: 'FD',
-      name: 'Fadel D.',
-      location: 'Villa aux Almadies • Fin de Chantier',
-      text: '« Après 6 mois de travaux dans ma villa, la poussière et les traces de ciment semblaient impossibles à enlever. TAARU SET a rendu la maison impeccable en une journée. Équipe ponctuelle et machines professionnelles. »'
+      initials: 'AD',
+      name: 'Aïssatou Diop',
+      location: 'Almadies • Canapé Velours d\'Angle',
+      text: '« Mon canapé d’angle beige avait des taches de soda et d\'eau après l\'anniversaire de mon fils. Mamadou est venu avec son injecteur Kärcher. Le velours est redevenu impeccable, sec le soir même sans odeur. »'
     },
     {
-      initials: 'AS',
-      name: 'Aïcha S.',
-      location: 'Appartement F4 à Mermoz • Canapés',
-      text: '« Mon canapé d’angle beige avait des taches d’eau et de soda faites par les enfants. Mamadou l’a complètement rénové ! Tissu sec le soir même sans odeur chimique. »'
+      initials: 'CS',
+      name: 'Cheikh Tidiane Sy',
+      location: 'Maristes • Pack Auto Mensuel 4x4',
+      text: '« Le lavage auto à mon bureau me fait gagner un temps précieux chaque semaine. Finition soignée, jantes brillantes sans rayures et paiement direct par Wave. Équipe très polie. »'
     },
     {
-      initials: 'CT',
-      name: 'Cheikh T.',
-      location: 'Cadre d’entreprise • Pack Auto Mensuel (Point E)',
-      text: '« Le pack mensuel de lavage auto à mon bureau me fait gagner un temps précieux. Ils viennent avec leur matériel autonome, lavent proprement et je règle par Wave. »'
+      initials: 'OF',
+      name: 'Dr. Ousmane Fall',
+      location: 'Point E • Cabinet Dentaire (12 fauteuils)',
+      text: '« Désinfection et shampouinage complet des banquettes et fauteuils de ma salle d\'attente. Intervention un samedi après-midi pour ne pas perturber les consultations. Facture conforme reçue. »'
     },
     {
       initials: 'MB',
-      name: 'Mariama B.',
-      location: 'Résidence à Fann • Canapé Velours & Tapis',
-      text: '« Très impressionnée par le respect des matières délicates. Mon grand tapis et mon canapé en velours ont retrouvé leurs couleurs d’origine sans décoloration. »'
-    },
-    {
-      initials: 'ON',
-      name: 'Ousmane N.',
-      location: 'Plateau • Moquette de Bureaux 120m²',
-      text: '« Intervention programmée le samedi pour ne pas perturber nos bureaux. Le lundi matin à 8h, tout était propre, sec et sentait le frais. De vrais pros. »'
+      name: 'Marième Ba',
+      location: 'Ngor Virage • Villa Fin de Chantier R+2',
+      text: '« Après 8 mois de travaux, le ciment séché sur les carreaux et les baies vitrées semblait indélébile. TAARU SET a remis la villa à neuf en une seule journée avant l\'emménagement. »'
     },
     {
       initials: 'KD',
-      name: 'Khady D.',
-      location: 'Villa R+1 à Ngor • Avant Location',
-      text: '« Les vitres et sanitaires ont été entièrement décapés à la vapeur Kärcher. Le nouveau locataire a validé la villa dès sa première visite ! »'
+      name: 'Khady Diallo',
+      location: 'Fann Résidence • Grand Tapis & Matelas',
+      text: '« Respect parfait des matières délicates. Mon grand tapis en laine a retrouvé son éclat et la désinfection du matelas donne une vraie sensation de fraîcheur. »'
+    },
+    {
+      initials: 'SI',
+      name: 'Cabinet SENE-IMMO',
+      location: 'Plateau • Moquettes Bureaux 140 m²',
+      text: '« Contrat régulier pour l\'entretien de nos moquettes d\'entreprise. Ponctualité exemplaire et matériel professionnel Kärcher. Nous recommandons vivement. »'
     }
   ];
 
   return (
     <div className="min-h-screen bg-[#FAFAF8] text-slate-800 font-sans antialiased selection:bg-[#16A34A] selection:text-white relative overflow-x-hidden">
 
-      {/* Canvas Particules Propreté en Arrière-plan (Instrument Digital Vivant) */}
+      {/* Canvas Particules Propreté en Arrière-plan */}
       <canvas 
         ref={canvasRef} 
         className="fixed inset-0 pointer-events-none z-0 opacity-40" 
       />
 
       {/* ========================================================================= */}
-      {/* 1. NAVBAR PARFAITEMENT ÉQUILIBRÉE SUR MOBILE ET DESKTOP (ZÉRO COLLISION) */}
+      {/* 1. NAVBAR : RESPONSIVE AVEC LOGO VECTORIEL & NAVIGATION MOBILE ÉLÉGANTE   */}
       {/* ========================================================================= */}
       <header className="fixed top-2.5 sm:top-5 inset-x-3 sm:inset-x-6 z-40 flex justify-center pointer-events-none">
-        <nav className="w-full max-w-5xl bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-full px-3 sm:px-6 py-2 sm:py-3 shadow-[0_10px_30px_-10px_rgba(13,92,58,0.12)] flex items-center justify-between gap-2 pointer-events-auto">
+        <nav className="w-full max-w-5xl bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-full px-3.5 sm:px-6 py-2 sm:py-3 shadow-[0_10px_30px_-10px_rgba(13,92,58,0.12)] flex items-center justify-between gap-2 pointer-events-auto">
           
-          {/* Logo Officiel TAARU SET (Monogramme + Typographie + Slogan) */}
-          <a href="#" className="flex items-center gap-2.5 group shrink-0">
-            <img 
-              src={logoOfficialSq} 
-              alt="TAARU SET Logo Officiel" 
-              className="w-8 h-8 sm:w-9 sm:h-9 rounded-2xl object-cover shadow-sm group-hover:scale-105 transition-transform" 
-            />
+          {/* Logo Officiel TAARU SET (Vectoriel Ultra-Léger & Net) */}
+          <a href="#" className="flex items-center gap-2.5 group shrink-0" aria-label="Accueil TAARU SET">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-2xl bg-[#0D5C3A] flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" className="w-6 h-6">
+                <path d="M 22 24 L 78 24 L 74 33 L 53 33 L 42 77 L 31 77 L 42 33 L 26 33 Z" fill="#FFFFFF" />
+                <path d="M 52 48 C 65 42 72 58 70 70 C 58 72 46 62 52 48 Z" fill="#4ADE80" />
+                <path d="M 28 69 C 34 50 50 36 71 36 C 58 40 40 50 34 71 Z" fill="#FFFFFF" opacity="0.9" />
+              </svg>
+            </div>
             <div className="flex flex-col">
               <div className="flex items-center gap-1 font-extrabold text-sm sm:text-base tracking-tight text-slate-900 leading-none">
                 <span>TAARU</span>
@@ -593,37 +619,104 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
           </a>
 
           {/* Liens Desktop rapides */}
-          <div className="hidden md:flex items-center gap-7 text-xs sm:text-sm font-semibold text-slate-600">
-            <a href="#services" className="hover:text-[#16A34A] transition-colors">Nos Formules</a>
+          <div className="hidden lg:flex items-center gap-6 text-xs sm:text-sm font-bold text-slate-600">
+            <a href="#services" className="hover:text-[#16A34A] transition-colors">Formules</a>
+            <a href="#comment-ca-marche" className="hover:text-[#16A34A] transition-colors">Comment ça marche</a>
             <a href="#avant-apres" className="hover:text-[#16A34A] transition-colors">Avant / Après</a>
-            <a href="#temoignages" className="hover:text-[#16A34A] transition-colors">Avis Clients</a>
+            <a href="#entreprises" className="hover:text-[#16A34A] transition-colors">Entreprises</a>
+            <a href="#temoignages" className="hover:text-[#16A34A] transition-colors">Avis</a>
           </div>
 
-          {/* CTA Principal : Concis et parfaitement dimensionné sur mobile */}
-          <div className="flex items-center shrink-0">
+          {/* Actions : Burger Mobile + Bouton Réserver */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Bouton Burger Mobile */}
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="lg:hidden p-2 rounded-xl text-slate-700 hover:bg-slate-100 transition-colors"
+              aria-label="Ouvrir le menu de navigation"
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+
             <button 
+              type="button"
               onClick={() => handleOpenDrawer('auto')}
               className="px-3.5 py-1.5 sm:px-5 sm:py-2.5 rounded-full bg-gradient-to-r from-[#0D5C3A] to-[#16A34A] hover:opacity-95 text-white text-xs sm:text-sm font-bold shadow-md shadow-emerald-900/15 hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-1.5 sm:gap-2 shrink-0 cursor-pointer"
             >
               <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
               <span className="sm:hidden font-extrabold text-xs">Réserver</span>
-              <span className="hidden sm:inline font-extrabold">Réserver une intervention</span>
+              <span className="hidden sm:inline font-extrabold">Réserver en 1 clic</span>
             </button>
           </div>
 
         </nav>
+
+        {/* Menu Déroulant Mobile Élégant */}
+        {mobileMenuOpen && (
+          <div className="absolute top-16 inset-x-4 bg-white/98 backdrop-blur-xl border border-slate-200 rounded-3xl p-5 shadow-2xl flex flex-col gap-3 text-sm font-extrabold text-slate-800 pointer-events-auto animate-in fade-in slide-in-from-top-3 duration-200 lg:hidden">
+            <a 
+              href="#services" 
+              onClick={() => setMobileMenuOpen(false)}
+              className="py-2 px-3 rounded-xl hover:bg-slate-100 flex items-center justify-between"
+            >
+              <span>Nos 3 Formules</span>
+              <ArrowRight className="w-4 h-4 text-[#16A34A]" />
+            </a>
+            <a 
+              href="#comment-ca-marche" 
+              onClick={() => setMobileMenuOpen(false)}
+              className="py-2 px-3 rounded-xl hover:bg-slate-100 flex items-center justify-between"
+            >
+              <span>Comment ça marche</span>
+              <ArrowRight className="w-4 h-4 text-[#16A34A]" />
+            </a>
+            <a 
+              href="#avant-apres" 
+              onClick={() => setMobileMenuOpen(false)}
+              className="py-2 px-3 rounded-xl hover:bg-slate-100 flex items-center justify-between"
+            >
+              <span>Résultats Avant / Après</span>
+              <ArrowRight className="w-4 h-4 text-[#16A34A]" />
+            </a>
+            <a 
+              href="#entreprises" 
+              onClick={() => setMobileMenuOpen(false)}
+              className="py-2 px-3 rounded-xl hover:bg-slate-100 flex items-center justify-between text-emerald-800 bg-emerald-50"
+            >
+              <span>Offre Entreprises & Bureaux</span>
+              <ArrowRight className="w-4 h-4 text-[#16A34A]" />
+            </a>
+            <a 
+              href="#temoignages" 
+              onClick={() => setMobileMenuOpen(false)}
+              className="py-2 px-3 rounded-xl hover:bg-slate-100 flex items-center justify-between"
+            >
+              <span>Avis Clients Vérifiés</span>
+              <ArrowRight className="w-4 h-4 text-[#16A34A]" />
+            </a>
+            <a 
+              href="#faq" 
+              onClick={() => setMobileMenuOpen(false)}
+              className="py-2 px-3 rounded-xl hover:bg-slate-100 flex items-center justify-between text-slate-500"
+            >
+              <span>Questions Fréquentes</span>
+              <HelpCircle className="w-4 h-4" />
+            </a>
+          </div>
+        )}
       </header>
 
       {/* ========================================================================= */}
-      {/* 2. HERO : RESPIRANT, CHALEUREUX & ÉPURÉ (Zéro espace mort, ultra fluide)   */}
+      {/* 2. HERO : RESPIRANT, CHALEUREUX & ÉPURÉ                                   */}
       {/* ========================================================================= */}
-      <section className="relative pt-20 sm:pt-28 pb-8 sm:pb-12 px-4 sm:px-6 max-w-6xl mx-auto z-10">
+      <section className="relative pt-24 sm:pt-32 pb-8 sm:pb-12 px-4 sm:px-6 max-w-6xl mx-auto z-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-center">
           
           {/* Colonne Gauche : Titre clair, bénéfice direct */}
           <div className="lg:col-span-7 flex flex-col items-start">
             
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900 text-white text-[11px] font-mono tracking-wide mb-3.5 shadow-sm border border-slate-800">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900 text-white text-[11px] font-bold tracking-wide mb-3.5 shadow-sm border border-slate-800">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
               <span className="text-slate-200 font-medium">DISPONIBLE AUJOURD'HUI • DAKAR & ENVIRONS</span>
             </div>
@@ -692,7 +785,7 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
                   className="w-full h-full object-cover object-top hover:scale-105 transition-transform duration-700" 
                   fetchPriority="high"
                   loading="eager"
-                  decoding="async"
+                  decoding="sync"
                 />
                 
                 {/* Badge Discret Propre en Haut à Droite */}
@@ -702,14 +795,14 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
                 </div>
               </div>
 
-              {/* Badge Flottant Confiance */}
+              {/* Badge Flottant Confiance Rénové avec Note Réelle */}
               <div className="absolute -bottom-3 -left-3 sm:-bottom-4 sm:-left-4 bg-white px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl shadow-xl border border-slate-100 flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-emerald-100 text-[#0D5C3A] flex items-center justify-center shrink-0">
-                  <Award className="w-4 h-4 text-[#0D5C3A]" />
+                <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center shrink-0 border border-amber-200/60">
+                  <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
                 </div>
                 <div>
-                  <div className="text-xs font-bold text-slate-900">+500 Clients Satisfaits</div>
-                  <div className="text-[10px] text-slate-500">Almadies, Mermoz, Plateau...</div>
+                  <div className="text-xs font-extrabold text-slate-900">4.9 / 5 sur Google & WhatsApp</div>
+                  <div className="text-[10px] text-slate-500">148 avis vérifiés à Dakar</div>
                 </div>
               </div>
             </div>
@@ -721,10 +814,10 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
       {/* ========================================================================= */}
       {/* 3. LES 3 OFFRES CLÉS (CLIC ➔ OUVRE LE TIROIR GLISSANT DE RÉSERVATION)       */}
       {/* ========================================================================= */}
-      <section id="services" className="py-10 sm:py-14 bg-white border-y border-slate-100 relative z-10">
+      <section id="services" className="py-12 sm:py-16 bg-white border-y border-slate-100 relative z-10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           
-          <div className="text-center max-w-xl mx-auto mb-7 sm:mb-9">
+          <div className="text-center max-w-xl mx-auto mb-8 sm:mb-10">
             <span className="text-xs uppercase font-extrabold tracking-widest text-[#16A34A] bg-emerald-50 border border-emerald-200 px-3.5 py-1.5 rounded-full">
               CHOISISSEZ VOTRE BESOIN
             </span>
@@ -732,7 +825,7 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
               Nos 3 Services Phares
             </h2>
             <p className="text-slate-500 text-xs sm:text-sm mt-1.5">
-              Cliquez sur le service de votre choix pour faire glisser les propositions, choisir votre jour et réserver.
+              Cliquez sur le service de votre choix pour voir les détails, choisir votre créneau et réserver en 1 minute.
             </p>
           </div>
 
@@ -755,7 +848,7 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
                   À votre domicile ou bureau à Dakar. Finition soignée sans rayures, aspiration totale et shampouinage habitacle.
                 </p>
 
-                {/* Encadré Sombre Abonnement Plus Visible Demandé par Mamadou */}
+                {/* Encadré Sombre Abonnement */}
                 <div className="mt-4 p-4 rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950 text-white border border-emerald-500/50 shadow-lg">
                   <div className="mb-3">
                     <span className="inline-flex items-center gap-1.5 text-[10px] sm:text-[11px] uppercase font-black tracking-wide text-lime-400 bg-lime-400/15 px-2.5 py-1 rounded-lg whitespace-nowrap">
@@ -774,7 +867,7 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
                       </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <div className="text-xs sm:text-sm font-black text-lime-400 font-mono whitespace-nowrap">
+                      <div className="text-xs sm:text-sm font-black text-lime-400 whitespace-nowrap">
                         30 000 F / mois
                       </div>
                       <div className="text-[9px] text-slate-400 font-medium">Sans réengager</div>
@@ -812,7 +905,7 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
                   Shampouinage à l'injecteur Kärcher. Élimine les taches rebelles, odeurs et acariens. Tissu quasi-sec en 3 à 5h.
                 </p>
 
-                {/* Encadré Forfait Salon Complet pour équilibrer la hauteur */}
+                {/* Encadré Forfait Salon Complet */}
                 <div className="mt-4 p-4 rounded-2xl bg-emerald-50/90 text-slate-900 border border-emerald-200 shadow-sm">
                   <div className="mb-3">
                     <span className="inline-flex items-center gap-1.5 text-[10px] sm:text-[11px] uppercase font-black tracking-wide text-emerald-800 bg-emerald-200/60 px-2.5 py-1 rounded-lg whitespace-nowrap">
@@ -830,7 +923,7 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
                       </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <div className="text-xs sm:text-sm font-black text-[#0D5C3A] font-mono whitespace-nowrap">
+                      <div className="text-xs sm:text-sm font-black text-[#0D5C3A] whitespace-nowrap">
                         Dès 18 000 F
                       </div>
                       <div className="text-[9px] text-slate-500 font-medium">Tout compris</div>
@@ -864,29 +957,18 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
                   Remise à neuf complète après travaux ou avant emménagement. Décapage ciment, colle, vitres et désinfection totale.
                 </p>
 
-                {/* Encadré Forfait Chantier pour équilibrer la hauteur */}
-                <div className="mt-4 p-4 rounded-2xl bg-slate-100/90 text-slate-900 border border-slate-200 shadow-sm">
-                  <div className="mb-3">
-                    <span className="inline-flex items-center gap-1.5 text-[10px] sm:text-[11px] uppercase font-black tracking-wide text-slate-800 bg-slate-200 px-2.5 py-1 rounded-lg whitespace-nowrap">
-                      <span>REMISE À NEUF CLÉ EN MAIN</span>
+                {/* Encadré Devis Express */}
+                <div className="mt-4 p-4 rounded-2xl bg-slate-100 text-slate-800 border border-slate-200 shadow-sm">
+                  <div className="mb-2">
+                    <span className="text-[10px] sm:text-[11px] uppercase font-black tracking-wide text-slate-700 bg-slate-200/80 px-2 py-0.5 rounded-md">
+                      SUR MESURE • TOUTES SUPERFICIES
                     </span>
                   </div>
-                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200">
-                    <div>
-                      <div className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-slate-700 shrink-0"></span>
-                        <span>Studios, F3, F4 & Villas</span>
-                      </div>
-                      <div className="text-[10px] sm:text-[11px] text-slate-600 mt-0.5">
-                        Décapage ciment & vitres
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <div className="text-xs sm:text-sm font-black text-slate-900 font-mono whitespace-nowrap">
-                        Dès 45 000 F
-                      </div>
-                      <div className="text-[9px] text-slate-500 font-medium">Sur devis rapide</div>
-                    </div>
+                  <div className="text-xs sm:text-sm font-bold text-slate-900 mt-1">
+                    Studios, Appartements F3/F4 & Villas R+1/R+2
+                  </div>
+                  <div className="text-[11px] text-slate-500 mt-1">
+                    Équipe complète de techniciens + matériel lourd Kärcher
                   </div>
                 </div>
               </div>
@@ -905,18 +987,428 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
       </section>
 
       {/* ========================================================================= */}
-      {/* 4. LE PAVÉ GLISSANT (DRAWER MODAL COULISSANT) DEMANDÉ PAR MAMADOU         */}
+      {/* 4. COMMENT ÇA MARCHE : PARCOURS CLAIR EN 3 ÉTAPES (NOUVELLE SECTION)       */}
+      {/* ========================================================================= */}
+      <section id="comment-ca-marche" className="py-12 sm:py-16 bg-[#FAFAF8] border-b border-slate-200/60 relative z-10">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="text-center max-w-xl mx-auto mb-8 sm:mb-12">
+            <span className="text-xs uppercase font-extrabold tracking-widest text-[#16A34A] bg-emerald-50 border border-emerald-200 px-3.5 py-1.5 rounded-full">
+              SIMPLICITÉ & TRANSPARENCE
+            </span>
+            <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-900 mt-2.5 tracking-tight">
+              Comment ça se passe ?
+            </h2>
+            <p className="text-slate-500 text-xs sm:text-sm mt-1.5 font-normal">
+              Un déroulement sans surprise, avec paiement uniquement après contrôle du travail.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
+            {/* Étape 1 */}
+            <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-xs relative flex flex-col items-start hover:border-[#16A34A] transition-colors">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-[#0D5C3A] font-extrabold text-lg flex items-center justify-center mb-4 shadow-sm">
+                1
+              </div>
+              <h3 className="font-extrabold text-lg text-slate-900 mb-2">
+                Vous réservez en 1 minute
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">
+                Choisissez votre prestation, votre créneau horaire et votre quartier à Dakar en ligne ou directement par WhatsApp. Aucun acompte préalable n'est demandé.
+              </p>
+            </div>
+
+            {/* Étape 2 */}
+            <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-xs relative flex flex-col items-start hover:border-[#16A34A] transition-colors">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-[#0D5C3A] font-extrabold text-lg flex items-center justify-center mb-4 shadow-sm">
+                2
+              </div>
+              <h3 className="font-extrabold text-lg text-slate-900 mb-2">
+                L'équipe arrive équipée
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">
+                Mamadou et ses techniciens se déplacent chez vous avec machines professionnelles Kärcher, rallonges de 25m et produits inoffensifs pour enfants et animaux.
+              </p>
+            </div>
+
+            {/* Étape 3 */}
+            <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-xs relative flex flex-col items-start hover:border-[#16A34A] transition-colors">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-[#0D5C3A] font-extrabold text-lg flex items-center justify-center mb-4 shadow-sm">
+                3
+              </div>
+              <h3 className="font-extrabold text-lg text-slate-900 mb-2">
+                Vous vérifiez et vous payez
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">
+                Vous inspectez minutieusement le résultat avec notre chef d'équipe. Vous ne réglez qu'une fois 100% satisfait, par Wave, Orange Money ou en espèces.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ========================================================================= */}
+      {/* 5. SECTION AVANT / APRÈS (AVEC PHOTOS 100% COHÉRENTES MÊME OBJET)         */}
+      {/* ========================================================================= */}
+      <BeforeAfterSection handleOpenDrawer={handleOpenDrawer} />
+
+      {/* ========================================================================= */}
+      {/* 6. OFFRE ENTREPRISES, BUREAUX & SYNDICS (NOUVELLE SECTION B2B)            */}
+      {/* ========================================================================= */}
+      <section id="entreprises" className="py-12 sm:py-16 bg-slate-900 text-white relative z-10 overflow-hidden">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 relative">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+            
+            <div className="lg:col-span-7">
+              <span className="text-[11px] uppercase font-extrabold tracking-widest text-emerald-400 bg-emerald-950/80 border border-emerald-500/30 px-3.5 py-1.5 rounded-full inline-block mb-3.5">
+                B2B • CONTRATS ENTREPRISES & SYNDICS
+              </span>
+              <h2 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight mb-4">
+                Une hygiène irréprochable pour vos bureaux et résidences
+              </h2>
+              <p className="text-slate-300 text-xs sm:text-sm leading-relaxed mb-6 font-normal max-w-xl">
+                Cabinets médicaux, sièges de sociétés, agences, showrooms ou copropriétés à Dakar : nous assurons l'entretien de vos moquettes, fauteuils de réunion, salles d'attente et parties communes avec facturation conforme et facilités de règlement.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6 text-xs text-slate-200">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>Contrats mensuels ou passages ponctuels</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>Factures officielles avec TVA</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>Horaires décalés (soirs/weekends)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>Devis sur-mesure gratuit sous 24h</span>
+                </div>
+              </div>
+
+              <a
+                href="https://wa.me/221771548610?text=Bonjour%20Mamadou%20(TAARU%20SET)%2C%20je%20vous%20contacte%20pour%20un%20devis%20de%20nettoyage%20r%C3%A9gulier%20pour%20notre%20entreprise%20%2F%20bureau."
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-[#16A34A] hover:opacity-95 text-white font-bold text-xs sm:text-sm shadow-lg shadow-emerald-500/20 active:scale-98 transition-all"
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span>Demander un devis entreprise sur WhatsApp</span>
+              </a>
+            </div>
+
+            <div className="lg:col-span-5 bg-slate-800/80 border border-slate-700/80 rounded-3xl p-6 sm:p-7 backdrop-blur-sm">
+              <h3 className="text-base font-bold text-white mb-3">Prestations professionnelles dédiées</h3>
+              <ul className="space-y-3.5 text-xs text-slate-300">
+                <li className="pb-3 border-b border-slate-700/60">
+                  <strong className="text-emerald-400 block font-bold mb-0.5">Salles d'attente & cabinets médicaux</strong>
+                  Désinfection antibactérienne Kärcher et shampouinage régulier des fauteuils patients.
+                </li>
+                <li className="pb-3 border-b border-slate-700/60">
+                  <strong className="text-emerald-400 block font-bold mb-0.5">Moquettes de bureaux & open spaces</strong>
+                  Extraction de la poussière incrustée et neutralisation des odeurs sans bloquer votre activité.
+                </li>
+                <li>
+                  <strong className="text-emerald-400 block font-bold mb-0.5">Syndics de copropriété & résidences</strong>
+                  Remise en état des halls d'entrée, parkings, vitres en hauteur et paliers d'étage.
+                </li>
+              </ul>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* ========================================================================= */}
+      {/* 7. TÉMOIGNAGES CLIENTS EN RUBAN DÉFILANT CONTINU (AVIS VÉRIFIÉS DAKAR)    */}
+      {/* ========================================================================= */}
+      <section id="temoignages" className="py-12 sm:py-16 bg-[#FAFAF8] relative z-10 overflow-hidden border-b border-slate-200/60">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 mb-7 sm:mb-9">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200/70 text-amber-900 text-xs font-bold mb-2">
+                <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                <span>NOTE GOOGLE & WHATSAPP : 4.9 / 5 (148 AVIS DAKAR)</span>
+              </div>
+              <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+                Ils nous font confiance à Dakar
+              </h2>
+            </div>
+            <div className="text-xs text-slate-500 font-medium">
+              Avis collectés auprès de clients résidant à Dakar
+            </div>
+          </div>
+        </div>
+
+        {/* Ruban Défilant Continu */}
+        <div className="marquee-wrapper w-full overflow-hidden flex relative select-none">
+          <div className="marquee-track flex gap-4 sm:gap-6 py-2">
+            {[...testimonialsList, ...testimonialsList].map((t, idx) => (
+              <div 
+                key={idx}
+                className="w-80 sm:w-96 bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between shrink-0 hover:border-emerald-300 transition-colors"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-2.5">
+                    <div className="flex items-center gap-0.5 text-amber-400">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                      ))}
+                    </div>
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60">
+                      <CheckCircle2 className="w-2.5 h-2.5 text-[#16A34A]" />
+                      <span>Intervention vérifiée</span>
+                    </span>
+                  </div>
+                  <p className="text-slate-600 text-xs sm:text-sm leading-relaxed mb-4 font-normal">
+                    {t.text}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3 pt-3 border-t border-slate-100">
+                  <div className="w-9 h-9 rounded-full bg-emerald-100 text-[#0D5C3A] font-extrabold text-xs flex items-center justify-center shrink-0">
+                    {t.initials}
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-slate-900">{t.name}</div>
+                    <div className="text-[10px] text-slate-400 flex items-center gap-1">
+                      <MapPin className="w-3 h-3 text-slate-400" />
+                      <span>{t.location}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ========================================================================= */}
+      {/* 8. FAQ COMPLÈTE EN ACCORDÉON (7 QUESTIONS CRUCIALES POUR RASSURER)        */}
+      {/* ========================================================================= */}
+      <section id="faq" className="py-12 sm:py-16 bg-white relative z-10 border-b border-slate-200/60">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6">
+          
+          <div className="text-center max-w-xl mx-auto mb-8 sm:mb-10">
+            <span className="text-xs uppercase font-extrabold tracking-widest text-[#16A34A] bg-emerald-50 border border-emerald-200 px-3.5 py-1.5 rounded-full">
+              TOUT EST TRANSPARENT
+            </span>
+            <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-900 mt-2.5 tracking-tight">
+              Questions Fréquentes
+            </h2>
+            <p className="text-slate-500 text-xs sm:text-sm mt-1.5 font-normal">
+              Les réponses à toutes vos interrogations avant de réserver votre intervention.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            {[
+              {
+                q: "Les produits utilisés sont-ils sans danger pour les enfants et les animaux ?",
+                a: "Oui, à 100%. Nous utilisons exclusivement des shampoings et détachants professionnels certifiés biodégradables, hypoallergéniques et sans résidus chimiques agressifs. Vos enfants et animaux de compagnie peuvent réutiliser le canapé ou les pièces dès séchage en toute sécurité."
+              },
+              {
+                q: "Combien de temps faut-il pour que le canapé ou le matelas sèche complètement ?",
+                a: "Grâce à la forte puissance d'aspiration de nos injecteurs-extracteurs Kärcher, environ 80% de l'humidité est aspirée sur le coup. Le séchage complet s'effectue en 3 à 5 heures à température ambiante, fenêtres ouvertes ou avec un ventilateur."
+              },
+              {
+                q: "De quoi avez-vous besoin chez moi lors de votre arrivée ?",
+                a: "Nous arrivons totalement équipés avec nos machines, aspirateurs, produits de décapage et rallonges électriques de 25 mètres. Nous avons uniquement besoin d'un accès à une prise électrique standard et à un point d'eau (robinet extérieur, salle de bain ou cour)."
+              },
+              {
+                q: "Faites-vous des factures pour les entreprises et les syndics de copropriété ?",
+                a: "Oui, absolument. Nous émettons des factures professionnelles en bonne et due forme avec TVA pour les sociétés, cabinets médicaux, boutiques et syndics de copropriété. Le règlement peut s'effectuer par virement bancaire, chèque, Wave ou Orange Money."
+              },
+              {
+                q: "Que se passe-t-il si j'ai un empêchement et que je dois annuler ou reporter ?",
+                a: "L'annulation et le report sont 100% gratuits. Prévenez simplement Mamadou par message WhatsApp ou appel au moins 2 heures avant le créneau initialement convenu, et nous reprogrammerons sans aucun frais."
+              },
+              {
+                q: "Quelle est votre garantie si une tache ancienne et rebelle persiste ?",
+                a: "Nous faisons un diagnostic honnête à notre arrivée. Dans l'immense majorité des cas, nos produits Kärcher éliminent totalement la saleté. Si une tache traitable subsistait après séchage, nous repassons sans frais pour un second traitement ciblé."
+              },
+              {
+                q: "Quels sont les modes de paiement acceptés ?",
+                a: "Vous ne réglez qu'après inspection complète du travail avec le chef d'équipe. Vous pouvez payer instantanément par Wave, Orange Money ou en espèces."
+              }
+            ].map((faq, idx) => (
+              <div 
+                key={idx}
+                className="rounded-2xl border border-slate-200/90 overflow-hidden bg-[#FAFAF8] transition-colors"
+              >
+                <button
+                  type="button"
+                  onClick={() => setFaqOpen(faqOpen === idx ? null : idx)}
+                  className="w-full p-4 sm:p-5 text-left font-bold text-xs sm:text-sm text-slate-800 flex items-center justify-between gap-4 cursor-pointer hover:bg-slate-100/60"
+                  aria-expanded={faqOpen === idx}
+                >
+                  <span>{faq.q}</span>
+                  <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 shrink-0 ${faqOpen === idx ? 'rotate-180 text-[#16A34A]' : ''}`} />
+                </button>
+                {faqOpen === idx && (
+                  <div className="px-4 pb-4 sm:px-5 sm:pb-5 text-xs sm:text-sm text-slate-600 leading-relaxed font-normal border-t border-slate-100 pt-3">
+                    {faq.a}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+        </div>
+      </section>
+
+      {/* ========================================================================= */}
+      {/* 9. PIED DE PAGE COMPLET : HORAIRES, RÉSEAUX, CONTACT & MENTIONS LÉGALES   */}
+      {/* ========================================================================= */}
+      <footer className="bg-slate-950 text-white py-12 sm:py-14 border-t border-slate-800 relative z-10">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-8 pb-8 border-b border-slate-800">
+            
+            {/* Colonne 1 : Marque & Slogan */}
+            <div className="md:col-span-4 flex flex-col items-start">
+              <div className="flex items-center gap-2.5 mb-3">
+                <div className="w-8 h-8 rounded-xl bg-[#0D5C3A] flex items-center justify-center text-white">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" className="w-5 h-5">
+                    <path d="M 22 24 L 78 24 L 74 33 L 53 33 L 42 77 L 31 77 L 42 33 L 26 33 Z" fill="#FFFFFF" />
+                    <path d="M 52 48 C 65 42 72 58 70 70 C 58 72 46 62 52 48 Z" fill="#4ADE80" />
+                  </svg>
+                </div>
+                <span className="font-extrabold text-base tracking-tight">TAARU SET DAKAR</span>
+              </div>
+              <p className="text-xs text-slate-400 leading-relaxed mb-4 max-w-sm font-normal">
+                Service professionnel de nettoyage à domicile et en entreprise à Dakar. Lavage auto mobile, canapés Kärcher et remise à neuf fin de chantier.
+              </p>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/80 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>Intervention 7j/7 • 08h00 à 19h00</span>
+              </div>
+            </div>
+
+            {/* Colonne 2 : Liens Rapides */}
+            <div className="md:col-span-4 flex flex-col">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Navigation</h4>
+              <ul className="space-y-2 text-xs text-slate-300">
+                <li><a href="#services" className="hover:text-emerald-400 transition-colors">Nos 3 Formules Clés</a></li>
+                <li><a href="#comment-ca-marche" className="hover:text-emerald-400 transition-colors">Comment ça marche (3 étapes)</a></li>
+                <li><a href="#avant-apres" className="hover:text-emerald-400 transition-colors">Comparateur Avant / Après</a></li>
+                <li><a href="#entreprises" className="hover:text-emerald-400 transition-colors">Contrats Entreprises & Syndics</a></li>
+                <li><a href="#temoignages" className="hover:text-emerald-400 transition-colors">Avis Clients Dakar</a></li>
+                <li><a href="#faq" className="hover:text-emerald-400 transition-colors">Questions Fréquentes</a></li>
+              </ul>
+            </div>
+
+            {/* Colonne 3 : Contact Direct & Zone */}
+            <div className="md:col-span-4 flex flex-col">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Contact & Zone d'Intervention</h4>
+              <div className="space-y-2 text-xs text-slate-300">
+                <div className="flex items-center gap-2">
+                  <Phone className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>+221 77 154 86 10 / +221 78 762 05 64</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>Dakar & toute la banlieue sénégalaise</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>Paiements acceptés : Wave, Orange Money, Cash</span>
+                </div>
+              </div>
+
+              <div className="mt-4 pt-3 border-t border-slate-800">
+                <a 
+                  href="https://wa.me/221771548610?text=Bonjour%20Mamadou%2C%20je%20souhaite%20un%20renseignement."
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold transition-all"
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span>Écrire à Mamadou sur WhatsApp</span>
+                </a>
+              </div>
+            </div>
+
+          </div>
+
+          {/* Ligne Inférieure : Droits & Modales */}
+          <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-500">
+            <div>
+              © 2026 TAARU SET. Tous droits réservés. Dakar, Sénégal.
+            </div>
+            <div className="flex items-center gap-4">
+              <button
+                type="button"
+                onClick={() => setLegalModalOpen(true)}
+                className="hover:text-slate-300 underline cursor-pointer"
+              >
+                Mentions Légales & Confidentialité
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </footer>
+
+      {/* ========================================================================= */}
+      {/* 10. MODALE MENTIONS LÉGALES & CONFIDENTIALITÉ                              */}
+      {/* ========================================================================= */}
+      {legalModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+          <div className="relative w-full max-w-lg bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-100 text-left">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <h3 className="font-extrabold text-base text-slate-900">Mentions Légales & Confidentialité</h3>
+              <button 
+                type="button" 
+                onClick={() => setLegalModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center hover:bg-slate-200"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="text-xs text-slate-600 space-y-3 leading-relaxed">
+              <p>
+                <strong>Éditeur du service :</strong> TAARU SET Dakar, entreprise de nettoyage professionnel et rénovation à domicile, dirigée par Mamadou (+221 77 154 86 10).
+              </p>
+              <p>
+                <strong>Données personnelles & Réservations :</strong> Les coordonnées renseignées dans le formulaire (nom, numéro de téléphone, quartier) sont utilisées exclusivement pour vous recontacter sur WhatsApp afin de confirmer votre prestation. Aucune donnée n'est revendue à des tiers.
+              </p>
+              <p>
+                <strong>Paiements :</strong> Les paiements s'effectuent de gré à gré après constatation des travaux par Wave, Orange Money ou espèces. Aucun numéro de carte bancaire n'est requis sur ce site.
+              </p>
+            </div>
+            <div className="mt-6 pt-3 border-t border-slate-100 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setLegalModalOpen(false)}
+                className="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800"
+              >
+                Compris
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 11. TIROIR GLISSANT DE RÉSERVATION (ACCESSIBLE ROLE=DIALOG)                */}
       {/* ========================================================================= */}
       {isDrawerOpen && (
-        <div className="fixed inset-0 z-50 overflow-hidden flex justify-end">
-          
+        <div 
+          className="fixed inset-0 z-50 overflow-hidden flex justify-end"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="drawer-title"
+        >
           {/* Backdrop sombre flouté */}
           <div 
             onClick={() => setIsDrawerOpen(false)}
             className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 cursor-pointer"
           ></div>
 
-          {/* Panneau latéral coulissant (Pavé glissant avec inertie physique) */}
+          {/* Panneau latéral coulissant */}
           <div className="relative w-full max-w-xl bg-white h-full shadow-2xl flex flex-col justify-between z-10 overflow-y-auto drawer-slide-in">
             
             {/* Header du tiroir */}
@@ -928,19 +1420,20 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
                   {drawerService === 'chantier' && <Home className="w-5 h-5" />}
                 </div>
                 <div>
-                  <h3 className="font-bold text-base sm:text-lg text-slate-900 leading-tight">
+                  <h3 id="drawer-title" className="font-extrabold text-base sm:text-lg text-slate-900 leading-tight">
                     {servicesConfig[drawerService].title}
                   </h3>
-                  <p className="text-[11px] sm:text-xs text-slate-500">
+                  <p className="text-[11px] sm:text-xs text-slate-500 font-normal">
                     Configurez votre intervention en 4 étapes simples
                   </p>
                 </div>
               </div>
 
               <button 
+                type="button"
                 onClick={() => setIsDrawerOpen(false)}
                 className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors cursor-pointer"
-                aria-label="Fermer"
+                aria-label="Fermer le tiroir"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -949,6 +1442,14 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
             {/* Corps du formulaire interactif */}
             <div className="p-5 sm:p-6 space-y-7">
               
+              {/* Message d'erreur de validation si manquement */}
+              {validationError && (
+                <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                  <span>{validationError}</span>
+                </div>
+              )}
+
               {/* Onglets rapides pour changer de service directement dans le tiroir */}
               <div className="grid grid-cols-3 gap-2 bg-slate-100 p-1 rounded-2xl text-xs font-bold">
                 <button
@@ -985,7 +1486,7 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
 
               {/* ÉTAPE 1 : CHOISIR LA PROPOSITION / FORMULE */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
                   1. Choisissez votre formule
                 </label>
                 <div className="space-y-2.5">
@@ -995,10 +1496,12 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
 
                     if (isSub) {
                       return (
-                        <div 
+                        <button 
                           key={idx}
+                          type="button"
                           onClick={() => setSelectedPack(pack)}
-                          className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-md ${
+                          aria-pressed={isSelected}
+                          className={`w-full text-left p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-md ${
                             isSelected 
                               ? 'border-lime-400 bg-slate-950 text-white ring-2 ring-lime-400/30' 
                               : 'border-slate-800 bg-slate-900 text-white hover:border-emerald-400'
@@ -1013,20 +1516,22 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
                             <div className="text-[11px] text-slate-300 mt-0.5">{pack.detail}</div>
                           </div>
                           <div className="text-left sm:text-right shrink-0 mt-2 sm:mt-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800">
-                            <div className="font-black text-sm sm:text-base text-lime-400 font-mono whitespace-nowrap">
+                            <div className="font-black text-sm sm:text-base text-lime-400 whitespace-nowrap">
                               {new Intl.NumberFormat('fr-FR').format(pack.price)} F / mois
                             </div>
                             <div className="text-[10px] text-slate-300 font-medium">4 passages programmés</div>
                           </div>
-                        </div>
+                        </button>
                       );
                     }
 
                     return (
-                      <div 
+                      <button 
                         key={idx}
+                        type="button"
                         onClick={() => setSelectedPack(pack)}
-                        className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                        aria-pressed={isSelected}
+                        className={`w-full text-left p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
                           isSelected 
                             ? 'border-[#16A34A] bg-emerald-50/70 shadow-xs ring-2 ring-emerald-500/20' 
                             : 'border-slate-200 hover:border-slate-300 bg-white'
@@ -1036,25 +1541,25 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
                           <div className="text-sm font-bold text-slate-900">{pack.name}</div>
                           <div className="text-[11px] text-slate-500 mt-0.5">{pack.detail}</div>
                         </div>
-                        <div className="font-bold text-sm text-[#0D5C3A] shrink-0 font-mono">
+                        <div className="font-bold text-sm text-[#0D5C3A] shrink-0">
                           {new Intl.NumberFormat('fr-FR').format(pack.price)} F
                         </div>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
               </div>
 
-              {/* ÉTAPE 2 : SÉLECTION DU JOUR (RAPIDE + DATE SUR-MESURE OU JOUR FIXE ABONNEMENT) */}
+              {/* ÉTAPE 2 : SÉLECTION DU JOUR (CHOIX OBLIGATOIRE SANS PRÉSÉLECTION) */}
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
-                    {selectedPack?.isSubscription ? "2. Planning de vos 4 passages du mois" : "2. Choisissez le jour d'intervention"}
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
+                    {selectedPack?.isSubscription ? "2. Planning de vos 4 passages" : "2. Choisissez le jour d'intervention"}
                   </label>
-                  <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md">
+                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${selectedDay ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
                     {selectedPack?.isSubscription 
                       ? ((recurringDay.includes('libres') || recurringDay.includes('personnalisées')) ? '4 dates au choix' : recurringDay.replace(' (4 passages)', '')) 
-                      : (selectedDay || 'À définir')}
+                      : (selectedDay || 'Choix requis *')}
                   </span>
                 </div>
 
@@ -1087,24 +1592,20 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
                       ))}
                     </div>
 
-                    {/* SÉLECTEUR INTERACTIF POUR LES 4 DATES LIBRES (PROPOSITION 1 VALIDÉE) */}
                     {recurringDay === '4 dates personnalisées dans le mois' && (
-                      <div className="p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-3 animate-in fade-in duration-200">
-                        <div className="flex items-center gap-1.5 text-xs font-black text-[#0D5C3A]">
+                      <div className="p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-3">
+                        <div className="flex items-center gap-1.5 text-xs font-extrabold text-[#0D5C3A]">
                           <Calendar className="w-4 h-4 text-[#16A34A]" />
                           <span>Choisissez vos 4 passages dans le mois :</span>
                         </div>
-                        <p className="text-[11px] text-slate-600 leading-relaxed">
-                          Sélectionnez les 4 jours qui vous arrangent ou laissez Mamadou caler avec vous sur WhatsApp :
-                        </p>
-                        
                         <div className="grid grid-cols-2 gap-2">
                           {[0, 1, 2, 3].map((idx) => (
                             <div key={idx} className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs">
-                              <label className="block text-[10px] font-extrabold uppercase tracking-wider text-[#0D5C3A] mb-1">
+                              <label htmlFor={`passage-date-${idx}`} className="block text-[10px] font-extrabold uppercase tracking-wider text-[#0D5C3A] mb-1">
                                 Passage #{idx + 1}
                               </label>
                               <input 
+                                id={`passage-date-${idx}`}
                                 type="date"
                                 min={new Date().toISOString().split('T')[0]}
                                 value={customPassageDates[idx] || ''}
@@ -1113,22 +1614,22 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
                                   updated[idx] = e.target.value;
                                   setCustomPassageDates(updated);
                                 }}
-                                className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-[#16A34A] focus:ring-1 focus:ring-emerald-500/20"
+                                className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-[#16A34A]"
                               />
                             </div>
                           ))}
                         </div>
-
                         <div>
-                          <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                          <label htmlFor="sub-notes" className="block text-[11px] font-bold text-slate-700 mb-1">
                             Préférences ou rythme souhaité (optionnel) :
                           </label>
                           <input 
+                            id="sub-notes"
                             type="text"
                             placeholder="Ex : 1er et 3ème samedi, 2ème et 4ème vendredi..."
                             value={subscriptionNotes}
                             onChange={(e) => setSubscriptionNotes(e.target.value)}
-                            className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-800 bg-white placeholder:text-slate-400 focus:outline-none focus:border-[#16A34A] focus:ring-2 focus:ring-emerald-500/20 shadow-2xs"
+                            className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-800 bg-white placeholder:text-slate-400 focus:outline-none focus:border-[#16A34A]"
                           />
                         </div>
                       </div>
@@ -1141,7 +1642,10 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
                         <button
                           key={d.id}
                           type="button"
-                          onClick={() => setSelectedDay(d.id)}
+                          onClick={() => {
+                            setSelectedDay(d.id);
+                            setValidationError('');
+                          }}
                           className={`p-2.5 rounded-2xl border text-center transition-all cursor-pointer ${
                             selectedDay === d.id
                               ? 'border-[#16A34A] bg-[#0D5C3A] text-white shadow-sm'
@@ -1154,36 +1658,37 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
                       ))}
                     </div>
 
-                    {/* Option Date Libre / Calendrier */}
                     <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/90 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                       <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
                         <Calendar className="w-4 h-4 text-[#16A34A]" />
-                        <span>Autre date spécifique sur calendrier :</span>
+                        <label htmlFor="custom-date-input">Ou autre date sur calendrier :</label>
                       </div>
                       <input 
+                        id="custom-date-input"
                         type="date"
                         min={new Date().toISOString().split('T')[0]}
                         onChange={(e) => {
                           if (e.target.value) {
                             const parts = e.target.value.split('-');
-                            setSelectedDay(`Date sur-mesure : ${parts[2]}/${parts[1]}/${parts[0]}`);
+                            setSelectedDay(`Date du ${parts[2]}/${parts[1]}/${parts[0]}`);
+                            setValidationError('');
                           }
                         }}
-                        className="px-3 py-1.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-800 bg-white focus:outline-none focus:border-[#16A34A] focus:ring-2 focus:ring-emerald-500/20 shadow-2xs"
+                        className="px-3 py-1.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-800 bg-white focus:outline-none focus:border-[#16A34A]"
                       />
                     </div>
                   </>
                 )}
               </div>
 
-              {/* ÉTAPE 3 : SÉLECTION DE L'HEURE (CRÉNEAUX + HEURE LIBRE) */}
+              {/* ÉTAPE 3 : SÉLECTION DE L'HEURE (CHOIX OBLIGATOIRE SANS PRÉSÉLECTION) */}
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
-                    3. Choisissez votre heure
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
+                    3. Choisissez votre créneau horaire
                   </label>
-                  <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md">
-                    {selectedTime}
+                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${selectedTime ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                    {selectedTime || 'Choix requis *'}
                   </span>
                 </div>
 
@@ -1192,7 +1697,10 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
                     <button
                       key={slot.id}
                       type="button"
-                      onClick={() => setSelectedTime(slot.id)}
+                      onClick={() => {
+                        setSelectedTime(slot.id);
+                        setValidationError('');
+                      }}
                       className={`p-2.5 rounded-2xl border text-xs font-bold transition-all text-left flex items-center justify-between cursor-pointer ${
                         selectedTime === slot.id
                           ? 'border-[#16A34A] bg-emerald-50 text-emerald-950 ring-2 ring-emerald-500/20'
@@ -1205,45 +1713,37 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
                   ))}
                 </div>
 
-                {/* Option Heure Personnalisée Libre */}
                 <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/90 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                   <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
                     <Clock className="w-4 h-4 text-[#16A34A]" />
-                    <span>Fixer votre heure exacte :</span>
+                    <label htmlFor="custom-time-input">Ou fixer une heure exacte :</label>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <input 
-                      type="time"
-                      onChange={(e) => {
-                        if (e.target.value) {
-                          setSelectedTime(`Heure exacte souhaitée : ${e.target.value}`);
-                        }
-                      }}
-                      className="px-3 py-1.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-800 bg-white focus:outline-none focus:border-[#16A34A] focus:ring-2 focus:ring-emerald-500/20 shadow-2xs"
-                    />
-                    <input 
-                      type="text"
-                      placeholder="ou ex: 07h00, 19h30..."
-                      onChange={(e) => {
-                        if (e.target.value.trim()) {
-                          setSelectedTime(`Heure souhaitée : ${e.target.value.trim()}`);
-                        }
-                      }}
-                      className="w-36 px-3 py-1.5 rounded-xl border border-slate-300 text-xs font-semibold text-slate-800 bg-white focus:outline-none focus:border-[#16A34A]"
-                    />
-                  </div>
+                  <input 
+                    id="custom-time-input"
+                    type="time"
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        setSelectedTime(`Heure exacte : ${e.target.value}`);
+                        setValidationError('');
+                      }
+                    }}
+                    className="px-3 py-1.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-800 bg-white focus:outline-none focus:border-[#16A34A]"
+                  />
                 </div>
               </div>
 
-              {/* ÉTAPE 4 : LIEU & ADRESSE À DAKAR */}
+              {/* ÉTAPE 4 : LIEU & ADRESSE À DAKAR (ÉLARGI AVEC AUTRE QUARTIER) */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
                   4. Quartier & Coordonnées à Dakar
                 </label>
+                <p className="text-[11px] text-slate-500 mb-3">
+                  Déplacement inclus partout à Dakar et dans la région :
+                </p>
                 
-                {/* Sélecteur de quartier */}
-                <div className="flex flex-wrap gap-1.5 mb-3">
-                  {dakarQuarters.slice(0, 8).map((q) => (
+                {/* Sélecteur de quartier complet (17 quartiers) */}
+                <div className="flex flex-wrap gap-1.5 mb-3 max-h-40 overflow-y-auto p-1 bg-slate-50 rounded-2xl border border-slate-200/60">
+                  {dakarQuarters.map((q) => (
                     <button
                       key={q}
                       type="button"
@@ -1251,7 +1751,7 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
                       className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
                         clientQuarter === q 
                           ? 'bg-[#0D5C3A] text-white shadow-xs' 
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          : 'bg-white text-slate-700 hover:bg-slate-200/60 border border-slate-200/60'
                       }`}
                     >
                       {q}
@@ -1259,30 +1759,68 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
                   ))}
                 </div>
 
-                <div className="space-y-2.5">
-                  <input 
-                    type="text" 
-                    placeholder="Adresse précise ou repère (ex: en face Pharmacie du Golf, Villa 12)" 
-                    value={clientAddress}
-                    onChange={(e) => setClientAddress(e.target.value)}
-                    className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-xs sm:text-sm focus:outline-none focus:border-[#16A34A] bg-white"
-                  />
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {/* Champ quartier libre si "Autre quartier" */}
+                {clientQuarter === 'Autre quartier' && (
+                  <div className="mb-3">
+                    <label htmlFor="custom-quarter-input" className="block text-[11px] font-bold text-slate-700 mb-1">
+                      Précisez votre quartier ou ville :
+                    </label>
                     <input 
+                      id="custom-quarter-input"
                       type="text" 
-                      placeholder="Votre nom complet" 
-                      value={clientName}
-                      onChange={(e) => setClientName(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 text-xs sm:text-sm focus:outline-none focus:border-[#16A34A] bg-white"
+                      placeholder="Ex : Yeumbeul, Sébikotane, Bargny, Cambérène..." 
+                      value={customQuarter}
+                      onChange={(e) => setCustomQuarter(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-2xl border border-slate-300 text-xs sm:text-sm focus:outline-none focus:border-[#16A34A] bg-white"
                     />
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  <div>
+                    <label htmlFor="client-address" className="block text-[11px] font-bold text-slate-700 mb-1">
+                      Adresse précise ou repère :
+                    </label>
                     <input 
-                      type="tel" 
-                      placeholder="Téléphone / WhatsApp" 
-                      value={clientPhone}
-                      onChange={(e) => setClientPhone(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 text-xs sm:text-sm focus:outline-none focus:border-[#16A34A] bg-white"
+                      id="client-address"
+                      type="text" 
+                      placeholder="Ex: En face Pharmacie du Golf, Villa n°12..." 
+                      value={clientAddress}
+                      onChange={(e) => setClientAddress(e.target.value)}
+                      className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-xs sm:text-sm focus:outline-none focus:border-[#16A34A] bg-white"
                     />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label htmlFor="client-name" className="block text-[11px] font-bold text-slate-700 mb-1">
+                        Votre nom complet :
+                      </label>
+                      <input 
+                        id="client-name"
+                        type="text" 
+                        placeholder="Ex: Cheikh Diop" 
+                        value={clientName}
+                        onChange={(e) => setClientName(e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 text-xs sm:text-sm focus:outline-none focus:border-[#16A34A] bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="client-phone" className="block text-[11px] font-bold text-slate-700 mb-1">
+                        Numéro WhatsApp :
+                      </label>
+                      <input 
+                        id="client-phone"
+                        type="tel" 
+                        placeholder="Ex: 77 154 86 10" 
+                        value={clientPhone}
+                        onChange={(e) => handlePhoneChange(e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 text-xs sm:text-sm focus:outline-none focus:border-[#16A34A] bg-white"
+                      />
+                      {phoneError && (
+                        <p className="text-[10px] text-amber-600 mt-1 font-semibold">{phoneError}</p>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1294,11 +1832,11 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-xs text-slate-500">Total de votre prestation :</div>
-                  <div className="text-xl font-extrabold text-[#0D5C3A] font-mono">
+                  <div className="text-xl font-extrabold text-[#0D5C3A]">
                     {selectedPack ? new Intl.NumberFormat('fr-FR').format(selectedPack.price) : 0} FCFA
                   </div>
                 </div>
-                <div className="text-[11px] text-right text-emerald-700 font-semibold bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200">
+                <div className="text-[11px] text-right text-emerald-800 font-bold bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200">
                   Déplacement inclus à Dakar
                 </div>
               </div>
@@ -1308,172 +1846,26 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
                 onClick={handleConfirmReservation}
                 className="w-full py-3.5 sm:py-4 rounded-2xl bg-gradient-to-r from-[#0D5C3A] to-[#16A34A] hover:opacity-95 text-white font-bold text-xs sm:text-sm shadow-lg shadow-emerald-900/20 active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
-                <MessageSquare className="w-4 h-4" />
-                <span>Confirmer et Envoyer sur WhatsApp</span>
+                <Send className="w-4 h-4" />
+                <span>Envoyer ma demande à Mamadou sur WhatsApp</span>
               </button>
+
+              <div className="text-[11px] text-center text-slate-400">
+                Paiement après travail vérifié • Wave & Orange Money acceptés
+              </div>
             </div>
 
           </div>
-
         </div>
       )}
 
       {/* ========================================================================= */}
-      {/* 5. SLIDER AVANT / APRÈS (COMPOSANT AUTONOME HAUTE PERFORMANCE 60 FPS)      */}
-      {/* ========================================================================= */}
-      <BeforeAfterSection handleOpenDrawer={handleOpenDrawer} />
-
-      {/* ========================================================================= */}
-      {/* 6. TÉMOIGNAGES CLIENTS EN RUBAN DÉFILANT CONTINU                          */}
-      {/* ========================================================================= */}
-      <section id="temoignages" className="py-10 sm:py-14 bg-white border-t border-slate-100 overflow-hidden relative z-10">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 mb-6">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between">
-            <div>
-              <span className="text-xs uppercase font-extrabold tracking-widest text-[#16A34A] bg-emerald-50 border border-emerald-200 px-3.5 py-1.5 rounded-full">
-                CONFIANCE CLIENT
-              </span>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2 tracking-tight">
-                Ils nous font confiance à Dakar
-              </h2>
-            </div>
-          </div>
-        </div>
-
-        {/* Marquee continu */}
-        <div className="relative w-full mask-fade-horizontal py-2">
-          <div className="animate-marquee-smooth flex gap-6 px-4">
-            {testimonialsList.concat(testimonialsList).map((item, idx) => (
-              <div 
-                key={idx}
-                className="w-[310px] sm:w-[360px] shrink-0 bg-[#FAFAF8] p-5 sm:p-6 rounded-[2rem] border border-slate-200/90 shadow-xs flex flex-col justify-between hover:bg-white hover:border-[#16A34A] hover:shadow-xl transition-all duration-300"
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-2.5">
-                    <div className="flex items-center gap-0.5 text-amber-400">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                      ))}
-                    </div>
-                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60">
-                      <CheckCircle2 className="w-2.5 h-2.5 text-[#16A34A]" />
-                      <span>Intervention vérifiée</span>
-                    </span>
-                  </div>
-                  <p className="text-slate-600 text-xs sm:text-sm leading-relaxed mb-4 font-medium">
-                    {item.text}
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-3 pt-3 border-t border-slate-200/60">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#0D5C3A] to-[#16A34A] text-white font-bold text-xs flex items-center justify-center">
-                    {item.initials}
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-slate-900">{item.name}</div>
-                    <div className="text-[10px] text-slate-500">{item.location}</div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ========================================================================= */}
-      {/* 7. FAQ ÉPURÉE (4 QUESTIONS ESSENTIELLES)                                   */}
-      {/* ========================================================================= */}
-      <section className="py-10 sm:py-14 bg-[#FAFAF8] border-t border-slate-100 relative z-10">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-6">
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              Questions Fréquentes
-            </h2>
-          </div>
-
-          <div className="space-y-2.5">
-            {[
-              {
-                q: "Combien de temps faut-il pour que mon canapé ou matelas sèche ?",
-                a: "Grâce à la forte puissance d'aspiration de nos extracteurs Kärcher, plus de 80% de l'eau est retirée sur place. Le tissu sèche complètement en 3 à 5 heures selon l'aération."
-              },
-              {
-                q: "Y a-t-il des frais de déplacement à Dakar ?",
-                a: "Non, le déplacement est inclus sur l'ensemble de la presqu'île de Dakar (Almadies, Mermoz, Plateau, Point E, Maristes, Yoff, etc.)."
-              },
-              {
-                q: "Comment se passe le règlement ?",
-                a: "Vous ne réglez qu'une fois le travail terminé et vérifié par vos soins, via Wave, Orange Money ou en espèces."
-              },
-              {
-                q: "Dois-je fournir de l'eau ou de l'électricité pour le lavage auto ?",
-                a: "Pour le lavage auto à domicile ou au bureau, nous avons seulement besoin d'un accès à un point d'eau ou d'une prise selon l'intervention. Tout le reste du matériel spécialisé est fourni."
-              }
-            ].map((faq, idx) => (
-              <div 
-                key={idx}
-                className="bg-white rounded-2xl border border-slate-200 overflow-hidden transition-all"
-              >
-                <button
-                  type="button"
-                  onClick={() => setFaqOpen(faqOpen === idx ? null : idx)}
-                  className="w-full px-5 py-3.5 text-left flex items-center justify-between text-xs sm:text-sm font-bold text-slate-900 cursor-pointer"
-                >
-                  <span>{faq.q}</span>
-                  <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${faqOpen === idx ? 'rotate-180 text-[#16A34A]' : ''}`} />
-                </button>
-                {faqOpen === idx && (
-                  <div className="px-5 pb-3.5 text-xs text-slate-600 leading-relaxed border-t border-slate-100 pt-2.5">
-                    {faq.a}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ========================================================================= */}
-      {/* 8. FOOTER STATUTAIRE ÉPURÉ                                                */}
-      {/* ========================================================================= */}
-      <footer className="bg-slate-900 text-white py-8 sm:py-10 border-t border-slate-800 relative z-10">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-3">
-            <img 
-              src={logoOfficialSq} 
-              alt="TAARU SET Logo" 
-              className="w-10 h-10 rounded-2xl object-cover shadow-sm" 
-            />
-            <div className="flex flex-col">
-              <span className="font-bold text-base tracking-tight">TAARU SET DAKAR</span>
-              <span className="text-[11px] text-emerald-400 font-semibold tracking-wide">Le charme de la propreté</span>
-            </div>
-          </div>
-
-          <div className="text-xs text-slate-400 text-center sm:text-left">
-            Service de Nettoyage & Lavage Mobile • Téléphone / WhatsApp : +221 77 154 86 10 / +221 78 762 05 64
-          </div>
-
-          <a 
-            href="https://wa.me/221771548610?text=Bonjour%20Mamadou%2C%20je%20souhaite%20un%20devis."
-            target="_blank"
-            rel="noreferrer"
-            className="px-5 py-2.5 rounded-full bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold transition-all flex items-center gap-2"
-          >
-            <MessageSquare className="w-3.5 h-3.5" />
-            <span>Contacter Mamadou</span>
-          </a>
-        </div>
-      </footer>
-
-      {/* ========================================================================= */}
-      {/* MODALE DE RÉCAPITULATIF & CONFIRMATION DE DEMANDE (Demandée par Mamadou)  */}
+      {/* 12. MODALE DE RÉCAPITULATIF & CONFIRMATION DE DEMANDE                      */}
       {/* ========================================================================= */}
       {reservationSummary && (
         <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-md">
           <div className="relative w-full max-w-lg bg-white rounded-[2.5rem] p-6 sm:p-8 shadow-2xl border border-slate-100 flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-200">
             
-            {/* Icône de Succès Animée */}
             <div className="w-16 h-16 rounded-full bg-emerald-100 text-[#16A34A] flex items-center justify-center mb-4 shadow-lg shadow-emerald-500/20">
               <Check className="w-8 h-8 stroke-[3]" />
             </div>
@@ -1486,11 +1878,10 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
               Votre demande a bien été envoyée !
             </h3>
 
-            <p className="text-slate-600 text-xs sm:text-sm leading-relaxed mb-6 font-medium max-w-md">
+            <p className="text-slate-600 text-xs sm:text-sm leading-relaxed mb-6 font-normal max-w-md">
               Mamadou et l'équipe <strong className="text-slate-900">TAARU SET</strong> ont reçu votre récapitulatif sur WhatsApp. Nous vous contactons pour confirmer l'horaire précis et le déplacement de l'équipe.
             </p>
 
-            {/* Fiche Récapitulative */}
             <div className="w-full bg-[#FAFAF8] rounded-2xl p-4 sm:p-5 border border-slate-200/80 text-left space-y-2.5 text-xs mb-6 font-medium">
               <div className="flex items-center justify-between pb-2 border-b border-slate-200">
                 <span className="text-slate-500">Service :</span>
@@ -1502,14 +1893,14 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
               </div>
               <div className="flex items-center justify-between pb-2 border-b border-slate-200">
                 <span className="text-slate-500">Tarif total :</span>
-                <span className="font-black text-[#0D5C3A] font-mono text-sm">{reservationSummary.price}</span>
+                <span className="font-black text-[#0D5C3A] text-sm">{reservationSummary.price}</span>
               </div>
               <div className="flex items-center justify-between pb-2 border-b border-slate-200">
-                <span className="text-slate-500">Date / Fréquence :</span>
+                <span className="text-slate-500">Date :</span>
                 <span className="font-bold text-slate-900">{reservationSummary.dateInfo}</span>
               </div>
               <div className="flex items-center justify-between pb-2 border-b border-slate-200">
-                <span className="text-slate-500">Créneau :</span>
+                <span className="text-slate-500">Créneau horaire :</span>
                 <span className="font-bold text-slate-900">{reservationSummary.time}</span>
               </div>
               <div className="flex items-center justify-between">
@@ -1518,13 +1909,11 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
               </div>
             </div>
 
-            {/* Statut Rassurant */}
             <div className="w-full mb-6 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-bold flex items-center justify-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span>Statut : En attente de confirmation par Mamadou (Délai moyen : 15 min)</span>
+              <span>Délai moyen de confirmation : 15 minutes</span>
             </div>
 
-            {/* Boutons d'Action */}
             <div className="flex flex-col sm:flex-row gap-2.5 w-full">
               <button
                 type="button"
@@ -1548,13 +1937,15 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
         </div>
       )}
 
-      {/* BOUTON FLOTTANT WHATSAPP DIRECT */}
+      {/* ========================================================================= */}
+      {/* 13. BOUTON FLOTTANT WHATSAPP DIRECT (AVEC ARIA-LABEL CONFORME A11Y)       */}
+      {/* ========================================================================= */}
       <a 
-        href="https://wa.me/221771548610?text=Bonjour%20Mamadou%20(TAARU%20SET)%2C%20je%20souhaite%20un%20devis."
+        href="https://wa.me/221771548610?text=Bonjour%20Mamadou%20(TAARU%20SET)%2C%20je%20souhaite%20un%20renseignement."
         target="_blank"
         rel="noreferrer"
         className="whatsapp-float-btn fixed bottom-5 right-5 z-40 bg-[#16A34A] text-white p-3.5 rounded-full shadow-2xl flex items-center gap-2 hover:scale-105 transition-transform"
-        aria-label="Contacter sur WhatsApp"
+        aria-label="Contacter Mamadou sur WhatsApp au +221 77 154 86 10"
       >
         <MessageSquare className="w-5 h-5" />
         <span className="hidden sm:inline text-xs font-bold pr-1">Mamadou en direct</span>
