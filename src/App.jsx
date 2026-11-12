@@ -9,10 +9,12 @@ import {
 import teamCleanHdImg from './assets/team_clean_hd.jpg';
 // Logo officiel TAARU SET
 import logoOfficialSq from './assets/logo_official_sq.jpg';
-// Vraie photo de véhicule sale avant nettoyage (Poussière, boue et sable réel de Dakar)
+// Vraies photos locales haute performance pour le comparateur Avant / Après
 import dirtyCarBeforeImg from './assets/dirty_car_before.jpg';
-// Vraie photo de chantier brut / fin de travaux avant décapage et nettoyage
+import cleanCarAfterImg from './assets/clean_car_after.jpg';
 import chantierBeforeImg from './assets/chantier_before.jpg';
+import chantierAfterImg from './assets/chantier_after.jpg';
+import cleanSofaAfterImg from './assets/clean_sofa_after.jpg';
 
 export default function App() {
   // --- ÉTATS DU VOLET GLISSANT DE RÉSERVATION (Demandé par Mamadou) ---
@@ -1152,7 +1154,7 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
               <>
                 {/* Image APRÈS AUTO : Rénovation pure detailing Range Rover impeccable */}
                 <img 
-                  src="https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=800&q=75" 
+                  src={cleanCarAfterImg} 
                   alt="Carrosserie miroir et rénovation auto impeccable TAARU SET" 
                   className="absolute inset-0 w-full h-full object-cover object-center"
                   loading="eager"
@@ -1177,11 +1179,11 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
 
             {sliderTheme === 'sofa' && (
               <>
-                {/* Image APRÈS CANAPÉ */}
+                {/* Image APRÈS CANAPÉ : Canapé velours émeraude nettoyé à neuf */}
                 <img 
-                  src="https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=800&q=75" 
+                  src={cleanSofaAfterImg} 
                   alt="Canapé immaculé après passage TAARU SET" 
-                  className="absolute inset-0 w-full h-full object-cover"
+                  className="absolute inset-0 w-full h-full object-cover object-center"
                   loading="eager"
                   decoding="sync"
                 />
@@ -1192,9 +1194,9 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
                   style={{ width: `${sliderPos}%` }}
                 >
                   <img 
-                    src="https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=800&q=75" 
+                    src={cleanSofaAfterImg} 
                     alt="Canapé avant passage avec taches et poussière" 
-                    className="absolute top-0 left-0 h-full w-[100cqw] max-w-none object-cover filter contrast-125 sepia-[0.55] brightness-70"
+                    className="absolute top-0 left-0 h-full w-[100cqw] max-w-none object-cover object-center filter contrast-125 sepia-[0.55] brightness-70"
                     loading="eager"
                     decoding="sync"
                   />
@@ -1205,9 +1207,9 @@ Merci de me confirmer la réservation et le déplacement de l'équipe !`;
 
             {sliderTheme === 'chantier' && (
               <>
-                {/* Image APRÈS FIN DE CHANTIER : Villa de standing après remise à neuf complète */}
+                {/* Image APRÈS FIN DE CHANTIER : Villa de standing étincelante et prête à emménager */}
                 <img 
-                  src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=800&q=75" 
+                  src={chantierAfterImg} 
                   alt="Villa de standing étincelante et prête à emménager TAARU SET" 
                   className="absolute inset-0 w-full h-full object-cover object-center"
                   loading="eager"
