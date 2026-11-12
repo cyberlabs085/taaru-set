@@ -10,6 +10,8 @@ import {
 import teamCleanHdImg from './assets/team_clean_hd.jpg';
 // Logo officiel TAARU SET
 import logoOfficialSq from './assets/logo_official_sq.jpg';
+// Portrait officiel Mamadou (Fondateur & Égérie réseaux sociaux)
+import mamadouFounderImg from './assets/mamadou_founder.jpg';
 // Vraies photos locales haute performance pour le comparateur Avant / Après (100% cohérentes même cadrage)
 import dirtyCarBeforeImg from './assets/dirty_car_before.jpg';
 import cleanCarAfterImg from './assets/clean_car_after.jpg';
@@ -22,12 +24,14 @@ import cleanSofaAfterImg from './assets/clean_sofa_after.jpg';
 // COMPOSANT COMPARATEUR AVANT / APRÈS (AUTONOME & GPU ACCÉLÉRÉ • 0 RE-RENDER APP)
 // ============================================================================
 function BeforeAfterSection({ handleOpenDrawer }) {
-  const [sliderTheme, setSliderTheme] = useState('auto');
+  // Thèmes : 'video' (Démo réelle Dakar), 'auto' (Range Rover), 'sofa' (Canapé velours), 'chantier' (Villa)
+  const [sliderTheme, setSliderTheme] = useState('video');
   const [sliderPos, setSliderPos] = useState(50);
   const [isHovered, setIsHovered] = useState(false);
 
-  // Animation sinusoïdale fluide au repos
+  // Animation sinusoïdale fluide au repos pour les photos
   useEffect(() => {
+    if (sliderTheme === 'video') return;
     let animId;
     let startTimestamp = null;
 
@@ -45,18 +49,19 @@ function BeforeAfterSection({ handleOpenDrawer }) {
 
     animId = requestAnimationFrame(animateLoop);
     return () => cancelAnimationFrame(animId);
-  }, [isHovered]);
+  }, [isHovered, sliderTheme]);
 
-  // Rotation des thèmes toutes les 5.5s
+  // Rotation des thèmes toutes les 7s (sauf si utilisateur interagit)
   useEffect(() => {
     if (isHovered) return;
     const interval = setInterval(() => {
       setSliderTheme((prev) => {
+        if (prev === 'video') return 'auto';
         if (prev === 'auto') return 'sofa';
         if (prev === 'sofa') return 'chantier';
-        return 'auto';
+        return 'video';
       });
-    }, 5500);
+    }, 7000);
     return () => clearInterval(interval);
   }, [isHovered]);
 
@@ -77,9 +82,21 @@ function BeforeAfterSection({ handleOpenDrawer }) {
           </p>
         </div>
 
-        {/* Sélecteur de Thème */}
+        {/* Sélecteur de Thème avec Vidéo en direct */}
         <div className="flex items-center justify-center mb-6">
           <div className="bg-slate-200/90 p-1.5 rounded-2xl flex items-center gap-1 sm:gap-1.5 shadow-inner max-w-full overflow-x-auto">
+            <button
+              type="button"
+              onClick={() => setSliderTheme('video')}
+              className={`px-3.5 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition-all cursor-pointer flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
+                sliderTheme === 'video'
+                  ? 'bg-[#0D5C3A] text-white shadow-md'
+                  : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200/60'
+              }`}
+            >
+              <Sparkles className="w-4 h-4 text-amber-300" />
+              <span>🎥 Vidéo en Direct Dakar</span>
+            </button>
             <button
               type="button"
               onClick={() => setSliderTheme('auto')}
@@ -90,7 +107,7 @@ function BeforeAfterSection({ handleOpenDrawer }) {
               }`}
             >
               <Car className="w-4 h-4" />
-              <span>Rénovation Auto</span>
+              <span>Rénovation Auto (Range)</span>
             </button>
             <button
               type="button"
@@ -119,29 +136,61 @@ function BeforeAfterSection({ handleOpenDrawer }) {
           </div>
         </div>
 
-        {/* Cadre Comparateur 16/9 */}
-        <div 
-          className="@container relative rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden shadow-2xl border-2 border-slate-200 aspect-[16/9] select-none cursor-ew-resize group"
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-          onTouchStart={() => setIsHovered(true)}
-          onTouchEnd={() => setIsHovered(false)}
-        >
-          {/* Badge Gauche Fixe : AVANT INTERVENTION */}
-          <div className="absolute top-3 sm:top-4 left-3 sm:left-4 z-20 pointer-events-none">
-            <span className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1 sm:py-1.5 rounded-full bg-slate-950/85 backdrop-blur-md text-white text-[10px] sm:text-xs font-black tracking-wider uppercase border border-white/20 shadow-md">
-              <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-              <span>AVANT INTERVENTION</span>
-            </span>
+        {/* Affichage Conditionnel : Vidéo Réelle Dakar OU Comparateur Avant / Après */}
+        {sliderTheme === 'video' ? (
+          <div 
+            className="relative rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden shadow-2xl border-2 border-emerald-600/40 aspect-[16/9] bg-slate-950 flex items-center justify-center group"
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+          >
+            <video
+              src="/taaru_cleaning_demo.mp4"
+              poster="/taaru_cleaning_poster.jpg"
+              autoPlay
+              loop
+              muted
+              playsInline
+              controls
+              className="w-full h-full object-cover"
+              title="Intervention réelle TAARU SET Dakar : Shampouinage et extraction textile"
+            />
+            {/* Badge Équipe Réelle en Direct */}
+            <div className="absolute top-3 sm:top-4 left-3 sm:left-4 z-20 pointer-events-none">
+              <span className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1 sm:py-1.5 rounded-full bg-slate-950/85 backdrop-blur-md text-white text-[10px] sm:text-xs font-black tracking-wider uppercase border border-white/20 shadow-md">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>INTERVENTION RÉELLE À DAKAR • SHAMPOINAGE FAUTEUIL</span>
+              </span>
+            </div>
+            <div className="absolute bottom-3 sm:bottom-4 right-3 sm:right-4 z-20 pointer-events-none hidden sm:block">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/90 backdrop-blur-md text-emerald-300 text-[10px] font-bold border border-emerald-500/30">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Polo officiel TAARU SET & Machine RUSTGO</span>
+              </span>
+            </div>
           </div>
+        ) : (
+          <div 
+            className="@container relative rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden shadow-2xl border-2 border-slate-200 aspect-[16/9] select-none cursor-ew-resize group"
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+            onTouchStart={() => setIsHovered(true)}
+            onTouchEnd={() => setIsHovered(false)}
+          >
+            {/* Badge Gauche Fixe : AVANT INTERVENTION */}
+            <div className="absolute top-3 sm:top-4 left-3 sm:left-4 z-20 pointer-events-none">
+              <span className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1 sm:py-1.5 rounded-full bg-slate-950/85 backdrop-blur-md text-white text-[10px] sm:text-xs font-black tracking-wider uppercase border border-white/20 shadow-md">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                <span>AVANT INTERVENTION</span>
+              </span>
+            </div>
 
-          {/* Badge Droite Fixe : RÉSULTAT NETTOYÉ */}
-          <div className="absolute top-3 sm:top-4 right-3 sm:right-4 z-20 pointer-events-none">
-            <span className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1 sm:py-1.5 rounded-full bg-emerald-950/85 backdrop-blur-md text-white text-[10px] sm:text-xs font-black tracking-wider uppercase border border-emerald-400/30 shadow-md">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-              <span>RÉSULTAT NETTOYÉ</span>
-            </span>
-          </div>
+            {/* Badge Droite Fixe : RÉSULTAT NETTOYÉ */}
+            <div className="absolute top-3 sm:top-4 right-3 sm:right-4 z-20 pointer-events-none">
+              <span className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1 sm:py-1.5 rounded-full bg-emerald-950/85 backdrop-blur-md text-white text-[10px] sm:text-xs font-black tracking-wider uppercase border border-emerald-400/30 shadow-md">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                <span>RÉSULTAT NETTOYÉ</span>
+              </span>
+            </div>
 
           {/* 1. AUTO (MÊME VÉHICULE AVANT / APRÈS) */}
           {sliderTheme === 'auto' && (
@@ -238,17 +287,19 @@ function BeforeAfterSection({ handleOpenDrawer }) {
             className="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize z-20"
           />
         </div>
+        )}
 
         {/* Légende Dynamique du Résultat */}
         <div className="mt-4 p-3.5 sm:p-4 rounded-2xl bg-white border border-slate-200/90 shadow-xs flex items-center justify-between gap-3 text-left">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-emerald-100 text-[#0D5C3A] flex items-center justify-center shrink-0">
-              {sliderTheme === 'auto' ? <Car className="w-5 h-5" /> : sliderTheme === 'sofa' ? <Sofa className="w-5 h-5" /> : <Home className="w-5 h-5" />}
+              {sliderTheme === 'video' ? <Sparkles className="w-5 h-5 text-amber-500" /> : sliderTheme === 'auto' ? <Car className="w-5 h-5" /> : sliderTheme === 'sofa' ? <Sofa className="w-5 h-5" /> : <Home className="w-5 h-5" />}
             </div>
             <div>
               <div className="text-xs sm:text-sm font-extrabold text-slate-900">
-                {sliderTheme === 'auto' && 'Rénovation Carrosserie & Habitacle : Décapage du film routier et poussière'}
-                {sliderTheme === 'sofa' && 'Shampouinage Kärcher : Élimination des taches, acariens et odeurs'}
+                {sliderTheme === 'video' && 'Démonstration Réelle Dakar : Décapage d\'un fauteuil à l\'injecteur-extracteur RUSTGO par notre technicien'}
+                {sliderTheme === 'auto' && 'Rénovation Carrosserie & Habitacle : Décapage du film routier et poussière dakaroise sur Range Rover'}
+                {sliderTheme === 'sofa' && 'Shampouinage & Injection : Élimination des auréoles et poussière sur velours'}
                 {sliderTheme === 'chantier' && 'Remise à Neuf Clé en Main : Décapage ciment, colle, vitres et faïences'}
               </div>
               <div className="text-[11px] text-slate-500 mt-0.5">
@@ -795,6 +846,22 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
                 </div>
               </div>
 
+              {/* Badge Égérie & Fondateur : Mamadou (Petit cercle discret demandé à côté) */}
+              <div className="absolute -top-3.5 -right-3.5 sm:-top-4 sm:-right-4 bg-white/95 backdrop-blur-md pl-1.5 pr-3.5 py-1.5 rounded-full shadow-xl border border-slate-200/90 flex items-center gap-2 z-20">
+                <img 
+                  src={mamadouFounderImg} 
+                  alt="Mamadou — Fondateur & Égérie TAARU SET" 
+                  className="w-9 h-9 rounded-full object-cover ring-2 ring-[#0D5C3A] shadow-xs"
+                />
+                <div className="text-left">
+                  <div className="text-[11px] font-black text-slate-900 leading-tight">Mamadou</div>
+                  <div className="text-[9px] text-[#0D5C3A] font-bold flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 bg-[#16A34A] rounded-full"></span>
+                    Fondateur & Égérie
+                  </div>
+                </div>
+              </div>
+
               {/* Badge Flottant Confiance Rénové avec Note Réelle */}
               <div className="absolute -bottom-3 -left-3 sm:-bottom-4 sm:-left-4 bg-white px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl shadow-xl border border-slate-100 flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center shrink-0 border border-amber-200/60">
@@ -1041,6 +1108,44 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
               <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">
                 Vous inspectez minutieusement le résultat avec notre chef d'équipe. Vous ne réglez qu'une fois 100% satisfait, par Wave, Orange Money ou en espèces.
               </p>
+            </div>
+          </div>
+
+          {/* Carte Fondateur & Égérie Réseaux Sociaux (Mamadou - Format soigné et non encombrant) */}
+          <div className="mt-10 max-w-3xl mx-auto bg-gradient-to-r from-emerald-50/80 via-white to-emerald-50/60 border border-emerald-200/80 rounded-3xl p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
+            <div className="relative shrink-0">
+              <img 
+                src={mamadouFounderImg} 
+                alt="Mamadou — Fondateur & Égérie TAARU SET" 
+                className="w-20 h-20 rounded-2xl object-cover ring-4 ring-[#0D5C3A]/20 shadow-md"
+              />
+              <div className="absolute -bottom-1.5 -right-1.5 w-6 h-6 bg-[#16A34A] rounded-full border-2 border-white flex items-center justify-center shadow-xs">
+                <Check className="w-3.5 h-3.5 text-white" />
+              </div>
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
+                <h4 className="font-extrabold text-[#0D5C3A] text-lg">Mamadou</h4>
+                <span className="text-[11px] font-bold px-2.5 py-0.5 bg-emerald-100 text-emerald-800 rounded-full border border-emerald-200">
+                  Fondateur & Égérie TAARU SET
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm text-slate-700 mt-2 leading-relaxed">
+                « Retrouvez-moi sur les réseaux sociaux : TAARU SET est né de ma volonté de professionnaliser le nettoyage à domicile à Dakar. Nos techniciens interviennent chez vous avec un matériel adapté, dans le respect de votre intimité et avec un souci maniaque du résultat. »
+              </p>
+              <div className="flex items-center justify-center sm:justify-start gap-4 mt-3 text-xs font-semibold text-slate-600">
+                <a 
+                  href="https://wa.me/221771548610?text=Bonjour%20Mamadou%20(TAARU%20SET)%2C%20je%20vous%20contacte%20directement." 
+                  target="_blank" 
+                  rel="noreferrer"
+                  className="text-[#16A34A] hover:text-[#0D5C3A] font-bold flex items-center gap-1.5 transition-colors"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  <span>Échanger directement avec Mamadou</span>
+                </a>
+                <span className="text-slate-300">•</span>
+                <span className="text-slate-500">Supervision directe de l'équipe</span>
+              </div>
             </div>
           </div>
         </div>
@@ -1836,7 +1941,20 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
                     {selectedPack ? new Intl.NumberFormat('fr-FR').format(selectedPack.price) : 0} FCFA
                   </div>
                 </div>
-                <div className="text-[11px] text-right text-emerald-800 font-bold bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200">
+                
+            {/* Reassurance Mamadou dans le Drawer */}
+            <div className="flex items-center gap-3 p-3 bg-emerald-50/70 rounded-2xl border border-emerald-200/80 mb-3">
+              <img 
+                src={mamadouFounderImg} 
+                alt="Mamadou" 
+                className="w-10 h-10 rounded-full object-cover ring-2 ring-[#0D5C3A] shrink-0 shadow-xs"
+              />
+              <div className="text-left">
+                <div className="text-xs font-extrabold text-[#0D5C3A]">Mamadou traite personnellement votre demande</div>
+                <div className="text-[11px] text-slate-600">Confirmation immédiate de l'horaire et de l'équipe sur WhatsApp</div>
+              </div>
+            </div>
+<div className="text-[11px] text-right text-emerald-800 font-bold bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200">
                   Déplacement inclus à Dakar
                 </div>
               </div>
