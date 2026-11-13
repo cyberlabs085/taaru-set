@@ -24,6 +24,8 @@ function playHapticClickSound() {
 }
 
 import React, { useState, useEffect, useRef } from 'react';
+import { supabase } from './lib/supabase';
+import AdminPortal from './components/AdminPortal';
 import { 
   CheckCircle2, Phone, MessageSquare, Clock, ShieldCheck, 
   MapPin, ArrowRight, ChevronDown, ChevronLeft, ChevronRight, Check, Star, Wrench, Droplets, 
@@ -544,6 +546,18 @@ export default function App() {
 
   // --- ÉTATS DU DASHBOARD ADMIN TAARU SET (Demandé par Mamadou) ---
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+
+  // Détection automatique de la route /admin, ?admin ou #admin
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const isRoute = window.location.pathname.startsWith('/admin') || 
+                      window.location.search.includes('admin') || 
+                      window.location.hash === '#admin';
+      if (isRoute) {
+        setIsAdminOpen(true);
+      }
+    }
+  }, []);
   const [adminPin, setAdminPin] = useState('');
   const [adminPinError, setAdminPinError] = useState(false);
   const [isAdminAuthed, setIsAdminAuthed] = useState(false);
@@ -912,7 +926,26 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
     // Envoi direct WhatsApp Officiel TAARU SET (+221 77 154 86 10)
     window.open(`https://wa.me/221771548610?text=${encodeURIComponent(message)}`, '_blank');
 
-    // Sauvegarde automatique dans le tableau de bord Admin TAARU SET
+    // Sauvegarde automatique et sécurisée dans la base de données Supabase TAARU SET
+    if (supabase) {
+      supabase.from('taaru_bookings').insert({
+        client_name: clientName || 'Client Dakar',
+        client_phone: clientPhone || 'Non précisé',
+        service_type: currentService.title,
+        service_details: `${selectedPack.name} - ${isSub ? `Abonnement : ${subDetail}` : (selectedDay || 'Prochain créneau')} à ${selectedTime}`,
+        quarter: quarterFinal,
+        intervention_date: selectedDay || 'À caler',
+        intervention_time: selectedTime,
+        estimated_price_fcfa: selectedPack.price || 0,
+        status: 'en_attente',
+        source: 'site_web',
+        notes: clientAddress ? `Adresse : ${clientAddress}` : 'Précisée sur WhatsApp'
+      }).then(({ error }) => {
+        if (error) console.error('Erreur insertion Supabase:', error);
+      });
+    }
+
+    // Sauvegarde locale de secours
     const newBookingRecord = {
       id: 'TS-2026-' + Math.floor(100 + Math.random() * 900),
       createdAt: new Date().toISOString(),
@@ -2628,483 +2661,11 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
       )}
 
       {/* ========================================================================= */}
-      {/* 14. ESPACE GESTIONNAIRE ADMIN TAARU SET (Demandé par Mamadou)             */}
-      {/* ========================================================================= */}
+      {/* 14. ESPACE GESTIONNAIRE ADMIN TAARU SET (SÉCURITÉ SUPABASE MAXIMALE) */}
       {isAdminOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-3 sm:p-5 bg-slate-950/85 backdrop-blur-md">
-          <div className="relative w-full max-w-5xl bg-slate-900 border border-slate-800 text-white rounded-[2rem] sm:rounded-[2.5rem] p-5 sm:p-8 shadow-2xl max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            
-            {/* Header de la Modale Admin */}
-            <div className="flex items-center justify-between pb-4 border-b border-slate-800 shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center font-bold">
-                  {isAdminAuthed ? <Unlock className="w-5 h-5 text-emerald-400" /> : <Lock className="w-5 h-5 text-amber-400" />}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-extrabold text-base sm:text-xl text-white">
-                      Espace Gestionnaire TAARU SET
-                    </h3>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800">
-                      Accès Restreint
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Centralisation des demandes clients, coordonnées et créneaux d'intervention à Dakar
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                {isAdminAuthed && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsAdminAuthed(false);
-                      setAdminPin('');
-                    }}
-                    className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors cursor-pointer"
-                  >
-                    Verrouiller
-                  </button>
-                )}
-                <button 
-                  type="button" 
-                  onClick={() => setIsAdminOpen(false)}
-                  className="w-9 h-9 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
-                  aria-label="Fermer l'espace admin"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            {/* Corps de la Modale */}
-            {!isAdminAuthed ? (
-              // Écran de saisie du Code PIN de sécurité
-              <div className="py-12 px-4 flex flex-col items-center justify-center text-center my-auto">
-                <div className="w-16 h-16 rounded-3xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mb-5 shadow-lg shadow-emerald-950">
-                  <Shield className="w-8 h-8" />
-                </div>
-                <h4 className="text-lg sm:text-2xl font-black text-white mb-2">
-                  Code d'accès requis
-                </h4>
-                <p className="text-xs sm:text-sm text-slate-400 max-w-md mb-6 leading-relaxed">
-                  Veuillez renseigner votre code PIN pour accéder à la liste des réservations et aux contacts des clients.
-                </p>
-
-                <form onSubmit={handleAdminLogin} className="w-full max-w-xs space-y-4">
-                  <div>
-                    <input 
-                      type="password"
-                      maxLength={6}
-                      placeholder="Code PIN (ex: 8610)"
-                      value={adminPin}
-                      onChange={(e) => {
-                        setAdminPin(e.target.value);
-                        setAdminPinError(false);
-                      }}
-                      className="w-full text-center tracking-[0.3em] font-mono text-xl sm:text-2xl py-3 px-4 rounded-2xl bg-slate-800/90 border border-slate-700 text-white focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
-                      autoFocus
-                    />
-                    {adminPinError && (
-                      <p className="text-xs text-rose-400 font-bold mt-2">
-                        Code PIN incorrect. Veuillez réessayer.
-                      </p>
-                    )}
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-[#16A34A] hover:opacity-95 text-white font-bold text-xs sm:text-sm shadow-lg shadow-emerald-900/30 transition-all cursor-pointer"
-                  >
-                    Déverrouiller l'espace
-                  </button>
-
-                  <p className="text-[11px] text-slate-500 pt-2">
-                    Code par défaut : <strong>8610</strong> (Derniers chiffres du numéro officiel) ou <strong>2026</strong>
-                  </p>
-                </form>
-              </div>
-            ) : (
-              // Tableau de bord complet des réservations
-              <div className="flex-1 overflow-y-auto pt-5 space-y-5 pr-1">
-                
-                {/* 4 Cartes de statistiques clés */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                  <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4">
-                    <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Demandes</div>
-                    <div className="text-2xl sm:text-3xl font-black text-white mt-1">{adminBookings.length}</div>
-                    <div className="text-[10px] text-emerald-400 font-medium mt-1">Directement depuis le site</div>
-                  </div>
-                  <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4">
-                    <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Nouvelles Demandes</div>
-                    <div className="text-2xl sm:text-3xl font-black text-blue-400 mt-1">
-                      {adminBookings.filter(b => b.status === 'Nouveau').length}
-                    </div>
-                    <div className="text-[10px] text-slate-400 font-medium mt-1">À confirmer sur WhatsApp</div>
-                  </div>
-                  <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4">
-                    <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Confirmées & En cours</div>
-                    <div className="text-2xl sm:text-3xl font-black text-emerald-400 mt-1">
-                      {adminBookings.filter(b => b.status === 'Confirmé' || b.status === 'En cours').length}
-                    </div>
-                    <div className="text-[10px] text-slate-400 font-medium mt-1">Interventions programmées</div>
-                  </div>
-                  <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4">
-                    <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">C.A Prévisionnel</div>
-                    <div className="text-lg sm:text-xl font-black text-lime-400 mt-1.5 truncate">
-                      {new Intl.NumberFormat('fr-FR').format(
-                        adminBookings.reduce((sum, b) => sum + (Number(b.rawPrice) || 0), 0)
-                      )} F
-                    </div>
-                    <div className="text-[10px] text-slate-400 font-medium mt-1">Paiements Wave/OM/Cash</div>
-                  </div>
-                </div>
-
-                {/* Barre d'outils : Recherche, Filtres de Statut, Bouton Ajout & Export CSV */}
-                <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-slate-800/60 p-3 rounded-2xl border border-slate-700/60">
-                  <div className="relative flex-1">
-                    <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                    <input 
-                      type="text"
-                      placeholder="Rechercher par nom, téléphone, quartier, formule..."
-                      value={adminSearch}
-                      onChange={(e) => setAdminSearch(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs sm:text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
-                    />
-                  </div>
-
-                  {/* Filtres par statut */}
-                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
-                    {['Tous', 'Nouveau', 'Confirmé', 'En cours', 'Terminé'].map((st) => (
-                      <button
-                        key={st}
-                        type="button"
-                        onClick={() => setAdminFilter(st)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-                          adminFilter === st 
-                            ? 'bg-emerald-500 text-white shadow-xs' 
-                            : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-700'
-                        }`}
-                      >
-                        {st}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Actions Rapides */}
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => setIsManualModalOpen(true)}
-                      className="px-3.5 py-2 rounded-xl bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Ajouter</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleExportCSV}
-                      className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
-                      title="Exporter en fichier Excel / CSV"
-                    >
-                      <Download className="w-3.5 h-3.5 text-emerald-400" />
-                      <span className="hidden sm:inline">Export CSV</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Liste des Réservations */}
-                <div className="space-y-3">
-                  {adminBookings
-                    .filter((b) => {
-                      if (adminFilter !== 'Tous' && b.status !== adminFilter) return false;
-                      if (!adminSearch.trim()) return true;
-                      const q = adminSearch.toLowerCase();
-                      return (
-                        (b.name && b.name.toLowerCase().includes(q)) ||
-                        (b.phone && b.phone.toLowerCase().includes(q)) ||
-                        (b.quarter && b.quarter.toLowerCase().includes(q)) ||
-                        (b.service && b.service.toLowerCase().includes(q)) ||
-                        (b.pack && b.pack.toLowerCase().includes(q)) ||
-                        (b.id && b.id.toLowerCase().includes(q))
-                      );
-                    })
-                    .map((item) => {
-                      const cleanPhone = (item.phone || '').replace(/\D/g, '');
-                      return (
-                        <div 
-                          key={item.id}
-                          className="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-4 sm:p-5 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 hover:border-slate-600 transition-all"
-                        >
-                          {/* Infos Client & Prestation */}
-                          <div className="space-y-1.5 flex-1">
-                            <div className="flex items-center gap-2.5 flex-wrap">
-                              <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-md bg-slate-900 text-emerald-400 border border-slate-700">
-                                {item.id}
-                              </span>
-                              <span className="font-extrabold text-sm sm:text-base text-white">
-                                {item.name || 'Client sans nom'}
-                              </span>
-                              <span className="text-xs text-slate-400">
-                                ({item.phone})
-                              </span>
-                              
-                              {/* Badge Statut */}
-                              <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
-                                item.status === 'Nouveau' ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40' :
-                                item.status === 'Confirmé' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' :
-                                item.status === 'En cours' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' :
-                                item.status === 'Terminé' ? 'bg-lime-500/20 text-lime-300 border border-lime-500/40' :
-                                'bg-slate-700 text-slate-300'
-                              }`}>
-                                {item.status}
-                              </span>
-                            </div>
-
-                            <div className="text-xs text-slate-300 flex items-center gap-2 flex-wrap">
-                              <strong className="text-emerald-400 font-bold">{item.service}</strong>
-                              <span className="text-slate-500">•</span>
-                              <span>{item.pack}</span>
-                              <span className="text-slate-500">•</span>
-                              <span className="font-bold text-white bg-slate-900 px-2 py-0.5 rounded-md border border-slate-700">
-                                {item.price}
-                              </span>
-                            </div>
-
-                            <div className="text-xs text-slate-400 flex items-center gap-3 flex-wrap pt-0.5">
-                              <div className="flex items-center gap-1 text-slate-300 font-medium">
-                                <Calendar className="w-3.5 h-3.5 text-emerald-400" />
-                                <span>{item.dateInfo} ({item.time})</span>
-                              </div>
-                              <div className="flex items-center gap-1 text-slate-300 font-medium">
-                                <MapPin className="w-3.5 h-3.5 text-emerald-400" />
-                                <span>{item.quarter} {item.address ? `• ${item.address}` : ''}</span>
-                              </div>
-                            </div>
-
-                            {item.notes && (
-                              <div className="text-[11px] text-slate-400 bg-slate-900/60 p-2 rounded-xl border border-slate-800 mt-1 italic">
-                                Note : {item.notes}
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Boutons d'Action Rapide pour Mamadou & l'équipe */}
-                          <div className="flex items-center gap-2 shrink-0 w-full lg:w-auto justify-between lg:justify-end pt-3 lg:pt-0 border-t lg:border-t-0 border-slate-700/60">
-                            {/* Sélecteur de Statut */}
-                            <select
-                              value={item.status}
-                              onChange={(e) => handleUpdateBookingStatus(item.id, e.target.value)}
-                              className="px-2.5 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-semibold text-slate-200 focus:outline-none focus:border-emerald-500 cursor-pointer"
-                            >
-                              <option value="Nouveau">Nouveau</option>
-                              <option value="Confirmé">Confirmé</option>
-                              <option value="En cours">En cours</option>
-                              <option value="Terminé">Terminé</option>
-                              <option value="Annulé">Annulé</option>
-                            </select>
-
-                            {/* Bouton Appel Direct */}
-                            {cleanPhone && (
-                              <a
-                                href={`tel:${cleanPhone}`}
-                                className="w-8 h-8 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 flex items-center justify-center transition-colors"
-                                title="Appeler directement le client"
-                              >
-                                <Phone className="w-3.5 h-3.5" />
-                              </a>
-                            )}
-
-                            {/* Bouton WhatsApp Direct */}
-                            {cleanPhone && (
-                              <a
-                                href={`https://wa.me/${cleanPhone}?text=Bonjour%20${encodeURIComponent(item.name || '')}%2C%20c'est%20l'%C3%A9quipe%20TAARU%20SET%20concernant%20votre%20demande%20de%20nettoyage.`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="px-3 py-1.5 rounded-xl bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold flex items-center gap-1.5 transition-colors"
-                                title="Ouvrir la conversation WhatsApp avec le client"
-                              >
-                                <MessageSquare className="w-3.5 h-3.5" />
-                                <span>WhatsApp</span>
-                              </a>
-                            )}
-
-                            {/* Bouton Supprimer */}
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteBooking(item.id)}
-                              className="w-8 h-8 rounded-xl bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800/60 flex items-center justify-center transition-colors cursor-pointer"
-                              title="Supprimer cette réservation"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-
-                  {adminBookings.length === 0 && (
-                    <div className="py-12 text-center text-slate-500 bg-slate-800/40 rounded-2xl border border-slate-800">
-                      Aucune réservation pour le moment. Les demandes soumises sur le site apparaîtront ici automatiquement.
-                    </div>
-                  )}
-                </div>
-
-              </div>
-            )}
-
-          </div>
-        </div>
+        <AdminPortal onClose={() => setIsAdminOpen(false)} />
       )}
 
-      {/* ========================================================================= */}
-      {/* 15. MODALE AJOUT MANUEL D'UNE DEMANDE DANS LE DASHBOARD                   */}
-      {/* ========================================================================= */}
-      {isManualModalOpen && (
-        <div className="fixed inset-0 z-60 overflow-y-auto flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md">
-          <div className="relative w-full max-w-lg bg-slate-900 border border-slate-800 text-white rounded-3xl p-6 sm:p-7 shadow-2xl">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
-              <h4 className="font-extrabold text-base text-white">Ajouter une réservation manuellement</h4>
-              <button 
-                type="button" 
-                onClick={() => setIsManualModalOpen(false)}
-                className="w-8 h-8 rounded-full bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleAddManualBooking} className="space-y-3.5 text-xs">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-400 font-bold mb-1">Nom du client *</label>
-                  <input 
-                    type="text" 
-                    required
-                    placeholder="Ex: Aïssatou Ba" 
-                    value={manualForm.name}
-                    onChange={(e) => setManualForm({...manualForm, name: e.target.value})}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-emerald-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-400 font-bold mb-1">Téléphone WhatsApp *</label>
-                  <input 
-                    type="tel" 
-                    required
-                    placeholder="Ex: +221 77 123 45 67" 
-                    value={manualForm.phone}
-                    onChange={(e) => setManualForm({...manualForm, phone: e.target.value})}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-emerald-500"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-400 font-bold mb-1">Service</label>
-                  <select 
-                    value={manualForm.service}
-                    onChange={(e) => setManualForm({...manualForm, service: e.target.value})}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-emerald-500"
-                  >
-                    <option value="Nettoyage Canapés & Salons Kärcher">Nettoyage Canapés & Salons Kärcher</option>
-                    <option value="Lavage Auto Mobile à Domicile">Lavage Auto Mobile à Domicile</option>
-                    <option value="Nettoyage Fin de Chantier & Villas">Nettoyage Fin de Chantier & Villas</option>
-                    <option value="Bureaux & Entreprises">Bureaux & Entreprises</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-slate-400 font-bold mb-1">Prix (FCFA)</label>
-                  <input 
-                    type="text" 
-                    placeholder="Ex: 35 000 FCFA" 
-                    value={manualForm.price}
-                    onChange={(e) => setManualForm({...manualForm, price: e.target.value})}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-emerald-500"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-400 font-bold mb-1">Date souhaitée</label>
-                  <input 
-                    type="text" 
-                    placeholder="Ex: Demain matin" 
-                    value={manualForm.dateInfo}
-                    onChange={(e) => setManualForm({...manualForm, dateInfo: e.target.value})}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-emerald-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-400 font-bold mb-1">Créneau horaire</label>
-                  <input 
-                    type="text" 
-                    placeholder="Ex: 14h00 - 16h00" 
-                    value={manualForm.time}
-                    onChange={(e) => setManualForm({...manualForm, time: e.target.value})}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-emerald-500"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-400 font-bold mb-1">Quartier à Dakar</label>
-                  <input 
-                    type="text" 
-                    placeholder="Ex: Almadies, Mermoz..." 
-                    value={manualForm.quarter}
-                    onChange={(e) => setManualForm({...manualForm, quarter: e.target.value})}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-emerald-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-400 font-bold mb-1">Adresse ou Repère</label>
-                  <input 
-                    type="text" 
-                    placeholder="Ex: Rue 5 en face pharmacie" 
-                    value={manualForm.address}
-                    onChange={(e) => setManualForm({...manualForm, address: e.target.value})}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-emerald-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-slate-400 font-bold mb-1">Notes ou précisions (optionnel)</label>
-                <textarea 
-                  rows={2}
-                  placeholder="Ex: Demande reçue par appel direct. Prise disponible."
-                  value={manualForm.notes}
-                  onChange={(e) => setManualForm({...manualForm, notes: e.target.value})}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-emerald-500"
-                ></textarea>
-              </div>
-
-              <div className="pt-2 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsManualModalOpen(false)}
-                  className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold cursor-pointer"
-                >
-                  Annuler
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2.5 rounded-xl bg-[#16A34A] hover:bg-[#15803D] text-white font-bold cursor-pointer"
-                >
-                  Enregistrer la demande
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-    </div>
+      </div>
   );
 }
