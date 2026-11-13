@@ -5,21 +5,21 @@ import {
   Search, Filter, Plus, CheckCircle2, Clock, AlertCircle, 
   Trash2, Download, LogOut, RefreshCw, X, ArrowUpRight, 
   UserPlus, BarChart3, TrendingUp, DollarSign, MapPin, 
-  Layers, ExternalLink, ChevronRight, Activity, Check,
-  Briefcase, CheckSquare, Sparkles, Building2, Car, Sofa
+  Layers, ExternalLink, Activity, Check, Lock, KeyRound
 } from 'lucide-react';
 
 export default function AdminPortal({ onClose }) {
-  // --- AUTHENTIFICATION ---
+  // --- AUTHENTIFICATION SÉCURISÉE ZERO-TRUST ---
   const [session, setSession] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authError, setAuthError] = useState('');
-  const [isSignUpMode, setIsSignUpMode] = useState(false);
-  const [fullNameInput, setFullNameInput] = useState('');
   const [authSuccessMsg, setAuthSuccessMsg] = useState('');
   const [currentMember, setCurrentMember] = useState(null);
+  const [isResetMode, setIsResetMode] = useState(false);
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [lockoutTimer, setLockoutTimer] = useState(0);
 
   // --- NAVIGATION ONGLETS ---
   // 'bookings' | 'clients' | 'stats' | 'team'
@@ -34,7 +34,6 @@ export default function AdminPortal({ onClose }) {
   // --- FILTRES & RECHERCHE ---
   const [bookingFilter, setBookingFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [statsPeriod, setStatsPeriod] = useState('month'); // 'all' | 'month' | 'week'
 
   // --- MODALE NOUVELLE RÉSERVATION MANUELLE ---
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
@@ -52,7 +51,7 @@ export default function AdminPortal({ onClose }) {
   const [newMemberRole, setNewMemberRole] = useState('operations');
   const [teamMsg, setTeamMsg] = useState('');
 
-  // 1. Initialisation Session Supabase
+  // 1. Initialisation Session Supabase & Audit de Sécurité
   useEffect(() => {
     if (!supabase) {
       setAuthLoading(false);
@@ -81,59 +80,61 @@ export default function AdminPortal({ onClose }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  // 2. Vérification profil équipe
+  // Décompte de verrouillage anti-brute force
+  useEffect(() => {
+    if (lockoutTimer > 0) {
+      const timer = setTimeout(() => setLockoutTimer(prev => prev - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [lockoutTimer]);
+
+  // 2. VÉRIFICATION STRICTE ZERO-TRUST EXÉCUTÉE EN BASE DE DONNÉES (POSTGRESQL SECURITY DEFINER)
   const checkAndLoadTeamMember = async (user) => {
     try {
-      const { data: allMembers, error: listErr } = await supabase
-        .from('taaru_team_members')
-        .select('*');
+      // Appel de la fonction PostgreSQL qui vérifie si le compte est whitelisté côté serveur
+      const { data: memberList, error: rpcErr } = await supabase.rpc('get_current_team_member');
 
-      if (!listErr && allMembers && allMembers.length === 0) {
-        // Premier utilisateur = SUPER ADMIN (Mamadou / Administrateur)
-        const { data: newAdmin, error: insErr } = await supabase
-          .from('taaru_team_members')
-          .insert({
-            user_id: user.id,
-            email: user.email.toLowerCase(),
-            full_name: user.user_metadata?.full_name || 'Mamadou - CEO',
-            role: 'super_admin',
-            is_active: true
-          })
-          .select()
-          .single();
-
-        if (!insErr && newAdmin) {
-          setCurrentMember(newAdmin);
-        }
-      } else if (allMembers && allMembers.length > 0) {
-        const found = allMembers.find(
-          m => m.email.toLowerCase() === user.email.toLowerCase() || m.user_id === user.id
-        );
-
-        if (found && found.is_active) {
-          if (!found.user_id) {
-            await supabase.from('taaru_team_members').update({ user_id: user.id }).eq('id', found.id);
-          }
-          setCurrentMember(found);
-        } else {
-          // Bloquer l'accès pour tout email non whitelisté
-          await supabase.auth.signOut();
-          setSession(null);
-          setCurrentMember(null);
-          setAuthError("Accès restreint : cette adresse n'a pas été autorisée par la direction de TAARU SET.");
-          setAuthLoading(false);
-          return;
-        }
+      // ÉTANCHÉITÉ TOTALE : Si la base ne renvoie aucun membre certifié actif
+      if (rpcErr || !memberList || memberList.length === 0) {
+        console.warn('Security Alert: Unauthorized access attempt rejected:', user.email);
+        await supabase.auth.signOut();
+        setSession(null);
+        setCurrentMember(null);
+        setAuthError(`⛔ ACCÈS REFUSÉ (Code 403) : Le compte "${user.email}" n'est pas autorisé par la direction de TAARU SET. Toute tentative d'intrusion est bloquée et journalisée.`);
+        setAuthLoading(false);
+        return;
       }
+
+      const verified = memberList[0];
+      if (!verified.is_active) {
+        await supabase.auth.signOut();
+        setSession(null);
+        setCurrentMember(null);
+        setAuthError("⛔ ACCÈS SUSPENDU : Ce compte collaborateur a été désactivé par la direction.");
+        setAuthLoading(false);
+        return;
+      }
+
+      // Si l'utilisateur n'a pas encore son user_id lié en base
+      if (user.id && !verified.user_id) {
+        await supabase.from('taaru_team_members').update({ user_id: user.id }).eq('id', verified.id);
+      }
+
+      // Membre certifié par le moteur PostgreSQL
+      setCurrentMember(verified);
+      loadAllData();
     } catch (e) {
-      console.error(e);
+      console.error('Zero-Trust Auth Verification Error:', e);
+      await supabase.auth.signOut();
+      setSession(null);
+      setCurrentMember(null);
+      setAuthError("Échec de la validation de sécurité côté serveur.");
     } finally {
       setAuthLoading(false);
-      loadAllData();
     }
   };
 
-  // 3. Chargement des données
+  // 3. Chargement des données (protégé par RLS en base)
   const loadAllData = async () => {
     if (!supabase) return;
     setLoadingData(true);
@@ -170,53 +171,70 @@ export default function AdminPortal({ onClose }) {
     };
   }, [session]);
 
-  // Auth Handler
+  // GESTIONNAIRE DE CONNEXION SÉCURISÉE (AUCUNE AUTO-INSCRIPTION PUBLIQUE)
   const handleAuthSubmit = async (e) => {
     e.preventDefault();
     setAuthError('');
     setAuthSuccessMsg('');
 
+    if (lockoutTimer > 0) {
+      setAuthError(`Verrouillage de sécurité actif. Veuillez patienter ${lockoutTimer} secondes.`);
+      return;
+    }
+
     if (!supabase) {
-      setAuthError('Connexion au serveur indisponible.');
+      setAuthError('Connexion au serveur de sécurité indisponible.');
       return;
     }
 
     const cleanEmail = authEmail.trim().toLowerCase();
 
+    // VÉRIFICATION LISTE BLANCHE EN BASE AVANT MÊME DE TENTER DE SE CONNECTER
     try {
-      if (isSignUpMode) {
-        // Vérification de la liste blanche
-        const { data: isWhitelisted } = await supabase.rpc('is_email_whitelisted', { 
-          p_email: cleanEmail 
-        });
+      const { data: isWhitelisted } = await supabase.rpc('is_email_whitelisted', { 
+        p_email: cleanEmail 
+      });
 
-        const { count } = await supabase
-          .from('taaru_team_members')
-          .select('*', { count: 'exact', head: true });
-
-        if (count && count > 0 && !isWhitelisted) {
-          throw new Error(`Accès refusé : l'adresse "${cleanEmail}" n'est pas autorisée. Veuillez contacter la direction.`);
-        }
-
-        const { error } = await supabase.auth.signUp({
-          email: cleanEmail,
-          password: authPassword,
-          options: {
-            data: { full_name: fullNameInput }
-          }
+      if (!isWhitelisted) {
+        setFailedAttempts(prev => {
+          const next = prev + 1;
+          if (next >= 4) setLockoutTimer(60);
+          return next;
         });
-        if (error) throw error;
-        setAuthSuccessMsg('Accès activé. Vous pouvez désormais vous connecter.');
-        setIsSignUpMode(false);
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email: cleanEmail,
-          password: authPassword,
-        });
-        if (error) throw error;
+        setAuthError(`⛔ ACCÈS STRICTEMENT REFUSÉ : L'adresse "${cleanEmail}" ne figure pas dans le registre officiel de TAARU SET. Seuls les collaborateurs accrédités peuvent se connecter.`);
+        return;
       }
+
+      // Si mode réinitialisation / définition de mot de passe pour un collaborateur autorisé
+      if (isResetMode) {
+        const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+          redirectTo: window.location.origin + '/?admin'
+        });
+        if (error) throw error;
+        setAuthSuccessMsg(`Un lien d'activation sécurisé a été expédié à ${cleanEmail}. Consultez votre boîte de réception pour définir votre mot de passe personnel.`);
+        setIsResetMode(false);
+        return;
+      }
+
+      // Connexion officielle
+      const { error } = await supabase.auth.signInWithPassword({
+        email: cleanEmail,
+        password: authPassword,
+      });
+
+      if (error) {
+        setFailedAttempts(prev => {
+          const next = prev + 1;
+          if (next >= 4) setLockoutTimer(60);
+          return next;
+        });
+        throw new Error('Mot de passe erroné ou identifiants incorrects.');
+      }
+
+      // Réinitialiser les tentatives en cas de succès
+      setFailedAttempts(0);
     } catch (err) {
-      setAuthError(err.message || 'Identifiants invalides ou compte non configuré.');
+      setAuthError(err.message || 'Échec lors de l\'authentification sécurisée.');
     }
   };
 
@@ -245,7 +263,7 @@ export default function AdminPortal({ onClose }) {
 
   // Suppression réservation
   const handleDeleteBooking = async (bookingId) => {
-    if (!confirm('Confirmer la suppression de cette réservation du registre ?')) return;
+    if (!confirm('Confirmer la suppression de cette réservation du registre officiel ?')) return;
     if (!supabase) return;
     try {
       const { error } = await supabase
@@ -290,7 +308,7 @@ export default function AdminPortal({ onClose }) {
     }
   };
 
-  // Gestion Équipe (Mamadou)
+  // Gestion Équipe (Super-Admin Mamadou uniquement)
   const handleAddTeamMember = async (e) => {
     e.preventDefault();
     setTeamMsg('');
@@ -305,12 +323,12 @@ export default function AdminPortal({ onClose }) {
       });
 
       if (error) throw error;
-      setTeamMsg('Collaborateur autorisé. Il peut désormais activer son mot de passe.');
+      setTeamMsg('✅ Collaborateur accrédité dans le registre. Il peut désormais activer son mot de passe en toute sécurité.');
       setNewMemberEmail('');
       setNewMemberName('');
       loadAllData();
     } catch (err) {
-      setTeamMsg(`Erreur : ${err.message || 'Impossible d\'ajouter ce membre.'}`);
+      setTeamMsg(`❌ Erreur : ${err.message || 'Impossible d\'ajouter ce membre.'}`);
     }
   };
 
@@ -327,7 +345,7 @@ export default function AdminPortal({ onClose }) {
     }
   };
 
-  // Export CSV
+  // Export CSV Clients
   const exportClientsCSV = () => {
     if (clients.length === 0) return;
     const headers = ['Nom Client', 'Telephone', 'Quartier', 'Commandes', 'Total Depense FCFA', 'Fidelite', 'Derniere Commande'];
@@ -367,7 +385,7 @@ export default function AdminPortal({ onClose }) {
     });
   }, [bookings, bookingFilter, searchQuery]);
 
-  // Analytics & Bilan
+  // Analytics & Statistiques
   const stats = useMemo(() => {
     const totalBookings = bookings.length;
     const confirmedOrDone = bookings.filter(b => b.status === 'terminee' || b.status === 'confirmee' || b.status === 'en_cours');
@@ -420,93 +438,93 @@ export default function AdminPortal({ onClose }) {
 
   const formatPrice = (p) => (p || 0).toLocaleString('fr-FR') + ' FCFA';
 
-  // --- ÉCRAN DE CONNEXION ÉPURÉ (ANTI-SLOP) ---
+  // --- ÉCRAN DE CONNEXION ZERO-TRUST HAUTE SÉCURITÉ ---
   if (!session) {
     return (
-      <div className="fixed inset-0 z-50 bg-[#090D16] flex items-center justify-center p-4">
-        <div className="w-full max-w-sm border border-slate-800 bg-[#0E131F] rounded-2xl p-6 sm:p-8 shadow-2xl">
-          <div className="flex items-center justify-between pb-6 mb-6 border-b border-slate-800/80">
+      <div className="fixed inset-0 z-50 bg-[#070A10] flex items-center justify-center p-4 font-sans">
+        <div className="w-full max-w-sm border border-slate-800 bg-[#0B0F19] rounded-2xl p-6 sm:p-8 shadow-2xl shadow-black/80">
+          
+          <div className="flex items-center justify-between pb-5 mb-5 border-b border-slate-800/80">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-emerald-950 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-black text-xs">
+              <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white font-black text-xs flex items-center justify-center shadow-xs">
                 TS
               </div>
               <div>
-                <h1 className="text-sm font-bold text-slate-100 tracking-tight">TAARU SET</h1>
-                <p className="text-[11px] text-slate-400 font-mono">Espace Gestionnaire</p>
+                <h1 className="text-sm font-bold text-white tracking-tight">TAARU SET</h1>
+                <p className="text-[11px] text-slate-400 font-mono">Portail de Gestion Sécurisé</p>
               </div>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="text-slate-500 hover:text-slate-300 transition-colors p-1"
-              title="Retour au site"
+              className="text-slate-500 hover:text-slate-300 transition-colors p-1 cursor-pointer"
+              title="Retour au site public"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
 
+          <div className="mb-4">
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-emerald-950/80 text-emerald-400 border border-emerald-800/50">
+              <Lock className="w-3 h-3" />
+              Accès Privé & Chiffré (Zero-Trust)
+            </span>
+          </div>
+
           {authError && (
-            <div className="mb-4 p-3 rounded-lg bg-rose-950/40 border border-rose-800/60 text-rose-300 text-xs leading-relaxed">
+            <div className="mb-4 p-3 rounded-lg bg-rose-950/50 border border-rose-800 text-rose-300 text-xs leading-relaxed font-sans">
               {authError}
             </div>
           )}
 
           {authSuccessMsg && (
-            <div className="mb-4 p-3 rounded-lg bg-emerald-950/40 border border-emerald-800/60 text-emerald-300 text-xs leading-relaxed">
+            <div className="mb-4 p-3 rounded-lg bg-emerald-950/50 border border-emerald-800 text-emerald-300 text-xs leading-relaxed font-sans">
               {authSuccessMsg}
             </div>
           )}
 
           <form onSubmit={handleAuthSubmit} className="space-y-3.5">
-            {isSignUpMode && (
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-300 mb-1">
-                  Nom & Prénom
-                </label>
-                <input 
-                  type="text" 
-                  required
-                  placeholder="Mamadou"
-                  value={fullNameInput}
-                  onChange={(e) => setFullNameInput(e.target.value)}
-                  className="w-full h-10 px-3 rounded-lg bg-[#090D16] border border-slate-700/80 text-white text-xs placeholder-slate-600 focus:outline-none focus:border-emerald-500"
-                />
-              </div>
-            )}
-
             <div>
               <label className="block text-[11px] font-semibold text-slate-300 mb-1">
-                Adresse email
+                Adresse email accréditée
               </label>
               <input 
                 type="email" 
                 required
-                placeholder="direction@taaruset.sn"
+                placeholder="votre-nom@taaruset.sn"
                 value={authEmail}
                 onChange={(e) => setAuthEmail(e.target.value)}
-                className="w-full h-10 px-3 rounded-lg bg-[#090D16] border border-slate-700/80 text-white text-xs placeholder-slate-600 focus:outline-none focus:border-emerald-500 font-mono"
+                disabled={lockoutTimer > 0}
+                className="w-full h-10 px-3 rounded-lg bg-[#070A10] border border-slate-700/80 text-white text-xs placeholder-slate-600 focus:outline-none focus:border-emerald-500 font-mono disabled:opacity-50"
               />
             </div>
 
-            <div>
-              <label className="block text-[11px] font-semibold text-slate-300 mb-1">
-                Mot de passe
-              </label>
-              <input 
-                type="password" 
-                required
-                placeholder="••••••••••••"
-                value={authPassword}
-                onChange={(e) => setAuthPassword(e.target.value)}
-                className="w-full h-10 px-3 rounded-lg bg-[#090D16] border border-slate-700/80 text-white text-xs placeholder-slate-600 focus:outline-none focus:border-emerald-500 font-mono"
-              />
-            </div>
+            {!isResetMode && (
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                  Mot de passe personnel
+                </label>
+                <input 
+                  type="password" 
+                  required
+                  placeholder="••••••••••••"
+                  value={authPassword}
+                  onChange={(e) => setAuthPassword(e.target.value)}
+                  disabled={lockoutTimer > 0}
+                  className="w-full h-10 px-3 rounded-lg bg-[#070A10] border border-slate-700/80 text-white text-xs placeholder-slate-600 focus:outline-none focus:border-emerald-500 font-mono disabled:opacity-50"
+                />
+              </div>
+            )}
 
             <button
               type="submit"
-              className="w-full h-10 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition-colors cursor-pointer mt-2"
+              disabled={lockoutTimer > 0}
+              className="w-full h-10 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-600 text-white font-semibold text-xs transition-colors cursor-pointer mt-2 shadow-xs"
             >
-              {isSignUpMode ? 'Activer mon accès officiel' : 'Se connecter'}
+              {lockoutTimer > 0 
+                ? `Bloqué (${lockoutTimer}s)` 
+                : (isResetMode ? 'Envoyer le lien d\'activation' : 'Se connecter au portail')
+              }
             </button>
           </form>
 
@@ -514,23 +532,24 @@ export default function AdminPortal({ onClose }) {
             <button
               type="button"
               onClick={() => {
-                setIsSignUpMode(!isSignUpMode);
+                setIsResetMode(!isResetMode);
                 setAuthError('');
                 setAuthSuccessMsg('');
               }}
               className="text-[11px] text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
             >
-              {isSignUpMode ? 'Déjà configuré ? Se connecter' : 'Première activation ? Créer son mot de passe'}
+              {isResetMode ? 'Retour à la connexion' : 'Première invitation / Mot de passe oublié ?'}
             </button>
           </div>
+
         </div>
       </div>
     );
   }
 
-  // --- PORTAIL PLEIN ÉCRAN DÉDIÉ (DESIGN STANDARDS LINEAR / STRIPE) ---
+  // --- PORTAIL PLEIN ÉCRAN DÉDIÉ (STANDALONE WORKSPACE) ---
   return (
-    <div className="fixed inset-0 z-50 bg-[#090D16] text-slate-100 flex flex-col md:flex-row overflow-hidden font-sans">
+    <div className="fixed inset-0 z-50 bg-[#070A10] text-slate-100 flex flex-col md:flex-row overflow-hidden font-sans">
       
       {/* 1. SIDEBAR DE NAVIGATION GAUCHE */}
       <aside className="w-full md:w-64 bg-[#0B0F19] border-r border-slate-800/80 flex flex-col shrink-0">
@@ -543,18 +562,18 @@ export default function AdminPortal({ onClose }) {
             </div>
             <div>
               <span className="font-extrabold text-sm tracking-tight text-white block">TAARU SET</span>
-              <span className="text-[10px] text-slate-400 font-mono uppercase tracking-wider block">Back-Office v2.0</span>
+              <span className="text-[10px] text-slate-400 font-mono uppercase tracking-wider block">Portail Gestionnaire</span>
             </div>
           </div>
           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800/60">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-            Live
+            Sync
           </span>
         </div>
 
-        {/* Profil Utilisateur Actif */}
+        {/* Profil Collaborateur Certifié */}
         <div className="p-3 mx-3 my-3 rounded-xl bg-slate-900/60 border border-slate-800/80">
-          <div className="text-[10px] text-slate-500 font-mono uppercase">Session active</div>
+          <div className="text-[10px] text-slate-500 font-mono uppercase">Accès Vérifié</div>
           <div className="text-xs font-bold text-slate-200 truncate mt-0.5">{session.user.email}</div>
           <div className="mt-1 flex items-center gap-1.5">
             <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-950/80 text-emerald-300 border border-emerald-800/50">
@@ -618,23 +637,26 @@ export default function AdminPortal({ onClose }) {
             <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('team')}
-            className={`w-full h-9 px-3 rounded-lg font-semibold flex items-center justify-between transition-colors cursor-pointer ${
-              activeTab === 'team'
-                ? 'bg-slate-800 text-white border border-slate-700/60'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40'
-            }`}
-          >
-            <div className="flex items-center gap-2.5">
-              <UserPlus className="w-4 h-4 text-purple-400" />
-              <span>Équipe & Droits</span>
-            </div>
-            <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-slate-900 text-slate-300 border border-slate-800">
-              {teamMembers.length}
-            </span>
-          </button>
+          {/* Onglet Gestion d'Équipe (Réservé au Super Admin) */}
+          {currentMember?.role === 'super_admin' && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('team')}
+              className={`w-full h-9 px-3 rounded-lg font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                activeTab === 'team'
+                  ? 'bg-slate-800 text-white border border-slate-700/60'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <UserPlus className="w-4 h-4 text-purple-400" />
+                <span>Équipe & Droits</span>
+              </div>
+              <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-slate-900 text-slate-300 border border-slate-800">
+                {teamMembers.length}
+              </span>
+            </button>
+          )}
         </nav>
 
         {/* Footer Sidebar */}
@@ -659,7 +681,7 @@ export default function AdminPortal({ onClose }) {
       </aside>
 
       {/* 2. ESPACE DE TRAVAIL PRINCIPAL */}
-      <main className="flex-1 flex flex-col bg-[#090D16] overflow-hidden">
+      <main className="flex-1 flex flex-col bg-[#070A10] overflow-hidden">
         
         {/* Topbar Header */}
         <header className="h-14 px-4 sm:px-6 border-b border-slate-800/80 flex items-center justify-between shrink-0 bg-[#0B0F19]/50">
@@ -723,7 +745,7 @@ export default function AdminPortal({ onClose }) {
                 <div className="relative flex-1 max-w-sm">
                   <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input 
-                    type="text"
+                    type="text" 
                     placeholder="Filtrer par nom, téléphone, quartier..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -1069,15 +1091,15 @@ export default function AdminPortal({ onClose }) {
           {/* ========================================================================= */}
           {/* ONGLET 4 : GESTION ÉQUIPE & DROITS                                        */}
           {/* ========================================================================= */}
-          {activeTab === 'team' && (
+          {activeTab === 'team' && currentMember?.role === 'super_admin' && (
             <div className="space-y-6">
               
               {/* Formulaire d'invitation réservé au Super Admin */}
               <div className="p-5 rounded-xl bg-[#0B0F19] border border-slate-800/80 space-y-4">
                 <div>
-                  <h4 className="font-bold text-xs uppercase tracking-wider text-slate-200">Autoriser un collaborateur</h4>
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-slate-200">Accréditer un collaborateur</h4>
                   <p className="text-[11px] text-slate-400">
-                    Seuls les emails enregistrés ici peuvent activer leur accès au tableau de bord.
+                    Seuls les emails enregistrés ici peuvent activer leur accès au portail de gestion.
                   </p>
                 </div>
 
@@ -1130,7 +1152,7 @@ export default function AdminPortal({ onClose }) {
                       type="submit"
                       className="w-full h-9 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition-colors cursor-pointer"
                     >
-                      Autoriser l'accès
+                      Accréditer l'accès
                     </button>
                   </div>
                 </form>
