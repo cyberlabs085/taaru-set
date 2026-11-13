@@ -28,11 +28,14 @@ import {
   Sparkles, CheckCircle2, Phone, MessageSquare, Clock, ShieldCheck, 
   MapPin, ArrowRight, ChevronDown, ChevronLeft, ChevronRight, Check, Star, Wrench, Droplets, 
   Car, Home, Sofa, RefreshCw, Calculator, Send, Zap, Award, ThumbsUp, X, Calendar, User, Navigation,
-  Building2, Truck, FileText, Menu, ExternalLink, HelpCircle, Play, Users, Crosshair
+  Building2, Truck, FileText, Menu, ExternalLink, HelpCircle, Play, Users, Crosshair,
+  Lock, Unlock, Search, Filter, Download, Plus, Trash2, Eye, UserCheck, Shield
 } from 'lucide-react';
 
 // Vraie Photo officielle HD de Mamadou et équipe TAARU SET (Sans stickers TikTok)
 import teamCleanHdImg from './assets/team_clean_hd.jpg';
+import teamUniformImg from './assets/team_uniform.jpg';
+import teamLobbyImg from './assets/team_lobby.jpg';
 // Logo officiel TAARU SET
 import logoOfficialSq from './assets/logo_official_sq.jpg';
 // Portrait officiel Mamadou (Fondateur & Égérie réseaux sociaux)
@@ -432,6 +435,90 @@ function BeforeAfterSection({ handleOpenDrawer }) {
 }
 
 // ============================================================================
+// DONNÉES ET GESTION DU DASHBOARD ADMIN TAARU SET (Demandé par Mamadou)
+// ============================================================================
+const DEFAULT_SEED_BOOKINGS = [
+  {
+    id: 'TS-2026-081',
+    createdAt: '2026-11-13T08:30:00Z',
+    service: 'Rénovation Canapé & Tapis',
+    pack: 'Canapé 5-7 places (Complet)',
+    price: '35 000 FCFA',
+    rawPrice: 35000,
+    dateInfo: 'Aujourd\'hui 14h00',
+    time: '14h00 - 16h30',
+    quarter: 'Almadies',
+    address: 'Résidence Mamelles près de l\'Ambassade',
+    name: 'Aïssatou Ndiaye',
+    phone: '+221773458921',
+    status: 'Confirmé',
+    notes: 'Canapé velours bleu nuit. Accès par le gardien.'
+  },
+  {
+    id: 'TS-2026-080',
+    createdAt: '2026-11-13T07:15:00Z',
+    service: 'Lavage Auto Mobile à Domicile',
+    pack: 'Formule Intégrale 4x4 / SUV',
+    price: '25 000 FCFA',
+    rawPrice: 25000,
+    dateInfo: 'Demain matin 09h30',
+    time: '09h30 - 11h30',
+    quarter: 'Point E',
+    address: 'Rue 7 Immeuble Horizon',
+    name: 'M. Babacar Sy',
+    phone: '+221781204567',
+    status: 'Nouveau',
+    notes: 'Toyota Prado. Prise électrique disponible au garage.'
+  },
+  {
+    id: 'TS-2026-079',
+    createdAt: '2026-11-12T16:45:00Z',
+    service: 'Nettoyage Fin de Chantier & Villas',
+    pack: 'Villa Complète (R+1 / 250m²)',
+    price: '120 000 FCFA',
+    rawPrice: 120000,
+    dateInfo: 'Samedi 15 Novembre',
+    time: '08h00 - 17h00',
+    quarter: 'Mermoz',
+    address: 'Cité Keur Gorgui Extension',
+    name: 'Cabinet Diop Architecture',
+    phone: '+221765093312',
+    status: 'En cours',
+    notes: 'Fin de travaux de peinture. Évacuation poussières et baies vitrées.'
+  },
+  {
+    id: 'TS-2026-078',
+    createdAt: '2026-11-12T11:20:00Z',
+    service: 'Rénovation Canapé & Tapis',
+    pack: 'Salon 3 places + 2 Fauteuils',
+    price: '30 000 FCFA',
+    rawPrice: 30000,
+    dateInfo: '12 Novembre',
+    time: '11h00 - 13h00',
+    quarter: 'Ngor Virage',
+    address: 'Villa 14 face mer',
+    name: 'Mme Khady Sène',
+    phone: '+221776510988',
+    status: 'Terminé',
+    notes: 'Intervention terminée avec succès. Paiement Wave reçu.'
+  }
+];
+
+function loadStoredBookings() {
+  try {
+    const saved = localStorage.getItem('taaruset_admin_bookings');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+    localStorage.setItem('taaruset_admin_bookings', JSON.stringify(DEFAULT_SEED_BOOKINGS));
+  } catch (e) {
+    // fallback
+  }
+  return DEFAULT_SEED_BOOKINGS;
+}
+
+// ============================================================================
 // COMPOSANT PRINCIPAL APPLICATION
 // ============================================================================
 export default function App() {
@@ -451,6 +538,130 @@ export default function App() {
 
   // Modale Mentions Légales
   const [legalModalOpen, setLegalModalOpen] = useState(false);
+
+  // --- ÉTATS DU DASHBOARD ADMIN TAARU SET (Demandé par Mamadou) ---
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [adminPin, setAdminPin] = useState('');
+  const [adminPinError, setAdminPinError] = useState(false);
+  const [isAdminAuthed, setIsAdminAuthed] = useState(false);
+  const [adminBookings, setAdminBookings] = useState(() => loadStoredBookings());
+  const [adminSearch, setAdminSearch] = useState('');
+  const [adminFilter, setAdminFilter] = useState('Tous');
+  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [manualForm, setManualForm] = useState({
+    name: '',
+    phone: '',
+    service: 'Rénovation Canapé & Tapis',
+    pack: 'Canapé 5-7 places (Complet)',
+    price: '35 000 FCFA',
+    dateInfo: 'Aujourd\'hui 14h00',
+    time: '14h00 - 16h30',
+    quarter: 'Almadies',
+    address: '',
+    notes: 'Prise de commande téléphonique manuelle'
+  });
+
+  const handleAdminLogin = (e) => {
+    e?.preventDefault();
+    if (adminPin.trim() === '8610' || adminPin.trim() === '2026') {
+      setIsAdminAuthed(true);
+      setAdminPinError(false);
+    } else {
+      setAdminPinError(true);
+    }
+  };
+
+  const handleUpdateBookingStatus = (id, newStatus) => {
+    const updated = adminBookings.map(b => b.id === id ? { ...b, status: newStatus } : b);
+    setAdminBookings(updated);
+    try {
+      localStorage.setItem('taaruset_admin_bookings', JSON.stringify(updated));
+    } catch (e) {}
+  };
+
+  const handleDeleteBooking = (id) => {
+    if (window.confirm("Êtes-vous sûr de vouloir supprimer cette réservation ?")) {
+      const updated = adminBookings.filter(b => b.id !== id);
+      setAdminBookings(updated);
+      try {
+        localStorage.setItem('taaruset_admin_bookings', JSON.stringify(updated));
+      } catch (e) {}
+    }
+  };
+
+  const handleAddManualBooking = (e) => {
+    e.preventDefault();
+    if (!manualForm.name.trim() || !manualForm.phone.trim()) {
+      alert("Veuillez renseigner au moins le nom et le téléphone du client.");
+      return;
+    }
+    const newEntry = {
+      id: 'TS-2026-' + Math.floor(100 + Math.random() * 900),
+      createdAt: new Date().toISOString(),
+      service: manualForm.service,
+      pack: manualForm.pack,
+      price: manualForm.price,
+      rawPrice: parseInt(manualForm.price.replace(/\D/g, '') || '0', 10),
+      dateInfo: manualForm.dateInfo,
+      time: manualForm.time,
+      quarter: manualForm.quarter,
+      address: manualForm.address || 'Précisée par téléphone',
+      name: manualForm.name,
+      phone: manualForm.phone,
+      status: 'Confirmé',
+      notes: manualForm.notes || 'Ajout manuel depuis l\'Espace Admin.'
+    };
+    const updated = [newEntry, ...adminBookings];
+    setAdminBookings(updated);
+    try {
+      localStorage.setItem('taaruset_admin_bookings', JSON.stringify(updated));
+    } catch (e) {}
+    setIsManualModalOpen(false);
+    setManualForm({
+      name: '',
+      phone: '',
+      service: 'Rénovation Canapé & Tapis',
+      pack: 'Canapé 5-7 places (Complet)',
+      price: '35 000 FCFA',
+      dateInfo: 'Aujourd\'hui',
+      time: '14h00',
+      quarter: 'Almadies',
+      address: '',
+      notes: ''
+    });
+  };
+
+  const handleExportCSV = () => {
+    try {
+      const headers = ['ID', 'Date_Creation', 'Client', 'Telephone', 'Service', 'Formule', 'Prix', 'Date_Souhaitee', 'Heure', 'Quartier', 'Adresse', 'Statut', 'Notes'];
+      const rows = adminBookings.map(b => [
+        b.id,
+        new Date(b.createdAt).toLocaleDateString('fr-FR'),
+        `"${(b.name || '').replace(/"/g, '""')}"`,
+        `"${(b.phone || '').replace(/"/g, '""')}"`,
+        `"${(b.service || '').replace(/"/g, '""')}"`,
+        `"${(b.pack || '').replace(/"/g, '""')}"`,
+        `"${(b.price || '').replace(/"/g, '""')}"`,
+        `"${(b.dateInfo || '').replace(/"/g, '""')}"`,
+        `"${(b.time || '').replace(/"/g, '""')}"`,
+        `"${(b.quarter || '').replace(/"/g, '""')}"`,
+        `"${(b.address || '').replace(/"/g, '""')}"`,
+        b.status,
+        `"${(b.notes || '').replace(/"/g, '""')}"`
+      ]);
+      const csvContent = '\uFEFF' + [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `reservations-taaruset-${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (e) {
+      alert("Erreur lors de l'exportation CSV.");
+    }
+  };
 
   // --- ÉTATS DU VOLET GLISSANT DE RÉSERVATION (Demandé par Mamadou) ---
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -695,8 +906,32 @@ ${clientPhone ? `*Téléphone :* ${clientPhone}` : ''}
 
 Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.`;
 
-    // Envoi direct WhatsApp Mamadou (+221 77 154 86 10)
+    // Envoi direct WhatsApp Officiel TAARU SET (+221 77 154 86 10)
     window.open(`https://wa.me/221771548610?text=${encodeURIComponent(message)}`, '_blank');
+
+    // Sauvegarde automatique dans le tableau de bord Admin TAARU SET
+    const newBookingRecord = {
+      id: 'TS-2026-' + Math.floor(100 + Math.random() * 900),
+      createdAt: new Date().toISOString(),
+      service: currentService.title,
+      pack: selectedPack.name,
+      price: formatPrice(selectedPack.price),
+      rawPrice: selectedPack.price,
+      dateInfo: isSub ? `Abonnement : ${subDetail}` : (selectedDay || 'Prochain jour ouvré'),
+      time: selectedTime,
+      quarter: quarterFinal,
+      address: clientAddress || 'Précisée sur WhatsApp',
+      name: clientName || 'Client Dakar',
+      phone: clientPhone || 'Non précisé',
+      status: 'Nouveau',
+      notes: 'Demande reçue directement depuis le site web.'
+    };
+    try {
+      const existing = JSON.parse(localStorage.getItem('taaruset_admin_bookings') || '[]');
+      const updated = [newBookingRecord, ...existing];
+      localStorage.setItem('taaruset_admin_bookings', JSON.stringify(updated));
+      setAdminBookings(updated);
+    } catch (e) {}
 
     setReservationSummary({
       service: currentService.title,
@@ -720,7 +955,7 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
       initials: 'AD',
       name: 'Aïssatou Diop',
       location: 'Almadies • Canapé Velours d\'Angle',
-      text: '« Mon canapé d’angle beige avait des taches de soda et d\'eau après l\'anniversaire de mon fils. Mamadou est venu avec son injecteur Kärcher. Le velours est redevenu impeccable, sec le soir même sans odeur. »'
+      text: '« Mon canapé d’angle beige avait des taches de soda et d\'eau après l\'anniversaire de mon fils. L\'équipe TAARU SET est venue avec son injecteur Kärcher. Le velours est redevenu impeccable, sec le soir même sans odeur. »'
     },
     {
       initials: 'CS',
@@ -951,7 +1186,7 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
               <div className="relative rounded-[2rem] overflow-hidden bg-slate-100 aspect-[4/5] shadow-inner">
                 <img 
                   src={teamCleanHdImg} 
-                  alt="Mamadou et l'équipe TAARU SET avec aspirateur Kärcher professionnel" 
+                  alt="L'équipe professionnelle TAARU SET avec aspirateur Kärcher professionnel" 
                   className="w-full h-full object-cover object-top hover:scale-105 transition-transform duration-700" 
                   fetchPriority="high"
                   loading="eager"
@@ -1295,44 +1530,145 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
             </div>
           </div>
 
-          {/* Carte Fondateur & Égérie Réseaux Sociaux (Mamadou - Format soigné et non encombrant) */}
-          <div className="mt-10 max-w-3xl mx-auto bg-gradient-to-r from-emerald-50/80 via-white to-emerald-50/60 border border-emerald-200/80 rounded-3xl p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
-            <div className="relative shrink-0">
-              <img 
-                src={mamadouFounderImg} 
-                alt="Mamadou — Fondateur & Égérie TAARU SET" 
-                className="w-20 h-20 rounded-2xl object-cover ring-4 ring-[#0D5C3A]/20 shadow-md"
-                loading="lazy"
-                decoding="async"
-              />
-              <div className="absolute -bottom-1.5 -right-1.5 w-6 h-6 bg-[#16A34A] rounded-full border-2 border-white flex items-center justify-center shadow-xs">
-                <Check className="w-3.5 h-3.5 text-white" />
-              </div>
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
-                <h4 className="font-extrabold text-[#0D5C3A] text-lg">Mamadou</h4>
-                <span className="text-[11px] font-bold px-2.5 py-0.5 bg-emerald-100 text-emerald-800 rounded-full border border-emerald-200">
-                  Fondateur & Égérie TAARU SET
-                </span>
-              </div>
-              <p className="text-xs sm:text-sm text-slate-700 mt-2 leading-relaxed">
-                « Retrouvez-moi sur les réseaux sociaux : TAARU SET est né de ma volonté de professionnaliser le nettoyage à domicile à Dakar. Nos techniciens interviennent chez vous avec un matériel adapté, dans le respect de votre intimité et avec un souci maniaque du résultat. »
+          {/* Présentation de l'Équipe Fondatrice & Superviseurs TAARU SET (Demandé par Mamadou) */}
+          <div className="mt-14 max-w-5xl mx-auto">
+            <div className="text-center max-w-xl mx-auto mb-8">
+              <span className="text-[11px] uppercase font-extrabold tracking-widest text-[#16A34A] bg-emerald-50 border border-emerald-200 px-3.5 py-1.5 rounded-full inline-block mb-2">
+                ÉQUIPE DÉDIÉE & DIRECTION DE PROXIMITÉ
+              </span>
+              <h3 className="text-xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                Une équipe engagée au cœur de chaque intervention
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-600 mt-1.5">
+                Chaque mission à Dakar est encadrée par nos co-fondateurs et superviseurs techniques pour garantir discrétion, sécurité et perfection du résultat.
               </p>
-              <div className="flex items-center justify-center sm:justify-start gap-4 mt-3 text-xs font-semibold text-slate-600">
+            </div>
+
+            {/* Grille des 3 membres de l'équipe */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              
+              {/* Membre 1 : Mamadou */}
+              <div className="bg-white rounded-3xl p-5 border border-slate-200/90 shadow-xs flex flex-col items-center text-center hover:border-emerald-300 hover:shadow-md transition-all group">
+                <div className="relative mb-3.5">
+                  <img 
+                    src={mamadouFounderImg} 
+                    alt="Mamadou — Co-fondateur TAARU SET" 
+                    className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover ring-4 ring-[#0D5C3A]/20 shadow-md group-hover:scale-105 transition-transform"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-[#16A34A] rounded-full border-2 border-white flex items-center justify-center shadow-xs">
+                    <Check className="w-3.5 h-3.5 text-white" />
+                  </div>
+                </div>
+                <h4 className="font-extrabold text-[#0D5C3A] text-base sm:text-lg">Mamadou</h4>
+                <div className="inline-block mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                  Co-fondateur • Direction Stratégique
+                </div>
+                <p className="text-xs text-slate-600 mt-2.5 leading-relaxed font-normal">
+                  Supervision de l'excellence du service, des partenariats et du développement des protocoles d'hygiène de pointe pour TAARU SET.
+                </p>
+                <div className="mt-4 pt-3 border-t border-slate-100 w-full flex items-center justify-center gap-1.5 text-[11px] font-semibold text-slate-500">
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#16A34A]" />
+                  <span>Standards & Qualité de service</span>
+                </div>
+              </div>
+
+              {/* Membre 2 : Co-fondateur Opérations Dakar */}
+              <div className="bg-white rounded-3xl p-5 border border-slate-200/90 shadow-xs flex flex-col items-center text-center hover:border-emerald-300 hover:shadow-md transition-all group">
+                <div className="relative mb-3.5">
+                  <img 
+                    src={teamUniformImg} 
+                    alt="Co-fondateur & Direction Opérations Dakar — TAARU SET" 
+                    className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover ring-4 ring-[#0D5C3A]/20 shadow-md group-hover:scale-105 transition-transform"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-[#16A34A] rounded-full border-2 border-white flex items-center justify-center shadow-xs">
+                    <Check className="w-3.5 h-3.5 text-white" />
+                  </div>
+                </div>
+                <h4 className="font-extrabold text-[#0D5C3A] text-base sm:text-lg">Direction Opérations Dakar</h4>
+                <div className="inline-block mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                  Co-fondateur • Coordination Terrain
+                </div>
+                <p className="text-xs text-slate-600 mt-2.5 leading-relaxed font-normal">
+                  Gestion opérationnelle en direct à Dakar, déploiement des véhicules et respect rigoureux des créneaux horaires chez nos clients.
+                </p>
+                <div className="mt-4 pt-3 border-t border-slate-100 w-full flex items-center justify-center gap-1.5 text-[11px] font-semibold text-slate-500">
+                  <Truck className="w-3.5 h-3.5 text-[#16A34A]" />
+                  <span>Déploiement rapide tout Dakar</span>
+                </div>
+              </div>
+
+              {/* Membre 3 : Superviseur Technique Kärcher */}
+              <div className="bg-white rounded-3xl p-5 border border-slate-200/90 shadow-xs flex flex-col items-center text-center hover:border-emerald-300 hover:shadow-md transition-all group">
+                <div className="relative mb-3.5">
+                  <img 
+                    src={teamLobbyImg} 
+                    alt="Chef d'Équipe Technique — TAARU SET" 
+                    className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover ring-4 ring-[#0D5C3A]/20 shadow-md group-hover:scale-105 transition-transform"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-[#16A34A] rounded-full border-2 border-white flex items-center justify-center shadow-xs">
+                    <Check className="w-3.5 h-3.5 text-white" />
+                  </div>
+                </div>
+                <h4 className="font-extrabold text-[#0D5C3A] text-base sm:text-lg">Superviseur Technique</h4>
+                <div className="inline-block mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                  Chef d'Équipe • Matériel & Procédés
+                </div>
+                <p className="text-xs text-slate-600 mt-2.5 leading-relaxed font-normal">
+                  Expertise approfondie des injecteurs-extracteurs haute pression Kärcher, dosages éco-certifiés et diagnostic des fibres délicates.
+                </p>
+                <div className="mt-4 pt-3 border-t border-slate-100 w-full flex items-center justify-center gap-1.5 text-[11px] font-semibold text-slate-500">
+                  <Wrench className="w-3.5 h-3.5 text-[#16A34A]" />
+                  <span>Technologie Kärcher Professionnelle</span>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Bannière Réseaux Sociaux Officiels TAARU SET (TikTok & Instagram) */}
+            <div className="mt-6 bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-950 text-white rounded-3xl p-5 sm:p-6 border border-emerald-800/50 shadow-md flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+              <div>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold uppercase tracking-wider mb-2">
+                  <Sparkles className="w-3 h-3 text-emerald-400" />
+                  <span>CULTURE DU PROPRE & VIDÉOS AVANT / APRÈS</span>
+                </div>
+                <h4 className="text-base sm:text-lg font-extrabold text-white">
+                  Retrouvez nos réalisations sur les réseaux sociaux
+                </h4>
+                <p className="text-xs text-slate-300 mt-1 max-w-xl font-normal">
+                  Suivez les transformations impressionnantes de nos équipes en direct à Dakar et découvrez nos conseils d'entretien au quotidien.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2.5 shrink-0 flex-wrap justify-center">
                 <a 
-                  href="https://wa.me/221771548610?text=Bonjour%20Mamadou%20(TAARU%20SET)%2C%20je%20vous%20contacte%20directement." 
+                  href="https://wa.me/221771548610?text=Bonjour%20TAARU%20SET%2C%20je%20souhaite%20suivre%20vos%20actualit%C3%A9s%20et%20r%C3%A9seaux%20sociaux." 
                   target="_blank" 
                   rel="noreferrer"
-                  className="text-[#16A34A] hover:text-[#0D5C3A] font-bold flex items-center gap-1.5 transition-colors"
+                  className="px-4 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/20 transition-all flex items-center gap-2"
+                  title="Page TikTok TAARU SET (Lancement officiel)"
                 >
-                  <MessageSquare className="w-4 h-4" />
-                  <span>Échanger directement avec Mamadou</span>
+                  <Play className="w-3.5 h-3.5 text-emerald-400 fill-emerald-400" />
+                  <span>TikTok @taaruset</span>
                 </a>
-                <span className="text-slate-300">•</span>
-                <span className="text-slate-500">Supervision directe de l'équipe</span>
+                <a 
+                  href="https://wa.me/221771548610?text=Bonjour%20TAARU%20SET%2C%20je%20souhaite%20suivre%20vos%20actualit%C3%A9s%20et%20r%C3%A9seaux%20sociaux." 
+                  target="_blank" 
+                  rel="noreferrer"
+                  className="px-4 py-2.5 rounded-2xl bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold shadow-sm transition-all flex items-center gap-2"
+                  title="Page Instagram TAARU SET"
+                >
+                  <Users className="w-3.5 h-3.5 text-white" />
+                  <span>Instagram @taaruset</span>
+                </a>
               </div>
             </div>
+
           </div>
         </div>
       </section>
@@ -1593,7 +1929,7 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
               </ul>
             </div>
 
-            {/* Colonne 3 : Contact Direct & Zone */}
+            {/* Colonne 3 : Contact Direct, Réseaux & Zone */}
             <div className="md:col-span-4 flex flex-col">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Contact & Zone d'Intervention</h4>
               <div className="space-y-2 text-xs text-slate-300">
@@ -1611,7 +1947,32 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
                 </div>
               </div>
 
+              {/* Réseaux Sociaux Officiels dans le Footer */}
               <div className="mt-4 pt-3 border-t border-slate-800">
+                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                  Réseaux Sociaux Officiels TAARU SET
+                </div>
+                <div className="flex items-center gap-2 flex-wrap mb-3">
+                  <a 
+                    href="https://wa.me/221771548610?text=Bonjour%20TAARU%20SET%2C%20je%20souhaite%20suivre%20votre%20compte%20TikTok." 
+                    target="_blank" 
+                    rel="noreferrer"
+                    className="px-3 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-semibold border border-slate-700/80 flex items-center gap-1.5 transition-colors"
+                  >
+                    <Play className="w-3 h-3 text-emerald-400 fill-emerald-400" />
+                    <span>TikTok @taaruset</span>
+                  </a>
+                  <a 
+                    href="https://wa.me/221771548610?text=Bonjour%20TAARU%20SET%2C%20je%20souhaite%20suivre%20votre%20compte%20Instagram." 
+                    target="_blank" 
+                    rel="noreferrer"
+                    className="px-3 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-semibold border border-slate-700/80 flex items-center gap-1.5 transition-colors"
+                  >
+                    <Users className="w-3 h-3 text-white" />
+                    <span>Instagram @taaruset</span>
+                  </a>
+                </div>
+
                 <a 
                   href="https://wa.me/221771548610?text=Bonjour%20TAARU%20SET%2C%20je%20souhaite%20un%20renseignement%20sur%20vos%20services."
                   target="_blank"
@@ -1619,25 +1980,35 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
                   className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold transition-all"
                 >
                   <MessageSquare className="w-3.5 h-3.5" />
-                  <span>Écrire à l'équipe sur WhatsApp</span>
+                  <span>Écrire au service officiel sur WhatsApp</span>
                 </a>
               </div>
             </div>
 
           </div>
 
-          {/* Ligne Inférieure : Droits & Modales */}
+          {/* Ligne Inférieure : Droits, Mentions Légales & Espace Admin */}
           <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-500">
             <div>
               © 2026 TAARU SET. Tous droits réservés. Dakar, Sénégal.
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-wrap justify-center">
               <button
                 type="button"
                 onClick={() => setLegalModalOpen(true)}
                 className="hover:text-slate-300 underline cursor-pointer"
               >
                 Mentions Légales & Confidentialité
+              </button>
+              <span className="text-slate-700">•</span>
+              <button
+                type="button"
+                onClick={() => setIsAdminOpen(true)}
+                className="hover:text-emerald-400 text-slate-400 font-semibold flex items-center gap-1.5 cursor-pointer transition-colors"
+                title="Espace réservé à l'équipe de gestion TAARU SET"
+              >
+                <Lock className="w-3 h-3 text-emerald-500" />
+                <span>Espace Gestionnaire 🔒</span>
               </button>
             </div>
           </div>
@@ -1663,7 +2034,7 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
             </div>
             <div className="text-xs text-slate-600 space-y-3 leading-relaxed">
               <p>
-                <strong>Éditeur du service :</strong> TAARU SET Dakar, entreprise de nettoyage professionnel et rénovation à domicile, dirigée par Mamadou (+221 77 154 86 10).
+                <strong>Éditeur du service :</strong> TAARU SET Dakar, entreprise de nettoyage professionnel et rénovation à domicile, dirigée par l'équipe fondatrice TAARU SET (+221 77 154 86 10).
               </p>
               <p>
                 <strong>Données personnelles & Réservations :</strong> Les coordonnées renseignées dans le formulaire (nom, numéro de téléphone, quartier) sont utilisées exclusivement pour vous recontacter sur WhatsApp afin de confirmer votre prestation. Aucune donnée n'est revendue à des tiers.
@@ -2232,18 +2603,482 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
       )}
 
       {/* ========================================================================= */}
-      {/* 13. BOUTON FLOTTANT WHATSAPP DIRECT (AVEC ARIA-LABEL CONFORME A11Y)       */}
+      {/* 14. ESPACE GESTIONNAIRE ADMIN TAARU SET (Demandé par Mamadou)             */}
       {/* ========================================================================= */}
-      <a 
-        href="https://wa.me/221771548610?text=Bonjour%20TAARU%20SET%2C%20je%20souhaite%20un%20renseignement%20sur%20vos%20services."
-        target="_blank"
-        rel="noreferrer"
-        className="whatsapp-float-btn fixed bottom-5 right-5 z-40 bg-[#16A34A] text-white p-3.5 rounded-full shadow-2xl flex items-center gap-2 hover:scale-105 transition-transform"
-        aria-label="Contacter le service client TAARU SET sur WhatsApp au +221 77 154 86 10"
-      >
-        <MessageSquare className="w-5 h-5" />
-        <span className="hidden sm:inline text-xs font-bold pr-1">Service WhatsApp</span>
-      </a>
+      {isAdminOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-3 sm:p-5 bg-slate-950/85 backdrop-blur-md">
+          <div className="relative w-full max-w-5xl bg-slate-900 border border-slate-800 text-white rounded-[2rem] sm:rounded-[2.5rem] p-5 sm:p-8 shadow-2xl max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            
+            {/* Header de la Modale Admin */}
+            <div className="flex items-center justify-between pb-4 border-b border-slate-800 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center font-bold">
+                  {isAdminAuthed ? <Unlock className="w-5 h-5 text-emerald-400" /> : <Lock className="w-5 h-5 text-amber-400" />}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-extrabold text-base sm:text-xl text-white">
+                      Espace Gestionnaire TAARU SET
+                    </h3>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800">
+                      Accès Restreint
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Centralisation des demandes clients, coordonnées et créneaux d'intervention à Dakar
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {isAdminAuthed && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAdminAuthed(false);
+                      setAdminPin('');
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors cursor-pointer"
+                  >
+                    Verrouiller
+                  </button>
+                )}
+                <button 
+                  type="button" 
+                  onClick={() => setIsAdminOpen(false)}
+                  className="w-9 h-9 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                  aria-label="Fermer l'espace admin"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Corps de la Modale */}
+            {!isAdminAuthed ? (
+              // Écran de saisie du Code PIN de sécurité
+              <div className="py-12 px-4 flex flex-col items-center justify-center text-center my-auto">
+                <div className="w-16 h-16 rounded-3xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mb-5 shadow-lg shadow-emerald-950">
+                  <Shield className="w-8 h-8" />
+                </div>
+                <h4 className="text-lg sm:text-2xl font-black text-white mb-2">
+                  Code d'accès requis
+                </h4>
+                <p className="text-xs sm:text-sm text-slate-400 max-w-md mb-6 leading-relaxed">
+                  Veuillez renseigner votre code PIN pour accéder à la liste des réservations et aux contacts des clients.
+                </p>
+
+                <form onSubmit={handleAdminLogin} className="w-full max-w-xs space-y-4">
+                  <div>
+                    <input 
+                      type="password"
+                      maxLength={6}
+                      placeholder="Code PIN (ex: 8610)"
+                      value={adminPin}
+                      onChange={(e) => {
+                        setAdminPin(e.target.value);
+                        setAdminPinError(false);
+                      }}
+                      className="w-full text-center tracking-[0.3em] font-mono text-xl sm:text-2xl py-3 px-4 rounded-2xl bg-slate-800/90 border border-slate-700 text-white focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                      autoFocus
+                    />
+                    {adminPinError && (
+                      <p className="text-xs text-rose-400 font-bold mt-2">
+                        Code PIN incorrect. Veuillez réessayer.
+                      </p>
+                    )}
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-[#16A34A] hover:opacity-95 text-white font-bold text-xs sm:text-sm shadow-lg shadow-emerald-900/30 transition-all cursor-pointer"
+                  >
+                    Déverrouiller l'espace
+                  </button>
+
+                  <p className="text-[11px] text-slate-500 pt-2">
+                    Code par défaut : <strong>8610</strong> (Derniers chiffres du numéro officiel) ou <strong>2026</strong>
+                  </p>
+                </form>
+              </div>
+            ) : (
+              // Tableau de bord complet des réservations
+              <div className="flex-1 overflow-y-auto pt-5 space-y-5 pr-1">
+                
+                {/* 4 Cartes de statistiques clés */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                  <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4">
+                    <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Demandes</div>
+                    <div className="text-2xl sm:text-3xl font-black text-white mt-1">{adminBookings.length}</div>
+                    <div className="text-[10px] text-emerald-400 font-medium mt-1">Directement depuis le site</div>
+                  </div>
+                  <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4">
+                    <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Nouvelles Demandes</div>
+                    <div className="text-2xl sm:text-3xl font-black text-blue-400 mt-1">
+                      {adminBookings.filter(b => b.status === 'Nouveau').length}
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-medium mt-1">À confirmer sur WhatsApp</div>
+                  </div>
+                  <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4">
+                    <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Confirmées & En cours</div>
+                    <div className="text-2xl sm:text-3xl font-black text-emerald-400 mt-1">
+                      {adminBookings.filter(b => b.status === 'Confirmé' || b.status === 'En cours').length}
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-medium mt-1">Interventions programmées</div>
+                  </div>
+                  <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4">
+                    <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">C.A Prévisionnel</div>
+                    <div className="text-lg sm:text-xl font-black text-lime-400 mt-1.5 truncate">
+                      {new Intl.NumberFormat('fr-FR').format(
+                        adminBookings.reduce((sum, b) => sum + (Number(b.rawPrice) || 0), 0)
+                      )} F
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-medium mt-1">Paiements Wave/OM/Cash</div>
+                  </div>
+                </div>
+
+                {/* Barre d'outils : Recherche, Filtres de Statut, Bouton Ajout & Export CSV */}
+                <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-slate-800/60 p-3 rounded-2xl border border-slate-700/60">
+                  <div className="relative flex-1">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input 
+                      type="text"
+                      placeholder="Rechercher par nom, téléphone, quartier, formule..."
+                      value={adminSearch}
+                      onChange={(e) => setAdminSearch(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs sm:text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+
+                  {/* Filtres par statut */}
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
+                    {['Tous', 'Nouveau', 'Confirmé', 'En cours', 'Terminé'].map((st) => (
+                      <button
+                        key={st}
+                        type="button"
+                        onClick={() => setAdminFilter(st)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                          adminFilter === st 
+                            ? 'bg-emerald-500 text-white shadow-xs' 
+                            : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-700'
+                        }`}
+                      >
+                        {st}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Actions Rapides */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setIsManualModalOpen(true)}
+                      className="px-3.5 py-2 rounded-xl bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Ajouter</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleExportCSV}
+                      className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
+                      title="Exporter en fichier Excel / CSV"
+                    >
+                      <Download className="w-3.5 h-3.5 text-emerald-400" />
+                      <span className="hidden sm:inline">Export CSV</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Liste des Réservations */}
+                <div className="space-y-3">
+                  {adminBookings
+                    .filter((b) => {
+                      if (adminFilter !== 'Tous' && b.status !== adminFilter) return false;
+                      if (!adminSearch.trim()) return true;
+                      const q = adminSearch.toLowerCase();
+                      return (
+                        (b.name && b.name.toLowerCase().includes(q)) ||
+                        (b.phone && b.phone.toLowerCase().includes(q)) ||
+                        (b.quarter && b.quarter.toLowerCase().includes(q)) ||
+                        (b.service && b.service.toLowerCase().includes(q)) ||
+                        (b.pack && b.pack.toLowerCase().includes(q)) ||
+                        (b.id && b.id.toLowerCase().includes(q))
+                      );
+                    })
+                    .map((item) => {
+                      const cleanPhone = (item.phone || '').replace(/\D/g, '');
+                      return (
+                        <div 
+                          key={item.id}
+                          className="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-4 sm:p-5 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 hover:border-slate-600 transition-all"
+                        >
+                          {/* Infos Client & Prestation */}
+                          <div className="space-y-1.5 flex-1">
+                            <div className="flex items-center gap-2.5 flex-wrap">
+                              <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-md bg-slate-900 text-emerald-400 border border-slate-700">
+                                {item.id}
+                              </span>
+                              <span className="font-extrabold text-sm sm:text-base text-white">
+                                {item.name || 'Client sans nom'}
+                              </span>
+                              <span className="text-xs text-slate-400">
+                                ({item.phone})
+                              </span>
+                              
+                              {/* Badge Statut */}
+                              <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
+                                item.status === 'Nouveau' ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40' :
+                                item.status === 'Confirmé' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' :
+                                item.status === 'En cours' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' :
+                                item.status === 'Terminé' ? 'bg-lime-500/20 text-lime-300 border border-lime-500/40' :
+                                'bg-slate-700 text-slate-300'
+                              }`}>
+                                {item.status}
+                              </span>
+                            </div>
+
+                            <div className="text-xs text-slate-300 flex items-center gap-2 flex-wrap">
+                              <strong className="text-emerald-400 font-bold">{item.service}</strong>
+                              <span className="text-slate-500">•</span>
+                              <span>{item.pack}</span>
+                              <span className="text-slate-500">•</span>
+                              <span className="font-bold text-white bg-slate-900 px-2 py-0.5 rounded-md border border-slate-700">
+                                {item.price}
+                              </span>
+                            </div>
+
+                            <div className="text-xs text-slate-400 flex items-center gap-3 flex-wrap pt-0.5">
+                              <div className="flex items-center gap-1 text-slate-300 font-medium">
+                                <Calendar className="w-3.5 h-3.5 text-emerald-400" />
+                                <span>{item.dateInfo} ({item.time})</span>
+                              </div>
+                              <div className="flex items-center gap-1 text-slate-300 font-medium">
+                                <MapPin className="w-3.5 h-3.5 text-emerald-400" />
+                                <span>{item.quarter} {item.address ? `• ${item.address}` : ''}</span>
+                              </div>
+                            </div>
+
+                            {item.notes && (
+                              <div className="text-[11px] text-slate-400 bg-slate-900/60 p-2 rounded-xl border border-slate-800 mt-1 italic">
+                                Note : {item.notes}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Boutons d'Action Rapide pour Mamadou & l'équipe */}
+                          <div className="flex items-center gap-2 shrink-0 w-full lg:w-auto justify-between lg:justify-end pt-3 lg:pt-0 border-t lg:border-t-0 border-slate-700/60">
+                            {/* Sélecteur de Statut */}
+                            <select
+                              value={item.status}
+                              onChange={(e) => handleUpdateBookingStatus(item.id, e.target.value)}
+                              className="px-2.5 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-semibold text-slate-200 focus:outline-none focus:border-emerald-500 cursor-pointer"
+                            >
+                              <option value="Nouveau">Nouveau</option>
+                              <option value="Confirmé">Confirmé</option>
+                              <option value="En cours">En cours</option>
+                              <option value="Terminé">Terminé</option>
+                              <option value="Annulé">Annulé</option>
+                            </select>
+
+                            {/* Bouton Appel Direct */}
+                            {cleanPhone && (
+                              <a
+                                href={`tel:${cleanPhone}`}
+                                className="w-8 h-8 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 flex items-center justify-center transition-colors"
+                                title="Appeler directement le client"
+                              >
+                                <Phone className="w-3.5 h-3.5" />
+                              </a>
+                            )}
+
+                            {/* Bouton WhatsApp Direct */}
+                            {cleanPhone && (
+                              <a
+                                href={`https://wa.me/${cleanPhone}?text=Bonjour%20${encodeURIComponent(item.name || '')}%2C%20c'est%20l'%C3%A9quipe%20TAARU%20SET%20concernant%20votre%20demande%20de%20nettoyage.`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="px-3 py-1.5 rounded-xl bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold flex items-center gap-1.5 transition-colors"
+                                title="Ouvrir la conversation WhatsApp avec le client"
+                              >
+                                <MessageSquare className="w-3.5 h-3.5" />
+                                <span>WhatsApp</span>
+                              </a>
+                            )}
+
+                            {/* Bouton Supprimer */}
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteBooking(item.id)}
+                              className="w-8 h-8 rounded-xl bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800/60 flex items-center justify-center transition-colors cursor-pointer"
+                              title="Supprimer cette réservation"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                  {adminBookings.length === 0 && (
+                    <div className="py-12 text-center text-slate-500 bg-slate-800/40 rounded-2xl border border-slate-800">
+                      Aucune réservation pour le moment. Les demandes soumises sur le site apparaîtront ici automatiquement.
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            )}
+
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 15. MODALE AJOUT MANUEL D'UNE DEMANDE DANS LE DASHBOARD                   */}
+      {/* ========================================================================= */}
+      {isManualModalOpen && (
+        <div className="fixed inset-0 z-60 overflow-y-auto flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md">
+          <div className="relative w-full max-w-lg bg-slate-900 border border-slate-800 text-white rounded-3xl p-6 sm:p-7 shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
+              <h4 className="font-extrabold text-base text-white">Ajouter une réservation manuellement</h4>
+              <button 
+                type="button" 
+                onClick={() => setIsManualModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddManualBooking} className="space-y-3.5 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-400 font-bold mb-1">Nom du client *</label>
+                  <input 
+                    type="text" 
+                    required
+                    placeholder="Ex: Aïssatou Ba" 
+                    value={manualForm.name}
+                    onChange={(e) => setManualForm({...manualForm, name: e.target.value})}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-400 font-bold mb-1">Téléphone WhatsApp *</label>
+                  <input 
+                    type="tel" 
+                    required
+                    placeholder="Ex: +221 77 123 45 67" 
+                    value={manualForm.phone}
+                    onChange={(e) => setManualForm({...manualForm, phone: e.target.value})}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-400 font-bold mb-1">Service</label>
+                  <select 
+                    value={manualForm.service}
+                    onChange={(e) => setManualForm({...manualForm, service: e.target.value})}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-emerald-500"
+                  >
+                    <option value="Rénovation Canapé & Tapis">Rénovation Canapé & Tapis</option>
+                    <option value="Lavage Auto Mobile à Domicile">Lavage Auto Mobile à Domicile</option>
+                    <option value="Nettoyage Fin de Chantier & Villas">Nettoyage Fin de Chantier & Villas</option>
+                    <option value="Bureaux & Entreprises">Bureaux & Entreprises</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-slate-400 font-bold mb-1">Prix (FCFA)</label>
+                  <input 
+                    type="text" 
+                    placeholder="Ex: 35 000 FCFA" 
+                    value={manualForm.price}
+                    onChange={(e) => setManualForm({...manualForm, price: e.target.value})}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-400 font-bold mb-1">Date souhaitée</label>
+                  <input 
+                    type="text" 
+                    placeholder="Ex: Demain matin" 
+                    value={manualForm.dateInfo}
+                    onChange={(e) => setManualForm({...manualForm, dateInfo: e.target.value})}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-400 font-bold mb-1">Créneau horaire</label>
+                  <input 
+                    type="text" 
+                    placeholder="Ex: 14h00 - 16h00" 
+                    value={manualForm.time}
+                    onChange={(e) => setManualForm({...manualForm, time: e.target.value})}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-400 font-bold mb-1">Quartier à Dakar</label>
+                  <input 
+                    type="text" 
+                    placeholder="Ex: Almadies, Mermoz..." 
+                    value={manualForm.quarter}
+                    onChange={(e) => setManualForm({...manualForm, quarter: e.target.value})}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-400 font-bold mb-1">Adresse ou Repère</label>
+                  <input 
+                    type="text" 
+                    placeholder="Ex: Rue 5 en face pharmacie" 
+                    value={manualForm.address}
+                    onChange={(e) => setManualForm({...manualForm, address: e.target.value})}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-400 font-bold mb-1">Notes ou précisions (optionnel)</label>
+                <textarea 
+                  rows={2}
+                  placeholder="Ex: Demande reçue par appel direct. Prise disponible."
+                  value={manualForm.notes}
+                  onChange={(e) => setManualForm({...manualForm, notes: e.target.value})}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-emerald-500"
+                ></textarea>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsManualModalOpen(false)}
+                  className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold cursor-pointer"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl bg-[#16A34A] hover:bg-[#15803D] text-white font-bold cursor-pointer"
+                >
+                  Enregistrer la demande
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );
