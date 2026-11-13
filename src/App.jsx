@@ -1,3 +1,28 @@
+// Audio Haptic Micro-Interaction (Web Audio API - 0 latence, 0 fichier externe)
+function playHapticClickSound() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    if (ctx.state === 'suspended') {
+      ctx.resume();
+    }
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(650, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(320, ctx.currentTime + 0.045);
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.045);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.05);
+  } catch (e) {
+    // Ignorer si audio bloqué par le navigateur
+  }
+}
+
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Sparkles, CheckCircle2, Phone, MessageSquare, Clock, ShieldCheck, 
@@ -51,19 +76,18 @@ function BeforeAfterSection({ handleOpenDrawer }) {
     return () => cancelAnimationFrame(animId);
   }, [isHovered, sliderTheme]);
 
-  // Rotation des thèmes toutes les 7s (sauf si utilisateur interagit)
+  // Rotation des thèmes UNIQUEMENT pour les photos (la vidéo reste fixe pour que le client puisse la regarder sans coupure)
   useEffect(() => {
-    if (isHovered) return;
+    if (isHovered || sliderTheme === 'video') return;
     const interval = setInterval(() => {
       setSliderTheme((prev) => {
-        if (prev === 'video') return 'auto';
         if (prev === 'auto') return 'sofa';
         if (prev === 'sofa') return 'chantier';
-        return 'video';
+        return 'auto';
       });
-    }, 7000);
+    }, 7500);
     return () => clearInterval(interval);
-  }, [isHovered]);
+  }, [isHovered, sliderTheme]);
 
   return (
     <section id="avant-apres" className="py-12 sm:py-16 bg-[#FAFAF8] relative z-10 border-t border-slate-200/60">
@@ -144,16 +168,22 @@ function BeforeAfterSection({ handleOpenDrawer }) {
             onMouseLeave={() => setIsHovered(false)}
           >
             <video
-              src="/taaru_cleaning_demo.mp4"
-              poster="/taaru_cleaning_poster.jpg"
+              src="./taaru_cleaning_demo.mp4"
+              poster="./taaru_cleaning_poster.jpg"
               autoPlay
               loop
               muted
+              defaultMuted
               playsInline
               controls
+              preload="auto"
               className="w-full h-full object-cover"
               title="Intervention réelle TAARU SET Dakar : Shampouinage et extraction textile"
-            />
+            >
+              <source src="./taaru_cleaning_demo.mp4" type="video/mp4" />
+              <source src="/taaru_cleaning_demo.mp4" type="video/mp4" />
+              Votre navigateur ne supporte pas la lecture vidéo.
+            </video>
             {/* Badge Équipe Réelle en Direct */}
             <div className="absolute top-3 sm:top-4 left-3 sm:left-4 z-20 pointer-events-none">
               <span className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1 sm:py-1.5 rounded-full bg-slate-950/85 backdrop-blur-md text-white text-[10px] sm:text-xs font-black tracking-wider uppercase border border-white/20 shadow-md">
@@ -328,6 +358,17 @@ function BeforeAfterSection({ handleOpenDrawer }) {
 export default function App() {
   // Navigation mobile
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [activeStep, setActiveStep] = useState(1);
+  const [stepHovered, setStepHovered] = useState(false);
+
+  // Animation séquentielle fluide des 3 étapes "Comment ça marche"
+  useEffect(() => {
+    if (stepHovered) return;
+    const timer = setInterval(() => {
+      setActiveStep((prev) => (prev >= 3 ? 1 : prev + 1));
+    }, 4500);
+    return () => clearInterval(timer);
+  }, [stepHovered]);
 
   // Modale Mentions Légales
   const [legalModalOpen, setLegalModalOpen] = useState(false);
@@ -697,7 +738,7 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
             >
               <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
               <span className="sm:hidden font-extrabold text-xs">Réserver</span>
-              <span className="hidden sm:inline font-extrabold">Réserver en 1 clic</span>
+              <span className="font-extrabold">Réserver</span>
             </button>
           </div>
 
@@ -846,21 +887,7 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
                 </div>
               </div>
 
-              {/* Badge Égérie & Fondateur : Mamadou (Petit cercle discret demandé à côté) */}
-              <div className="absolute -top-3.5 -right-3.5 sm:-top-4 sm:-right-4 bg-white/95 backdrop-blur-md pl-1.5 pr-3.5 py-1.5 rounded-full shadow-xl border border-slate-200/90 flex items-center gap-2 z-20">
-                <img 
-                  src={mamadouFounderImg} 
-                  alt="Mamadou — Fondateur & Égérie TAARU SET" 
-                  className="w-9 h-9 rounded-full object-cover ring-2 ring-[#0D5C3A] shadow-xs"
-                />
-                <div className="text-left">
-                  <div className="text-[11px] font-black text-slate-900 leading-tight">Mamadou</div>
-                  <div className="text-[9px] text-[#0D5C3A] font-bold flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 bg-[#16A34A] rounded-full"></span>
-                    Fondateur & Égérie
-                  </div>
-                </div>
-              </div>
+
 
               {/* Badge Flottant Confiance Rénové avec Note Réelle */}
               <div className="absolute -bottom-3 -left-3 sm:-bottom-4 sm:-left-4 bg-white px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl shadow-xl border border-slate-100 flex items-center gap-2.5">
@@ -1070,37 +1097,112 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
+          <div 
+            className="grid grid-cols-1 md:grid-cols-3 gap-6 relative"
+            onMouseEnter={() => setStepHovered(true)}
+            onMouseLeave={() => setStepHovered(false)}
+          >
             {/* Étape 1 */}
-            <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-xs relative flex flex-col items-start hover:border-[#16A34A] transition-colors">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-[#0D5C3A] font-extrabold text-lg flex items-center justify-center mb-4 shadow-sm">
-                1
+            <div 
+              onClick={() => {
+                setActiveStep(1);
+                playHapticClickSound();
+              }}
+              className={`bg-white rounded-3xl p-6 sm:p-7 border transition-all duration-300 relative flex flex-col items-start cursor-pointer select-none ${
+                activeStep === 1 
+                  ? 'border-[#16A34A] ring-3 ring-emerald-500/20 shadow-xl scale-[1.02] bg-emerald-50/30' 
+                  : 'border-slate-200/80 shadow-xs hover:border-slate-300'
+              }`}
+            >
+              <div className="w-full flex items-center justify-between mb-4">
+                <div className={`w-12 h-12 rounded-2xl font-extrabold text-lg flex items-center justify-center shadow-sm transition-all duration-300 ${
+                  activeStep === 1 
+                    ? 'bg-[#0D5C3A] text-white scale-110 shadow-md shadow-emerald-900/20' 
+                    : 'bg-emerald-100 text-[#0D5C3A]'
+                }`}>
+                  1
+                </div>
+                {activeStep === 1 && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#16A34A] text-white text-[10px] font-bold animate-pulse">
+                    <span>En cours</span>
+                  </span>
+                )}
               </div>
               <h3 className="font-extrabold text-lg text-slate-900 mb-2">
                 Vous réservez en 1 minute
               </h3>
               <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">
-                Choisissez votre prestation, votre créneau horaire et votre quartier à Dakar en ligne ou directement par WhatsApp. Aucun acompte préalable n'est demandé.
+                Choisissez votre prestation, votre date et votre quartier à Dakar en ligne ou directement par WhatsApp. Aucun acompte préalable n'est demandé.
               </p>
+              <div className="mt-4 pt-3 border-t border-slate-100 w-full flex items-center justify-between text-xs font-bold text-[#16A34A]">
+                <span>Prestation au choix</span>
+                <span className="text-[10px] text-slate-400">Étape 1/3</span>
+              </div>
             </div>
 
             {/* Étape 2 */}
-            <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-xs relative flex flex-col items-start hover:border-[#16A34A] transition-colors">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-[#0D5C3A] font-extrabold text-lg flex items-center justify-center mb-4 shadow-sm">
-                2
+            <div 
+              onClick={() => {
+                setActiveStep(2);
+                playHapticClickSound();
+              }}
+              className={`bg-white rounded-3xl p-6 sm:p-7 border transition-all duration-300 relative flex flex-col items-start cursor-pointer select-none ${
+                activeStep === 2 
+                  ? 'border-[#16A34A] ring-3 ring-emerald-500/20 shadow-xl scale-[1.02] bg-emerald-50/30' 
+                  : 'border-slate-200/80 shadow-xs hover:border-slate-300'
+              }`}
+            >
+              <div className="w-full flex items-center justify-between mb-4">
+                <div className={`w-12 h-12 rounded-2xl font-extrabold text-lg flex items-center justify-center shadow-sm transition-all duration-300 ${
+                  activeStep === 2 
+                    ? 'bg-[#0D5C3A] text-white scale-110 shadow-md shadow-emerald-900/20' 
+                    : 'bg-emerald-100 text-[#0D5C3A]'
+                }`}>
+                  2
+                </div>
+                {activeStep === 2 && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#16A34A] text-white text-[10px] font-bold animate-pulse">
+                    <span>En cours</span>
+                  </span>
+                )}
               </div>
               <h3 className="font-extrabold text-lg text-slate-900 mb-2">
                 L'équipe arrive équipée
               </h3>
               <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">
-                Mamadou et ses techniciens se déplacent chez vous avec machines professionnelles Kärcher, rallonges de 25m et produits inoffensifs pour enfants et animaux.
+                Mamadou et ses techniciens se déplacent chez vous avec machines professionnelles Kärcher & RUSTGO, rallonges de 25m et produits inoffensifs pour enfants et animaux.
               </p>
+              <div className="mt-4 pt-3 border-t border-slate-100 w-full flex items-center justify-between text-xs font-bold text-[#16A34A]">
+                <span>Intervention à domicile</span>
+                <span className="text-[10px] text-slate-400">Étape 2/3</span>
+              </div>
             </div>
 
             {/* Étape 3 */}
-            <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-xs relative flex flex-col items-start hover:border-[#16A34A] transition-colors">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-[#0D5C3A] font-extrabold text-lg flex items-center justify-center mb-4 shadow-sm">
-                3
+            <div 
+              onClick={() => {
+                setActiveStep(3);
+                playHapticClickSound();
+              }}
+              className={`bg-white rounded-3xl p-6 sm:p-7 border transition-all duration-300 relative flex flex-col items-start cursor-pointer select-none ${
+                activeStep === 3 
+                  ? 'border-[#16A34A] ring-3 ring-emerald-500/20 shadow-xl scale-[1.02] bg-emerald-50/30' 
+                  : 'border-slate-200/80 shadow-xs hover:border-slate-300'
+              }`}
+            >
+              <div className="w-full flex items-center justify-between mb-4">
+                <div className={`w-12 h-12 rounded-2xl font-extrabold text-lg flex items-center justify-center shadow-sm transition-all duration-300 ${
+                  activeStep === 3 
+                    ? 'bg-[#0D5C3A] text-white scale-110 shadow-md shadow-emerald-900/20' 
+                    : 'bg-emerald-100 text-[#0D5C3A]'
+                }`}>
+                  3
+                </div>
+                {activeStep === 3 && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#16A34A] text-white text-[10px] font-bold animate-pulse">
+                    <span>En cours</span>
+                  </span>
+                )}
               </div>
               <h3 className="font-extrabold text-lg text-slate-900 mb-2">
                 Vous vérifiez et vous payez
@@ -1108,6 +1210,10 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
               <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">
                 Vous inspectez minutieusement le résultat avec notre chef d'équipe. Vous ne réglez qu'une fois 100% satisfait, par Wave, Orange Money ou en espèces.
               </p>
+              <div className="mt-4 pt-3 border-t border-slate-100 w-full flex items-center justify-between text-xs font-bold text-[#16A34A]">
+                <span>Paiement après résultat</span>
+                <span className="text-[10px] text-slate-400">Étape 3/3</span>
+              </div>
             </div>
           </div>
 
@@ -1249,7 +1355,7 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
 
         {/* Ruban Défilant Continu */}
         <div className="marquee-wrapper w-full overflow-hidden flex relative select-none">
-          <div className="marquee-track flex gap-4 sm:gap-6 py-2">
+          <div className="marquee-track animate-marquee-smooth flex gap-4 sm:gap-6 py-2 hover:[animation-play-state:paused]">
             {[...testimonialsList, ...testimonialsList].map((t, idx) => (
               <div 
                 key={idx}
@@ -1367,6 +1473,54 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
       {/* ========================================================================= */}
       {/* 9. PIED DE PAGE COMPLET : HORAIRES, RÉSEAUX, CONTACT & MENTIONS LÉGALES   */}
       {/* ========================================================================= */}
+      {/* ========================================================================= */}
+      {/* SECTION ENGAGEMENT DU FONDATEUR MAMADOU (SOIGNÉ EN BAS DE PAGE)           */}
+      {/* ========================================================================= */}
+      <section className="py-12 bg-emerald-950 text-white relative z-10 border-t border-emerald-900/60 overflow-hidden">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6">
+          <div className="bg-emerald-900/40 border border-emerald-700/50 rounded-3xl p-6 sm:p-8 backdrop-blur-md shadow-2xl flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
+            <div className="relative shrink-0">
+              <img 
+                src={mamadouFounderImg} 
+                alt="Mamadou — Fondateur & Égérie TAARU SET" 
+                className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl object-cover ring-4 ring-emerald-500/40 shadow-xl"
+              />
+              <div className="absolute -bottom-2 -right-2 w-7 h-7 bg-[#16A34A] rounded-full border-2 border-white flex items-center justify-center shadow-md">
+                <Check className="w-4 h-4 text-white" />
+              </div>
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center justify-center sm:justify-start gap-2.5 flex-wrap">
+                <h3 className="font-extrabold text-white text-xl">Mamadou</h3>
+                <span className="text-xs font-bold px-3 py-0.5 bg-emerald-500/20 text-emerald-300 rounded-full border border-emerald-400/30">
+                  Fondateur & Égérie TAARU SET
+                </span>
+                <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                  En ligne à Dakar
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm text-emerald-100/90 mt-2.5 leading-relaxed font-normal">
+                « Retrouvez-moi sur les réseaux sociaux : TAARU SET est mon engagement personnel pour élever les standards de propreté à Dakar. Aucun acompte n'est demandé avant travaux : notre équipe intervient chez vous avec du matériel de pointe et vous ne réglez que si le résultat est irréprochable. »
+              </p>
+              <div className="flex items-center justify-center sm:justify-start gap-4 mt-4 text-xs font-semibold">
+                <a 
+                  href="https://wa.me/221771548610?text=Bonjour%20Mamadou%20(TAARU%20SET)%2C%20je%20vous%20contacte%20directement." 
+                  target="_blank" 
+                  rel="noreferrer"
+                  onClick={() => playHapticClickSound()}
+                  className="px-4 py-2 rounded-xl bg-[#16A34A] hover:bg-[#15803d] text-white font-bold flex items-center gap-2 shadow-md transition-all cursor-pointer"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  <span>Échanger avec Mamadou sur WhatsApp</span>
+                </a>
+                <span className="hidden sm:inline text-emerald-400/80">Supervision directe 7j/7</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <footer className="bg-slate-950 text-white py-12 sm:py-14 border-t border-slate-800 relative z-10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           
