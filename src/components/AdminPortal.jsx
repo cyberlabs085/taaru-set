@@ -8,7 +8,8 @@ import {
   UserPlus, BarChart3, TrendingUp, DollarSign, MapPin, 
   Layers, ExternalLink, Activity, Check, Lock, KeyRound,
   Menu, ChevronRight, Sparkles, Building2, Car, Sparkle,
-  Briefcase, UserCheck, UserX, ChevronDown, CheckCircle
+  Briefcase, UserCheck, UserX, ChevronDown, CheckCircle,
+  ShieldCheck, Eye, EyeOff
 } from 'lucide-react';
 
 export default function AdminPortal({ onClose }) {
@@ -54,8 +55,29 @@ export default function AdminPortal({ onClose }) {
   const [newMemberName, setNewMemberName] = useState('');
   const [newMemberPhone, setNewMemberPhone] = useState('');
   const [newMemberJobTitle, setNewMemberJobTitle] = useState('');
-  const [newMemberRole, setNewMemberRole] = useState('admin');
+  const [newMemberRole, setNewMemberRole] = useState('agent');
   const [teamMsg, setTeamMsg] = useState('');
+
+  // --- PERMISSIONS DÉRIVÉES DU RÔLE DE L'UTILISATEUR CONNECTÉ ---
+  const userRole = currentMember?.role || 'agent';
+  const isSuperAdmin = userRole === 'super_admin';
+  const canManageTeam = isSuperAdmin;
+  const canViewStats = isSuperAdmin || userRole === 'admin';
+  const canViewCRM = isSuperAdmin || userRole === 'admin' || userRole === 'sales';
+  const canDeleteBookings = isSuperAdmin || userRole === 'admin';
+
+  // Sécurité navigation : si un utilisateur n'a pas les droits pour l'onglet courant, le rediriger vers 'bookings'
+  useEffect(() => {
+    if (activeTab === 'team' && !canManageTeam) {
+      setActiveTab('bookings');
+    }
+    if (activeTab === 'stats' && !canViewStats) {
+      setActiveTab('bookings');
+    }
+    if (activeTab === 'clients' && !canViewCRM) {
+      setActiveTab('bookings');
+    }
+  }, [activeTab, canManageTeam, canViewStats, canViewCRM]);
 
   // 1. Initialisation Session Supabase & Audit de Sécurité
   useEffect(() => {
@@ -243,16 +265,30 @@ export default function AdminPortal({ onClose }) {
     setCurrentMember(null);
   };
 
-  // Modification statut réservation
+  // --- TRAÇABILITÉ DES COMMANDES : MODIFICATION STATUT AVEC « TRAITÉ PAR » ---
   const handleUpdateStatus = async (bookingId, newStatus) => {
     if (!supabase) return;
+
+    const updaterName = currentMember?.full_name || session.user.email.split('@')[0];
+    const updaterEmail = session.user.email;
+    const now = new Date().toISOString();
+
     try {
+      const updatePayload = {
+        status: newStatus,
+        updated_at: now,
+        processed_by_name: updaterName,
+        processed_by_email: updaterEmail,
+        processed_at: now
+      };
+
       const { error } = await supabase
         .from('taaru_bookings')
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .update(updatePayload)
         .eq('id', bookingId);
+
       if (!error) {
-        setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: newStatus } : b));
+        setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, ...updatePayload } : b));
       }
     } catch (e) {
       console.error(e);
@@ -261,6 +297,10 @@ export default function AdminPortal({ onClose }) {
 
   // Suppression réservation
   const handleDeleteBooking = async (bookingId) => {
+    if (!canDeleteBookings) {
+      alert('Action restreinte : Seuls les administrateurs peuvent supprimer une commande.');
+      return;
+    }
     if (!confirm('Confirmer la suppression de cette réservation du registre officiel ?')) return;
     if (!supabase) return;
     try {
@@ -276,10 +316,14 @@ export default function AdminPortal({ onClose }) {
     }
   };
 
-  // Ajout réservation manuelle
+  // Ajout réservation manuelle avec traçabilité immédiate
   const handleCreateManualBooking = async (e) => {
     e.preventDefault();
     if (!supabase) return;
+
+    const updaterName = currentMember?.full_name || session.user.email.split('@')[0];
+    const updaterEmail = session.user.email;
+    const now = new Date().toISOString();
 
     try {
       const { error } = await supabase.from('taaru_bookings').insert({
@@ -291,7 +335,10 @@ export default function AdminPortal({ onClose }) {
         estimated_price_fcfa: parseInt(manualPrice, 10) || 0,
         intervention_date: manualDate.trim() || 'À fixer',
         status: 'confirmee',
-        source: 'appel_direct'
+        source: 'appel_direct',
+        processed_by_name: updaterName,
+        processed_by_email: updaterEmail,
+        processed_at: now
       });
 
       if (!error) {
@@ -306,9 +353,13 @@ export default function AdminPortal({ onClose }) {
     }
   };
 
-  // --- GESTION ÉQUIPE UNIVERSELLE (Super Admin) ---
+  // --- GESTION ÉQUIPE UNIVERSELLE (Super Admin Uniquement) ---
   const handleAddTeamMember = async (e) => {
     e.preventDefault();
+    if (!canManageTeam) {
+      setTeamMsg('⛔ Action refusée : Seul le Super Administrateur peut accréditer des collaborateurs.');
+      return;
+    }
     setTeamMsg('');
     if (!supabase) return;
 
@@ -323,7 +374,7 @@ export default function AdminPortal({ onClose }) {
       });
 
       if (error) throw error;
-      setTeamMsg(`✅ Collaborateur « ${newMemberName.trim()} » accrédité avec succès ! Il peut désormais activer son compte ou se connecter.`);
+      setTeamMsg(`✅ Collaborateur « ${newMemberName.trim()} » accrédité avec succès en tant que [${getRoleLabel(newMemberRole)}] ! Il/Elle peut désormais activer son accès.`);
       setNewMemberEmail('');
       setNewMemberName('');
       setNewMemberPhone('');
@@ -335,6 +386,10 @@ export default function AdminPortal({ onClose }) {
   };
 
   const handleToggleMemberActive = async (memberId, currentStatus) => {
+    if (!canManageTeam) {
+      alert('Action refusée : Seul le Super Administrateur peut modifier le statut des collaborateurs.');
+      return;
+    }
     if (!supabase) return;
     try {
       await supabase
@@ -348,11 +403,15 @@ export default function AdminPortal({ onClose }) {
   };
 
   const handleDeleteTeamMember = async (memberId, memberEmail, memberName) => {
-    if (memberEmail === 'ssow2006@gmail.com') {
-      alert('Action bloquée : Le compte Super Admin principal ne peut pas être supprimé.');
+    if (!canManageTeam) {
+      alert('Action refusée : Seul le Super Administrateur peut révoquer des membres.');
       return;
     }
-    if (!confirm(`Confirmer la suppression définitive de l'accès pour « ${memberName || memberEmail} » ?`)) return;
+    if (memberEmail === 'ssow2006@gmail.com') {
+      alert('Protection de sécurité : Le compte Super Admin principal ne peut pas être supprimé.');
+      return;
+    }
+    if (!confirm(`Confirmer la révocation et la suppression définitive de l'accès pour « ${memberName || memberEmail} » ?`)) return;
     if (!supabase) return;
 
     try {
@@ -363,7 +422,7 @@ export default function AdminPortal({ onClose }) {
 
       if (error) throw error;
       setTeamMembers(prev => prev.filter(m => m.id !== memberId));
-      setTeamMsg(`✅ Collaborateur ${memberEmail} révoqué et supprimé du registre.`);
+      setTeamMsg(`✅ Collaborateur « ${memberEmail} » révoqué et supprimé du registre.`);
     } catch (err) {
       setTeamMsg(`❌ Erreur de suppression : ${err.message}`);
     }
@@ -402,7 +461,8 @@ export default function AdminPortal({ onClose }) {
           b.client_name?.toLowerCase().includes(q) ||
           b.client_phone?.toLowerCase().includes(q) ||
           b.quarter?.toLowerCase().includes(q) ||
-          b.service_type?.toLowerCase().includes(q)
+          b.service_type?.toLowerCase().includes(q) ||
+          b.processed_by_name?.toLowerCase().includes(q)
         );
       }
       return true;
@@ -479,7 +539,7 @@ export default function AdminPortal({ onClose }) {
 
   const getRoleLabel = (role) => {
     switch (role) {
-      case 'super_admin': return 'Super Admin / Direction';
+      case 'super_admin': return 'Super-Admin / Direction';
       case 'admin': return 'Responsable Opérations';
       case 'agent': return 'Chef d\'Équipe Terrain';
       case 'sales': return 'Chargé(e) Clientèle';
@@ -503,9 +563,9 @@ export default function AdminPortal({ onClose }) {
         </div>
         <div className="flex items-center gap-2 text-sm font-bold font-['Outfit'] text-slate-900 tracking-tight">
           <RefreshCw className="w-4 h-4 text-[#0D5C3A] animate-spin" />
-          <span>Vérification de sécurité Taaru Sett...</span>
+          <span>Vérification d'habilitation Taaru Sett...</span>
         </div>
-        <p className="text-xs text-slate-500 mt-1 font-medium">Contrôle d'habilitation auprès du serveur</p>
+        <p className="text-xs text-slate-500 mt-1 font-medium">Contrôle des permissions d'accès au portail</p>
       </div>
     );
   }
@@ -555,7 +615,7 @@ export default function AdminPortal({ onClose }) {
           <div className="mb-5">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-['Outfit'] font-bold bg-emerald-50 text-[#0D5C3A] border border-emerald-200/80">
               <Lock className="w-3.5 h-3.5 text-[#16A34A]" />
-              Espace Restreint à l'Équipe
+              Espace Restreint à l'Équipe Accréditée
             </span>
           </div>
 
@@ -576,7 +636,7 @@ export default function AdminPortal({ onClose }) {
           <form onSubmit={handleAuthSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1.5 font-['Outfit']">
-                Adresse email accréditée
+                Adresse email professionnelle
               </label>
               <input 
                 type="email" 
@@ -624,7 +684,7 @@ export default function AdminPortal({ onClose }) {
               ) : (
                 <>
                   <Shield className="w-4 h-4" />
-                  <span>Accéder au tableau de bord</span>
+                  <span>Accéder à mon espace</span>
                 </>
               )}
             </button>
@@ -670,7 +730,7 @@ export default function AdminPortal({ onClose }) {
             <span className="text-[#16A34A]">SET</span>
           </div>
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-[#0D5C3A] border border-emerald-200 font-bold font-['Outfit'] ml-1">
-            Admin
+            {isSuperAdmin ? 'Super Admin' : getRoleLabel(userRole)}
           </span>
         </div>
 
@@ -708,6 +768,7 @@ export default function AdminPortal({ onClose }) {
                 <div>
                   <div className="font-['Outfit'] font-extrabold text-sm text-slate-900">Portail Taaru Sett</div>
                   <div className="text-[11px] text-slate-500 font-medium truncate max-w-[200px]">{session.user.email}</div>
+                  <div className="text-[10px] text-[#0D5C3A] font-bold font-['Outfit']">{getRoleLabel(userRole)}</div>
                 </div>
               </div>
               <button 
@@ -719,7 +780,7 @@ export default function AdminPortal({ onClose }) {
               </button>
             </div>
 
-            {/* Navigation Drawer Tabs */}
+            {/* Navigation Drawer Tabs (Filtrés selon permissions) */}
             <div className="space-y-1.5 font-['Outfit']">
               <button
                 type="button"
@@ -737,37 +798,41 @@ export default function AdminPortal({ onClose }) {
                 </span>
               </button>
 
-              <button
-                type="button"
-                onClick={() => { setActiveTab('clients'); setIsMobileMenuOpen(false); }}
-                className={`w-full h-11 px-4 rounded-xl font-bold flex items-center justify-between transition-colors ${
-                  activeTab === 'clients' ? 'bg-[#0D5C3A] text-white shadow-sm' : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Users className="w-4 h-4" />
-                  <span>Répertoire Clients CRM</span>
-                </div>
-                <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${activeTab === 'clients' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'}`}>
-                  {clients.length}
-                </span>
-              </button>
+              {canViewCRM && (
+                <button
+                  type="button"
+                  onClick={() => { setActiveTab('clients'); setIsMobileMenuOpen(false); }}
+                  className={`w-full h-11 px-4 rounded-xl font-bold flex items-center justify-between transition-colors ${
+                    activeTab === 'clients' ? 'bg-[#0D5C3A] text-white shadow-sm' : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Users className="w-4 h-4" />
+                    <span>Répertoire Clients CRM</span>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${activeTab === 'clients' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'}`}>
+                    {clients.length}
+                  </span>
+                </button>
+              )}
 
-              <button
-                type="button"
-                onClick={() => { setActiveTab('stats'); setIsMobileMenuOpen(false); }}
-                className={`w-full h-11 px-4 rounded-xl font-bold flex items-center justify-between transition-colors ${
-                  activeTab === 'stats' ? 'bg-[#0D5C3A] text-white shadow-sm' : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <BarChart3 className="w-4 h-4" />
-                  <span>Statistiques & Bilan</span>
-                </div>
-                <span className="w-2 h-2 rounded-full bg-[#16A34A]"></span>
-              </button>
+              {canViewStats && (
+                <button
+                  type="button"
+                  onClick={() => { setActiveTab('stats'); setIsMobileMenuOpen(false); }}
+                  className={`w-full h-11 px-4 rounded-xl font-bold flex items-center justify-between transition-colors ${
+                    activeTab === 'stats' ? 'bg-[#0D5C3A] text-white shadow-sm' : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <BarChart3 className="w-4 h-4" />
+                    <span>Statistiques & Bilan</span>
+                  </div>
+                  <span className="w-2 h-2 rounded-full bg-[#16A34A]"></span>
+                </button>
+              )}
 
-              {currentMember?.role === 'super_admin' && (
+              {canManageTeam && (
                 <button
                   type="button"
                   onClick={() => { setActiveTab('team'); setIsMobileMenuOpen(false); }}
@@ -841,19 +906,24 @@ export default function AdminPortal({ onClose }) {
           </span>
         </div>
 
-        {/* Profil Collaborateur Certifié */}
+        {/* Profil Collaborateur Certifié avec badge de rôle dynamique */}
         <div className="p-3.5 mx-3.5 my-3.5 rounded-2xl bg-[#F8FAF7] border border-slate-200/80">
           <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-['Outfit']">Accès Certifié</div>
           <div className="text-xs font-bold text-slate-900 truncate mt-0.5">{session.user.email}</div>
           <div className="mt-1.5 flex items-center gap-1.5">
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-['Outfit'] font-bold bg-[#0D5C3A] text-white shadow-xs">
-              {currentMember?.role === 'super_admin' ? 'Super Admin' : (currentMember?.role || 'Opérateur')}
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-['Outfit'] font-bold ${
+              isSuperAdmin ? 'bg-[#0D5C3A] text-white shadow-xs' :
+              userRole === 'admin' ? 'bg-blue-700 text-white shadow-xs' :
+              userRole === 'sales' ? 'bg-amber-700 text-white shadow-xs' :
+              'bg-slate-700 text-white shadow-xs'
+            }`}>
+              {getRoleLabel(userRole)}
             </span>
-            <span className="text-[11px] text-slate-500 font-medium">• Dakar, SN</span>
+            <span className="text-[11px] text-slate-500 font-medium">• Dakar</span>
           </div>
         </div>
 
-        {/* Navigation Onglets */}
+        {/* Navigation Onglets (Filtrés dynamiquement selon le rôle du compte) */}
         <nav className="p-3.5 space-y-1.5 flex-1 overflow-y-auto text-xs font-['Outfit'] font-bold">
           <button
             type="button"
@@ -875,43 +945,47 @@ export default function AdminPortal({ onClose }) {
             </span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('clients')}
-            className={`w-full h-10 px-3.5 rounded-xl flex items-center justify-between transition-all cursor-pointer ${
-              activeTab === 'clients'
-                ? 'bg-[#0D5C3A] text-white shadow-md shadow-[#0D5C3A]/20'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
-            }`}
-          >
-            <div className="flex items-center gap-2.5">
-              <Users className="w-4 h-4" />
-              <span>Répertoire Clients</span>
-            </div>
-            <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
-              activeTab === 'clients' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
-            }`}>
-              {clients.length}
-            </span>
-          </button>
+          {canViewCRM && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('clients')}
+              className={`w-full h-10 px-3.5 rounded-xl flex items-center justify-between transition-all cursor-pointer ${
+                activeTab === 'clients'
+                  ? 'bg-[#0D5C3A] text-white shadow-md shadow-[#0D5C3A]/20'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <Users className="w-4 h-4" />
+                <span>Répertoire Clients</span>
+              </div>
+              <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                activeTab === 'clients' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+              }`}>
+                {clients.length}
+              </span>
+            </button>
+          )}
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('stats')}
-            className={`w-full h-10 px-3.5 rounded-xl flex items-center justify-between transition-all cursor-pointer ${
-              activeTab === 'stats'
-                ? 'bg-[#0D5C3A] text-white shadow-md shadow-[#0D5C3A]/20'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
-            }`}
-          >
-            <div className="flex items-center gap-2.5">
-              <BarChart3 className="w-4 h-4" />
-              <span>Statistiques & Bilan</span>
-            </div>
-            <span className="w-2 h-2 rounded-full bg-[#16A34A]"></span>
-          </button>
+          {canViewStats && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('stats')}
+              className={`w-full h-10 px-3.5 rounded-xl flex items-center justify-between transition-all cursor-pointer ${
+                activeTab === 'stats'
+                  ? 'bg-[#0D5C3A] text-white shadow-md shadow-[#0D5C3A]/20'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <BarChart3 className="w-4 h-4" />
+                <span>Statistiques & Bilan</span>
+              </div>
+              <span className="w-2 h-2 rounded-full bg-[#16A34A]"></span>
+            </button>
+          )}
 
-          {currentMember?.role === 'super_admin' && (
+          {canManageTeam && (
             <button
               type="button"
               onClick={() => setActiveTab('team')}
@@ -923,7 +997,7 @@ export default function AdminPortal({ onClose }) {
             >
               <div className="flex items-center gap-2.5">
                 <UserPlus className="w-4 h-4" />
-                <span>Équipe & Accès</span>
+                <span>Équipe & Droits</span>
               </div>
               <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
                 activeTab === 'team' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
@@ -986,7 +1060,7 @@ export default function AdminPortal({ onClose }) {
               </button>
             )}
 
-            {activeTab === 'clients' && (
+            {activeTab === 'clients' && canViewCRM && (
               <button
                 type="button"
                 onClick={exportClientsCSV}
@@ -1023,7 +1097,7 @@ export default function AdminPortal({ onClose }) {
                   <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input 
                     type="text" 
-                    placeholder="Rechercher par nom, téléphone, quartier, formule..."
+                    placeholder="Rechercher par nom, téléphone, quartier, formule, opérateur..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full h-11 pl-10 pr-3.5 rounded-xl bg-white border border-slate-200 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#0D5C3A] focus:ring-2 focus:ring-[#0D5C3A]/10 transition-all font-medium shadow-xs"
@@ -1055,7 +1129,7 @@ export default function AdminPortal({ onClose }) {
                 </div>
               </div>
 
-              {/* --- VUE MOBILE : CARTES MÉTIER TACTILES (< md) --- */}
+              {/* --- VUE MOBILE : CARTES MÉTIER TACTILES (< md) AVEC TRAÇABILITÉ --- */}
               <div className="md:hidden space-y-3">
                 {filteredBookings.length === 0 ? (
                   <div className="py-12 text-center text-slate-500 text-xs bg-white rounded-2xl border border-slate-200 p-6 shadow-xs">
@@ -1095,9 +1169,25 @@ export default function AdminPortal({ onClose }) {
                         </div>
                       </div>
 
+                      {/* BADGE DE TRAÇABILITÉ : QUI A TRAITÉ CETTE COMMANDE ? */}
+                      <div className="flex items-center justify-between text-xs px-2.5 py-1.5 rounded-xl bg-[#F8FAF7] border border-slate-200/80">
+                        <div className="flex items-center gap-1.5">
+                          <UserCheck className="w-3.5 h-3.5 text-[#0D5C3A]" />
+                          <span className="text-slate-500 text-[11px]">Traité par :</span>
+                          <span className="font-bold text-slate-800 text-[11px]">
+                            {b.processed_by_name || 'En attente de prise en charge'}
+                          </span>
+                        </div>
+                        {b.processed_at && (
+                          <span className="text-[10px] text-slate-400 font-medium">
+                            {new Date(b.processed_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })} à {new Date(b.processed_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        )}
+                      </div>
+
                       {/* Statut sélecteur et Actions au toucher */}
                       <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100">
-                        {/* Sélecteur de statut */}
+                        {/* Sélecteur de statut (met à jour automatiquement "traité par") */}
                         <select
                           value={b.status}
                           onChange={(e) => handleUpdateStatus(b.id, e.target.value)}
@@ -1132,14 +1222,16 @@ export default function AdminPortal({ onClose }) {
                             <span>WhatsApp</span>
                           </a>
 
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteBooking(b.id)}
-                            className="h-8 w-8 rounded-xl bg-slate-100 text-slate-400 hover:text-rose-600 flex items-center justify-center cursor-pointer"
-                            title="Supprimer"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          {canDeleteBookings && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteBooking(b.id)}
+                              className="h-8 w-8 rounded-xl bg-slate-100 text-slate-400 hover:text-rose-600 flex items-center justify-center cursor-pointer"
+                              title="Supprimer"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
                       </div>
 
@@ -1148,7 +1240,7 @@ export default function AdminPortal({ onClose }) {
                 )}
               </div>
 
-              {/* --- VUE DESKTOP : TABLE SPATIEUSE HAUTE DENSITÉ (>= md) --- */}
+              {/* --- VUE DESKTOP : TABLE SPATIEUSE HAUTE DENSITÉ (>= md) AVEC TRAÇABILITÉ --- */}
               <div className="hidden md:block border border-slate-200/90 rounded-2xl bg-white overflow-hidden shadow-xs">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
@@ -1159,13 +1251,14 @@ export default function AdminPortal({ onClose }) {
                         <th className="py-3.5 px-5">Quartier & Date</th>
                         <th className="py-3.5 px-5">Montant</th>
                         <th className="py-3.5 px-5">Statut</th>
+                        <th className="py-3.5 px-5">Traçabilité Opérateur</th>
                         <th className="py-3.5 px-5 text-right">Actions rapides</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-sans">
                       {filteredBookings.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="py-14 text-center text-slate-500 text-xs">
+                          <td colSpan={7} className="py-14 text-center text-slate-500 text-xs">
                             Aucune réservation ne correspond aux critères sélectionnés.
                           </td>
                         </tr>
@@ -1212,6 +1305,25 @@ export default function AdminPortal({ onClose }) {
                               </select>
                             </td>
 
+                            {/* TRAÇABILITÉ DESKTOP : NOM DU COLLABORATEUR QUI A TRAITÉ */}
+                            <td className="py-4 px-5">
+                              {b.processed_by_name ? (
+                                <div>
+                                  <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-50 text-[#0D5C3A] border border-emerald-200 text-[11px] font-bold font-['Outfit']">
+                                    <CheckCircle2 className="w-3 h-3 text-[#16A34A]" />
+                                    <span>{b.processed_by_name}</span>
+                                  </div>
+                                  {b.processed_at && (
+                                    <div className="text-[10px] text-slate-400 mt-0.5 font-medium">
+                                      Le {new Date(b.processed_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })} à {new Date(b.processed_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-[11px] text-slate-400 italic">Non traité</span>
+                              )}
+                            </td>
+
                             {/* Actions rapides */}
                             <td className="py-4 px-5 text-right">
                               <div className="flex items-center justify-end gap-2 font-['Outfit']">
@@ -1235,14 +1347,16 @@ export default function AdminPortal({ onClose }) {
                                   <span>WhatsApp</span>
                                 </a>
 
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteBooking(b.id)}
-                                  className="h-8 w-8 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center transition-colors cursor-pointer"
-                                  title="Supprimer la réservation"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
+                                {canDeleteBookings && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteBooking(b.id)}
+                                    className="h-8 w-8 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center transition-colors cursor-pointer"
+                                    title="Supprimer la réservation"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -1258,7 +1372,7 @@ export default function AdminPortal({ onClose }) {
           {/* ========================================================================= */}
           {/* ONGLET 2 : RÉPERTOIRE CLIENTS (CRM)                                       */}
           {/* ========================================================================= */}
-          {activeTab === 'clients' && (
+          {activeTab === 'clients' && canViewCRM && (
             <div className="space-y-4">
               
               {/* VUE MOBILE : Cartes clients (< md) */}
@@ -1351,9 +1465,9 @@ export default function AdminPortal({ onClose }) {
           )}
 
           {/* ========================================================================= */}
-          {/* ONGLET 3 : STATISTIQUES & BILAN COMPLET                                   */}
+          {/* ONGLET 3 : STATISTIQUES & BILAN COMPLET (Admin & Super Admin uniquement)  */}
           {/* ========================================================================= */}
-          {activeTab === 'stats' && (
+          {activeTab === 'stats' && canViewStats && (
             <div className="space-y-6">
               
               {/* Cartes KPI Principales (2 cols sur mobile, 4 sur desktop) */}
@@ -1509,17 +1623,20 @@ export default function AdminPortal({ onClose }) {
           )}
 
           {/* ========================================================================= */}
-          {/* ONGLET 4 : GESTION ÉQUIPE UNIVERSELLE (Super Admin)                        */}
+          {/* ONGLET 4 : GESTION ÉQUIPE UNIVERSELLE (Super Admin Uniquement)            */}
           {/* ========================================================================= */}
-          {activeTab === 'team' && currentMember?.role === 'super_admin' && (
+          {activeTab === 'team' && canManageTeam && (
             <div className="space-y-6">
               
               {/* Formulaire d'ajout universel de collaborateur */}
               <div className="p-6 rounded-2xl bg-white border border-slate-200/90 space-y-4 shadow-sm">
                 <div>
-                  <h4 className="font-['Outfit'] font-bold text-base text-slate-900">Accréditer un nouveau collaborateur</h4>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Ajoutez n'importe quel membre de votre équipe. Son adresse email sera automatiquement autorisée à se connecter.
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-5 h-5 text-[#0D5C3A]" />
+                    <h4 className="font-['Outfit'] font-bold text-base text-slate-900">Accréditer un collaborateur (Gestion des Droits)</h4>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">
+                    En tant que <strong>Super-Admin</strong>, vous contrôlez qui a accès à quoi. Définissez le rôle précis du collaborateur.
                   </p>
                 </div>
 
@@ -1544,7 +1661,7 @@ export default function AdminPortal({ onClose }) {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-['Outfit'] font-bold text-slate-700 mb-1">Adresse email officielle</label>
+                    <label className="block text-xs font-['Outfit'] font-bold text-slate-700 mb-1">Adresse email de connexion</label>
                     <input 
                       type="email" 
                       required
@@ -1567,16 +1684,16 @@ export default function AdminPortal({ onClose }) {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-['Outfit'] font-bold text-slate-700 mb-1">Rôle d'accès</label>
+                    <label className="block text-xs font-['Outfit'] font-bold text-slate-700 mb-1">Rôle & Droits accordés</label>
                     <select
                       value={newMemberRole}
                       onChange={(e) => setNewMemberRole(e.target.value)}
                       className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:outline-none focus:bg-white focus:border-[#0D5C3A] font-bold font-['Outfit']"
                     >
-                      <option value="admin">Responsable Opérations / Superviseur</option>
-                      <option value="agent">Chef d'Équipe Terrain / Opérateur</option>
-                      <option value="sales">Chargé(e) Clientèle / Commercial</option>
-                      <option value="super_admin">Super-Admin / Direction</option>
+                      <option value="agent">Chef d'Équipe Terrain (Planning uniquement)</option>
+                      <option value="sales">Chargé(e) Clientèle (Planning + CRM Clients)</option>
+                      <option value="admin">Responsable Opérations (Planning + CRM + Bilan)</option>
+                      <option value="super_admin">Super-Admin / Direction (Accès total absolu)</option>
                     </select>
                   </div>
 
@@ -1600,7 +1717,7 @@ export default function AdminPortal({ onClose }) {
                       <th className="py-3.5 px-5">Collaborateur</th>
                       <th className="py-3.5 px-5">Email accrédité</th>
                       <th className="py-3.5 px-5">Téléphone</th>
-                      <th className="py-3.5 px-5">Rôle d'accès</th>
+                      <th className="py-3.5 px-5">Rôle & Permissions</th>
                       <th className="py-3.5 px-5">Statut</th>
                       <th className="py-3.5 px-5 text-right">Gestion des droits</th>
                     </tr>
@@ -1643,6 +1760,7 @@ export default function AdminPortal({ onClose }) {
                           <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-['Outfit'] font-bold ${
                             m.role === 'super_admin' ? 'bg-purple-50 text-purple-800 border border-purple-200' :
                             m.role === 'admin' ? 'bg-blue-50 text-blue-800 border border-blue-200' :
+                            m.role === 'sales' ? 'bg-amber-50 text-amber-800 border border-amber-200' :
                             'bg-slate-100 text-slate-700 border border-slate-200'
                           }`}>
                             {getRoleLabel(m.role)}
@@ -1716,29 +1834,33 @@ export default function AdminPortal({ onClose }) {
           <span className="text-[10px] font-bold">Planning</span>
         </button>
 
-        <button
-          type="button"
-          onClick={() => setActiveTab('clients')}
-          className={`flex flex-col items-center justify-center gap-1 w-16 h-12 rounded-xl transition-colors ${
-            activeTab === 'clients' ? 'text-[#0D5C3A]' : 'text-slate-400 hover:text-slate-600'
-          }`}
-        >
-          <Users className="w-5 h-5" />
-          <span className="text-[10px] font-bold">Clients</span>
-        </button>
+        {canViewCRM && (
+          <button
+            type="button"
+            onClick={() => setActiveTab('clients')}
+            className={`flex flex-col items-center justify-center gap-1 w-16 h-12 rounded-xl transition-colors ${
+              activeTab === 'clients' ? 'text-[#0D5C3A]' : 'text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            <Users className="w-5 h-5" />
+            <span className="text-[10px] font-bold">Clients</span>
+          </button>
+        )}
 
-        <button
-          type="button"
-          onClick={() => setActiveTab('stats')}
-          className={`flex flex-col items-center justify-center gap-1 w-16 h-12 rounded-xl transition-colors ${
-            activeTab === 'stats' ? 'text-[#0D5C3A]' : 'text-slate-400 hover:text-slate-600'
-          }`}
-        >
-          <BarChart3 className="w-5 h-5" />
-          <span className="text-[10px] font-bold">Bilan</span>
-        </button>
+        {canViewStats && (
+          <button
+            type="button"
+            onClick={() => setActiveTab('stats')}
+            className={`flex flex-col items-center justify-center gap-1 w-16 h-12 rounded-xl transition-colors ${
+              activeTab === 'stats' ? 'text-[#0D5C3A]' : 'text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            <BarChart3 className="w-5 h-5" />
+            <span className="text-[10px] font-bold">Bilan</span>
+          </button>
+        )}
 
-        {currentMember?.role === 'super_admin' && (
+        {canManageTeam && (
           <button
             type="button"
             onClick={() => setActiveTab('team')}
@@ -1861,7 +1983,7 @@ export default function AdminPortal({ onClose }) {
                 type="submit" 
                 className="w-full h-11 mt-3 rounded-xl bg-[#0D5C3A] hover:bg-[#0A482E] text-white font-['Outfit'] font-bold text-sm transition-all cursor-pointer shadow-md shadow-[#0D5C3A]/25"
               >
-                Enregistrer dans la base de données
+                Enregistrer la réservation dans Supabase
               </button>
             </form>
           </div>
