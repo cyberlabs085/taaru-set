@@ -1550,13 +1550,13 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
             {/* Grille des 3 membres fondateurs de l'équipe (Alignement parfait à la même hauteur) */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-stretch">
               
-              {/* Membre 1 : Mamadou (Co-fondateur & CEO) */}
+              {/* Membre 1 : Mamadou (Fondateur & CEO) */}
               <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-xs flex flex-col justify-between h-full hover:border-emerald-300 hover:shadow-md transition-all group">
                 <div className="flex-1 flex flex-col items-center text-center">
                   <div className="relative mb-3.5">
                     <img 
                       src={mamadouFounderImg} 
-                      alt="Mamadou - Co-fondateur & CEO TAARU SET" 
+                      alt="Mamadou - Fondateur & CEO TAARU SET" 
                       className="w-24 h-24 rounded-2xl object-cover ring-4 ring-[#0D5C3A]/20 shadow-md group-hover:scale-105 transition-transform"
                       loading="lazy"
                       decoding="async"
@@ -1567,7 +1567,7 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
                   </div>
                   <h4 className="font-extrabold text-[#0D5C3A] text-base sm:text-lg">Mamadou</h4>
                   <div className="inline-block mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                    Co-fondateur & CEO
+                    Fondateur & CEO
                   </div>
                   <div className="my-auto py-3">
                     <p className="text-xs text-slate-600 leading-relaxed font-normal">
@@ -1612,13 +1612,13 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
                 </div>
               </div>
 
-              {/* Membre 3 : Manager Opérationnel (Co-fondateur & Opérations) */}
+              {/* Membre 3 : Djiby (Co-fondateur & Responsable Opérationnel) */}
               <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-xs flex flex-col justify-between h-full hover:border-emerald-300 hover:shadow-md transition-all group">
                 <div className="flex-1 flex flex-col items-center text-center">
                   <div className="relative mb-3.5">
                     <img 
                       src={managerOperationnelImg} 
-                      alt="Responsable Opérationnel - Co-fondateur TAARU SET" 
+                      alt="Djiby - Co-fondateur & Responsable Opérationnel TAARU SET" 
                       className="w-24 h-24 rounded-2xl object-cover ring-4 ring-[#0D5C3A]/20 shadow-md group-hover:scale-105 transition-transform"
                       loading="lazy"
                       decoding="async"
@@ -1627,7 +1627,7 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
                       <Check className="w-3.5 h-3.5 text-white" />
                     </div>
                   </div>
-                  <h4 className="font-extrabold text-[#0D5C3A] text-base sm:text-lg">Responsable Opérationnel</h4>
+                  <h4 className="font-extrabold text-[#0D5C3A] text-base sm:text-lg">Djiby</h4>
                   <div className="inline-block mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
                     Co-fondateur • Responsable Opérationnel
                   </div>
