@@ -55,6 +55,25 @@ function BeforeAfterSection({ handleOpenDrawer }) {
   const [sliderPos, setSliderPos] = useState(50);
   const [isHovered, setIsHovered] = useState(false);
 
+  // Préchargement immédiat et décodage GPU de toutes les photos Avant / Après (0 ms de latence au clic)
+  useEffect(() => {
+    const imagesToPreload = [
+      cleanSofaAfterImg,
+      sofaBeforeImg,
+      cleanCarAfterImg,
+      dirtyCarBeforeImg,
+      chantierAfterImg,
+      chantierBeforeImg
+    ];
+    imagesToPreload.forEach((src) => {
+      const img = new Image();
+      img.src = src;
+      if (img.decode) {
+        img.decode().catch(() => {});
+      }
+    });
+  }, []);
+
   // Animation sinusoïdale fluide au repos pour les photos
   useEffect(() => {
     if (sliderTheme === 'video') return;
@@ -216,14 +235,17 @@ function BeforeAfterSection({ handleOpenDrawer }) {
           </div>
         )}
 
-        {/* Affichage Conditionnel : 2 Vidéos Réelles Dakar OU Comparateur Avant / Après */}
-        {sliderTheme === 'video' ? (
+        {/* Conteneur Unique Haute Performance : Vidéo et Comparateur 100% Pré-chargés en Mémoire GPU */}
+        <div className="relative rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden shadow-2xl border-2 border-slate-200 aspect-[16/9] bg-slate-950 select-none">
+          
+          {/* 1. Lecteur Vidéo */}
           <div 
-            className="relative rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden shadow-2xl border-2 border-emerald-600/40 aspect-[16/9] bg-slate-950 flex items-center justify-center group"
+            className={`absolute inset-0 transition-opacity duration-300 ${
+              sliderTheme === 'video' ? 'opacity-100 z-20 pointer-events-auto' : 'opacity-0 z-0 pointer-events-none'
+            }`}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
           >
-            {/* Lecteur Vidéo Dynamique (Démo 1 ou Démo 2) */}
             <video
               key={activeVideo}
               src={activeVideo === 1 ? "./taaru_cleaning_demo.mp4" : "./taaru_cleaning_demo2.mp4"}
@@ -250,16 +272,19 @@ function BeforeAfterSection({ handleOpenDrawer }) {
               </span>
             </div>
           </div>
-        ) : (
+
+          {/* 2. Comparateur Photos Avant / Après (TOUTES LES PHOTOS RESTENT PRÉ-CHARGÉES DANS LE DOM) */}
           <div 
-            className="@container relative rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden shadow-2xl border-2 border-slate-200 aspect-[16/9] select-none cursor-ew-resize group"
+            className={`@container absolute inset-0 transition-opacity duration-300 cursor-ew-resize ${
+              sliderTheme !== 'video' ? 'opacity-100 z-10 pointer-events-auto' : 'opacity-0 z-0 pointer-events-none'
+            }`}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
             onTouchStart={() => setIsHovered(true)}
             onTouchEnd={() => setIsHovered(false)}
           >
             {/* Badge Gauche Fixe : AVANT INTERVENTION */}
-            <div className="absolute top-3 sm:top-4 left-3 sm:left-4 z-20 pointer-events-none">
+            <div className="absolute top-3 sm:top-4 left-3 sm:left-4 z-30 pointer-events-none">
               <span className="inline-flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full bg-slate-950/85 backdrop-blur-md text-white text-[9px] sm:text-xs font-black tracking-wider uppercase border border-white/20 shadow-md">
                 <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
                 <span className="sm:hidden">AVANT</span>
@@ -268,7 +293,7 @@ function BeforeAfterSection({ handleOpenDrawer }) {
             </div>
 
             {/* Badge Droite Fixe : RÉSULTAT NETTOYÉ */}
-            <div className="absolute top-3 sm:top-4 right-3 sm:right-4 z-20 pointer-events-none">
+            <div className="absolute top-3 sm:top-4 right-3 sm:right-4 z-30 pointer-events-none">
               <span className="inline-flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full bg-emerald-950/85 backdrop-blur-md text-white text-[9px] sm:text-xs font-black tracking-wider uppercase border border-emerald-400/30 shadow-md">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
                 <span className="sm:hidden">APRÈS</span>
@@ -276,15 +301,15 @@ function BeforeAfterSection({ handleOpenDrawer }) {
               </span>
             </div>
 
-          {/* 1. AUTO (MÊME VÉHICULE AVANT / APRÈS) */}
-          {sliderTheme === 'auto' && (
-            <>
+            {/* Thème A : Véhicules & 4x4 */}
+            <div className={`absolute inset-0 transition-opacity duration-200 ${sliderTheme === 'auto' ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'}`}>
               <img 
                 src={cleanCarAfterImg} 
                 alt="Carrosserie brillante et pneus rénovés par TAARU SET" 
                 className="absolute inset-0 w-full h-full object-cover object-center"
                 loading="eager"
                 decoding="sync"
+                fetchPriority="high"
               />
               <div 
                 className="absolute inset-0 overflow-hidden" 
@@ -296,20 +321,20 @@ function BeforeAfterSection({ handleOpenDrawer }) {
                   className="absolute top-0 left-0 h-full w-[100cqw] max-w-none object-cover object-center"
                   loading="eager"
                   decoding="sync"
+                  fetchPriority="high"
                 />
               </div>
-            </>
-          )}
+            </div>
 
-          {/* 2. CANAPÉ (MÊME CANAPÉ AVANT / APRÈS AVEC TACHES NETTES) */}
-          {sliderTheme === 'sofa' && (
-            <>
+            {/* Thème B : Canapés & Salons */}
+            <div className={`absolute inset-0 transition-opacity duration-200 ${sliderTheme === 'sofa' ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'}`}>
               <img 
                 src={cleanSofaAfterImg} 
                 alt="Canapé velours régénéré et purifié par injecteur Kärcher" 
                 className="absolute inset-0 w-full h-full object-cover object-center"
                 loading="eager"
                 decoding="sync"
+                fetchPriority="high"
               />
               <div 
                 className="absolute inset-0 overflow-hidden" 
@@ -321,20 +346,20 @@ function BeforeAfterSection({ handleOpenDrawer }) {
                   className="absolute top-0 left-0 h-full w-[100cqw] max-w-none object-cover object-center"
                   loading="eager"
                   decoding="sync"
+                  fetchPriority="high"
                 />
               </div>
-            </>
-          )}
+            </div>
 
-          {/* 3. FIN DE CHANTIER (VRAIE PHOTO AVANT & VRAIE PHOTO APRÈS) */}
-          {sliderTheme === 'chantier' && (
-            <>
+            {/* Thème C : Fin de Chantier */}
+            <div className={`absolute inset-0 transition-opacity duration-200 ${sliderTheme === 'chantier' ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'}`}>
               <img 
                 src={chantierAfterImg} 
                 alt="Villa étincelante et prête à emménager TAARU SET" 
                 className="absolute inset-0 w-full h-full object-cover object-center"
                 loading="eager"
                 decoding="sync"
+                fetchPriority="high"
               />
               <div 
                 className="absolute inset-0 overflow-hidden" 
@@ -346,32 +371,32 @@ function BeforeAfterSection({ handleOpenDrawer }) {
                   className="absolute top-0 left-0 h-full w-[100cqw] max-w-none object-cover object-center"
                   loading="eager"
                   decoding="sync"
+                  fetchPriority="high"
                 />
               </div>
-            </>
-          )}
-
-          {/* Poignée centrale */}
-          <div 
-            className="absolute top-0 bottom-0 w-1 bg-white cursor-ew-resize flex items-center justify-center shadow-lg"
-            style={{ left: `${sliderPos}%` }}
-          >
-            <div className="w-8 h-8 rounded-full bg-white text-[#0D5C3A] font-extrabold text-xs flex items-center justify-center shadow-md">
-              ↔
             </div>
-          </div>
 
-          <input 
-            type="range" 
-            min="5" 
-            max="95" 
-            value={sliderPos} 
-            onChange={(e) => setSliderPos(Number(e.target.value))}
-            aria-label="Séparateur avant et après intervention"
-            className="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize z-20"
-          />
+            {/* Poignée centrale */}
+            <div 
+              className="absolute top-0 bottom-0 w-1 bg-white cursor-ew-resize flex items-center justify-center shadow-lg z-30 pointer-events-none"
+              style={{ left: `${sliderPos}%` }}
+            >
+              <div className="w-8 h-8 rounded-full bg-white text-[#0D5C3A] font-extrabold text-xs flex items-center justify-center shadow-md border border-slate-200">
+                ↔
+              </div>
+            </div>
+
+            <input 
+              type="range" 
+              min="5" 
+              max="95" 
+              value={sliderPos} 
+              onChange={(e) => setSliderPos(Number(e.target.value))}
+              aria-label="Séparateur avant et après intervention"
+              className="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize z-40"
+            />
+          </div>
         </div>
-        )}
 
         {/* Légende Dynamique du Résultat */}
         <div className="mt-4 p-3.5 sm:p-4 rounded-2xl bg-white border border-slate-200/90 shadow-xs flex items-center justify-between gap-3 text-left">
