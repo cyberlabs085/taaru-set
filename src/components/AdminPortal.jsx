@@ -7,10 +7,10 @@ import {
   Trash2, Download, LogOut, RefreshCw, X, ArrowUpRight, 
   UserPlus, BarChart3, TrendingUp, DollarSign, MapPin, 
   Layers, ExternalLink, Activity, Check, Lock, KeyRound,
-  Menu, ChevronRight, Sparkles, Building2, Car, Sparkle,
-  Briefcase, UserCheck, UserX, ChevronDown, CheckCircle,
-  ShieldCheck, Eye, EyeOff, Copy, FileText, CheckSquare,
-  Square, Info, Smartphone
+  Menu, ChevronRight, Building2, Car, Briefcase, 
+  UserCheck, UserX, ChevronDown, CheckCircle, ShieldCheck, 
+  Eye, EyeOff, Copy, FileText, Info, Repeat, CalendarCheck,
+  CheckCircle as CheckIcon, Circle
 } from 'lucide-react';
 
 export default function AdminPortal({ onClose }) {
@@ -306,15 +306,34 @@ export default function AdminPortal({ onClose }) {
     setCurrentMember(null);
   };
 
-  // Modification statut réservation avec traçabilité complète de l'opérateur
+  // Modification statut réservation avec MISE À JOUR OPTIMISTE IMMÉDIATE (0ms) + Traçabilité
   const handleUpdateStatus = async (bookingId, newStatus) => {
+    const now = new Date().toISOString();
+    const updaterName = currentMember?.full_name || session?.user?.email?.split('@')[0] || 'Opérateur TAARU SET';
+    const updaterEmail = session?.user?.email || '';
+
+    // Mise à jour optimiste instantanée de l'interface
+    setBookings(prev => prev.map(b => b.id === bookingId ? { 
+      ...b, 
+      status: newStatus,
+      processed_by_name: updaterName,
+      processed_by_email: updaterEmail,
+      processed_at: now
+    } : b));
+
+    if (selectedBookingDetails?.id === bookingId) {
+      setSelectedBookingDetails(prev => ({
+        ...prev,
+        status: newStatus,
+        processed_by_name: updaterName,
+        processed_by_email: updaterEmail,
+        processed_at: now
+      }));
+    }
+
     if (!supabase) return;
     try {
-      const now = new Date().toISOString();
-      const updaterName = currentMember?.full_name || session?.user?.email?.split('@')[0] || 'Opérateur TAARU SET';
-      const updaterEmail = session?.user?.email || '';
-
-      const { error } = await supabase
+      await supabase
         .from('taaru_bookings')
         .update({ 
           status: newStatus, 
@@ -324,43 +343,42 @@ export default function AdminPortal({ onClose }) {
           processed_at: now
         })
         .eq('id', bookingId);
-
-      if (!error) {
-        setBookings(prev => prev.map(b => b.id === bookingId ? { 
-          ...b, 
-          status: newStatus,
-          processed_by_name: updaterName,
-          processed_by_email: updaterEmail,
-          processed_at: now
-        } : b));
-
-        if (selectedBookingDetails?.id === bookingId) {
-          setSelectedBookingDetails(prev => ({
-            ...prev,
-            status: newStatus,
-            processed_by_name: updaterName,
-            processed_by_email: updaterEmail,
-            processed_at: now
-          }));
-        }
-      }
     } catch (e) {
       console.error(e);
     }
   };
 
-  // Prendre en charge une commande en 1 clic
+  // Prendre en charge une commande en 1 clic (Optimiste 0ms)
   const handleTakeOverBooking = async (bookingId) => {
+    const now = new Date().toISOString();
+    const updaterName = currentMember?.full_name || session?.user?.email?.split('@')[0] || 'Opérateur TAARU SET';
+    const updaterEmail = session?.user?.email || '';
+
+    const target = bookings.find(b => b.id === bookingId);
+    const nextStatus = target?.status === 'en_attente' ? 'confirmee' : (target?.status || 'confirmee');
+
+    // Mise à jour optimiste
+    setBookings(prev => prev.map(b => b.id === bookingId ? {
+      ...b,
+      status: nextStatus,
+      processed_by_name: updaterName,
+      processed_by_email: updaterEmail,
+      processed_at: now
+    } : b));
+
+    if (selectedBookingDetails?.id === bookingId) {
+      setSelectedBookingDetails(prev => ({
+        ...prev,
+        status: nextStatus,
+        processed_by_name: updaterName,
+        processed_by_email: updaterEmail,
+        processed_at: now
+      }));
+    }
+
     if (!supabase) return;
     try {
-      const now = new Date().toISOString();
-      const updaterName = currentMember?.full_name || session?.user?.email?.split('@')[0] || 'Opérateur TAARU SET';
-      const updaterEmail = session?.user?.email || '';
-
-      const target = bookings.find(b => b.id === bookingId);
-      const nextStatus = target?.status === 'en_attente' ? 'confirmee' : (target?.status || 'confirmee');
-
-      const { error } = await supabase
+      await supabase
         .from('taaru_bookings')
         .update({
           status: nextStatus,
@@ -370,26 +388,6 @@ export default function AdminPortal({ onClose }) {
           processed_at: now
         })
         .eq('id', bookingId);
-
-      if (!error) {
-        setBookings(prev => prev.map(b => b.id === bookingId ? {
-          ...b,
-          status: nextStatus,
-          processed_by_name: updaterName,
-          processed_by_email: updaterEmail,
-          processed_at: now
-        } : b));
-
-        if (selectedBookingDetails?.id === bookingId) {
-          setSelectedBookingDetails(prev => ({
-            ...prev,
-            status: nextStatus,
-            processed_by_name: updaterName,
-            processed_by_email: updaterEmail,
-            processed_at: now
-          }));
-        }
-      }
     } catch (e) {
       console.error(e);
     }
@@ -402,16 +400,14 @@ export default function AdminPortal({ onClose }) {
       return;
     }
     if (!confirm('Confirmer la suppression définitive de cette réservation du registre officiel TAARU SET ?')) return;
+    
+    // Mise à jour optimiste
+    setBookings(prev => prev.filter(b => b.id !== bookingId));
+    if (selectedBookingDetails?.id === bookingId) setSelectedBookingDetails(null);
+
     if (!supabase) return;
     try {
-      const { error } = await supabase
-        .from('taaru_bookings')
-        .delete()
-        .eq('id', bookingId);
-      if (!error) {
-        setBookings(prev => prev.filter(b => b.id !== bookingId));
-        if (selectedBookingDetails?.id === bookingId) setSelectedBookingDetails(null);
-      }
+      await supabase.from('taaru_bookings').delete().eq('id', bookingId);
     } catch (e) {
       console.error(e);
     }
@@ -473,13 +469,13 @@ export default function AdminPortal({ onClose }) {
         quarter: subQuarter.trim(),
         address: subAddress.trim(),
         frequency: subFrequency,
-        passage_1_date: subP1Date || 'Passage 1 à définir',
+        passage_1_date: subP1Date || 'Passage 1',
         passage_1_status: 'en_attente',
-        passage_2_date: subP2Date || 'Passage 2 à définir',
+        passage_2_date: subP2Date || 'Passage 2',
         passage_2_status: 'en_attente',
-        passage_3_date: subP3Date || 'Passage 3 à définir',
+        passage_3_date: subP3Date || 'Passage 3',
         passage_3_status: 'en_attente',
-        passage_4_date: subP4Date || 'Passage 4 à définir',
+        passage_4_date: subP4Date || 'Passage 4',
         passage_4_status: 'en_attente',
         status: 'actif',
         processed_by_name: updaterName,
@@ -505,25 +501,34 @@ export default function AdminPortal({ onClose }) {
     }
   };
 
-  // Validation d'un passage spécifique d'abonnement (Passage 1, 2, 3, 4)
+  // Validation / Annulation d'un passage en 1 clic (OPTIMISTE 0ms)
   const handleTogglePassageStatus = async (subId, passageNum, currentStatus) => {
+    const now = new Date().toISOString();
+    const updaterName = currentMember?.full_name || session?.user?.email?.split('@')[0] || 'Opérateur TAARU SET';
+    const updaterEmail = session?.user?.email || '';
+
+    const newPassageStatus = currentStatus === 'effectue' ? 'en_attente' : 'effectue';
+    const fieldKey = `passage_${passageNum}_status`;
+
+    const targetSub = subscriptions.find(s => s.id === subId);
+    const isComplete = [1, 2, 3, 4].every(n => {
+      if (n === passageNum) return newPassageStatus === 'effectue';
+      return targetSub?.[`passage_${n}_status`] === 'effectue';
+    });
+
+    // Mise à jour locale optimiste immédiate (0ms de latence pour l'utilisateur)
+    setSubscriptions(prev => prev.map(s => s.id === subId ? {
+      ...s,
+      [fieldKey]: newPassageStatus,
+      status: isComplete ? 'complete' : 'actif',
+      processed_by_name: updaterName,
+      processed_by_email: updaterEmail,
+      processed_at: now
+    } : s));
+
     if (!supabase) return;
     try {
-      const now = new Date().toISOString();
-      const updaterName = currentMember?.full_name || session?.user?.email?.split('@')[0] || 'Opérateur TAARU SET';
-      const updaterEmail = session?.user?.email || '';
-
-      const newPassageStatus = currentStatus === 'effectue' ? 'en_attente' : 'effectue';
-      const fieldKey = `passage_${passageNum}_status`;
-
-      // Déterminer si tous les 4 passages sont effectués
-      const targetSub = subscriptions.find(s => s.id === subId);
-      const isComplete = [1, 2, 3, 4].every(n => {
-        if (n === passageNum) return newPassageStatus === 'effectue';
-        return targetSub?.[`passage_${n}_status`] === 'effectue';
-      });
-
-      const { error } = await supabase
+      await supabase
         .from('taaru_subscriptions')
         .update({
           [fieldKey]: newPassageStatus,
@@ -534,19 +539,10 @@ export default function AdminPortal({ onClose }) {
           processed_at: now
         })
         .eq('id', subId);
-
-      if (!error) {
-        setSubscriptions(prev => prev.map(s => s.id === subId ? {
-          ...s,
-          [fieldKey]: newPassageStatus,
-          status: isComplete ? 'complete' : 'actif',
-          processed_by_name: updaterName,
-          processed_by_email: updaterEmail,
-          processed_at: now
-        } : s));
-      }
     } catch (e) {
       console.error(e);
+      // En cas d'erreur réseau, recharge les données
+      loadAllData();
     }
   };
 
@@ -557,15 +553,13 @@ export default function AdminPortal({ onClose }) {
       return;
     }
     if (!confirm('Confirmer la suppression de cet abonnement ?')) return;
+
+    // Mise à jour optimiste
+    setSubscriptions(prev => prev.filter(s => s.id !== subId));
+
     if (!supabase) return;
     try {
-      const { error } = await supabase
-        .from('taaru_subscriptions')
-        .delete()
-        .eq('id', subId);
-      if (!error) {
-        setSubscriptions(prev => prev.filter(s => s.id !== subId));
-      }
+      await supabase.from('taaru_subscriptions').delete().eq('id', subId);
     } catch (e) {
       console.error(e);
     }
@@ -622,17 +616,16 @@ export default function AdminPortal({ onClose }) {
       alert("Le compte Super-Admin principal de la direction ne peut pas être suspendu.");
       return;
     }
-    if (!supabase) return;
 
+    // Mise à jour optimiste
+    setTeamMembers(prev => prev.map(m => m.id === memberId ? { ...m, is_active: !currentStatus } : m));
+
+    if (!supabase) return;
     try {
-      const { error } = await supabase
+      await supabase
         .from('taaru_team_members')
         .update({ is_active: !currentStatus, updated_at: new Date().toISOString() })
         .eq('id', memberId);
-
-      if (!error) {
-        setTeamMembers(prev => prev.map(m => m.id === memberId ? { ...m, is_active: !currentStatus } : m));
-      }
     } catch (e) {
       console.error(e);
     }
@@ -646,17 +639,13 @@ export default function AdminPortal({ onClose }) {
       return;
     }
     if (!confirm(`Supprimer définitivement l'accréditation du collaborateur "${memberEmail}" ? Il ne pourra plus accéder au portail.`)) return;
+
+    // Mise à jour optimiste
+    setTeamMembers(prev => prev.filter(m => m.id !== memberId));
+
     if (!supabase) return;
-
     try {
-      const { error } = await supabase
-        .from('taaru_team_members')
-        .delete()
-        .eq('id', memberId);
-
-      if (!error) {
-        setTeamMembers(prev => prev.filter(m => m.id !== memberId));
-      }
+      await supabase.from('taaru_team_members').delete().eq('id', memberId);
     } catch (e) {
       console.error(e);
     }
@@ -666,20 +655,6 @@ export default function AdminPortal({ onClose }) {
   const formatPrice = (val) => {
     if (!val && val !== 0) return '0 FCFA';
     return `${Number(val).toLocaleString('fr-FR')} FCFA`;
-  };
-
-  // Formatage des dates
-  const formatDateFr = (iso) => {
-    if (!iso) return '-';
-    try {
-      return new Date(iso).toLocaleDateString('fr-FR', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric'
-      });
-    } catch {
-      return iso;
-    }
   };
 
   // Style des badges de rôle
@@ -755,7 +730,7 @@ export default function AdminPortal({ onClose }) {
     }
   };
 
-  // Calcul des statistiques réelles
+  // Calcul des statistiques réelles (sans aucune fausse donnée)
   const stats = useMemo(() => {
     const totalBookings = bookings.length;
     const completedBookings = bookings.filter(b => b.status === 'terminee');
@@ -765,7 +740,6 @@ export default function AdminPortal({ onClose }) {
     const pendingCount = bookings.filter(b => b.status === 'en_attente').length;
     const avgBasket = completedBookings.length > 0 ? Math.round(totalRevenue / completedBookings.length) : 0;
 
-    // Répartition par formule de service
     const serviceMap = {};
     bookings.forEach(b => {
       const s = b.service_type || 'Autre formule';
@@ -821,7 +795,7 @@ export default function AdminPortal({ onClose }) {
   };
 
   // ---------------------------------------------------------------------------
-  // ÉCRAN DE VERROUILLAGE / CONNEXION ZERO-TRUST
+  // ÉCRAN DE CONNEXION ZERO-TRUST
   // ---------------------------------------------------------------------------
   if (!session || authLoading) {
     return (
@@ -953,13 +927,13 @@ export default function AdminPortal({ onClose }) {
   }
 
   // ---------------------------------------------------------------------------
-  // INTERFACE PRINCIPALE DU PORTAIL ADMINISTRATEUR (THÈME LUMINEUX ECO-ORGANIQUE)
+  // INTERFACE PRINCIPALE DU PORTAIL ADMINISTRATEUR
   // ---------------------------------------------------------------------------
   return (
     <div className="fixed inset-0 z-50 bg-[#F8FAF7] text-slate-800 flex flex-col font-sans overflow-hidden">
       
       {/* ========================================================================= */}
-      {/* 1. TOP BAR INSTITUTIONNELLE (Desktop & Mobile)                            */}
+      {/* 1. TOP BAR INSTITUTIONNELLE                                               */}
       {/* ========================================================================= */}
       <header className="h-16 px-4 sm:px-6 bg-white border-b border-slate-200/90 flex items-center justify-between shrink-0 shadow-xs">
         <div className="flex items-center gap-3">
@@ -1009,7 +983,7 @@ export default function AdminPortal({ onClose }) {
             type="button"
             onClick={handleSignOut}
             className="h-9 px-3 rounded-xl bg-slate-100 hover:bg-rose-50 hover:text-rose-700 text-slate-600 text-xs font-['Outfit'] font-bold flex items-center gap-1.5 transition-colors cursor-pointer border border-slate-200/80"
-            title="Se déconnecter en toute sécurité"
+            title="Se déconnecter"
           >
             <LogOut className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Quitter</span>
@@ -1022,11 +996,11 @@ export default function AdminPortal({ onClose }) {
       {/* ========================================================================= */}
       <div className="flex-1 flex overflow-hidden">
         
-        {/* --- SIDEBAR DESKTOP (Navigation institutionnelle) --- */}
+        {/* --- SIDEBAR DESKTOP --- */}
         <aside className="hidden md:flex w-64 bg-white border-r border-slate-200/90 flex-col justify-between p-4 shrink-0 shadow-xs font-['Outfit']">
           <div className="space-y-6">
             
-            {/* Carte de sécurité profil */}
+            {/* Profil badge */}
             <div className="p-3.5 rounded-2xl bg-[#F8FAF7] border border-slate-200/80 space-y-1.5">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Accréditation</span>
@@ -1044,10 +1018,10 @@ export default function AdminPortal({ onClose }) {
               </div>
             </div>
 
-            {/* Menu des modules filtré selon le rôle */}
+            {/* Menu standard sans éléments IA slop */}
             <nav className="space-y-1.5">
               
-              {/* 1. Planning Réservations (Tous les rôles) */}
+              {/* 1. Planning Réservations */}
               <button
                 type="button"
                 onClick={() => setActiveTab('bookings')}
@@ -1059,14 +1033,14 @@ export default function AdminPortal({ onClose }) {
               >
                 <div className="flex items-center gap-2.5">
                   <Calendar className="w-4 h-4" />
-                  <span>Planning des Commandes</span>
+                  <span>Planning Commandes</span>
                 </div>
                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${activeTab === 'bookings' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
                   {bookings.length}
                 </span>
               </button>
 
-              {/* 2. Suivi des Abonnements (4 passages) */}
+              {/* 2. Suivi Abonnements (Icône sobre Repeat) */}
               <button
                 type="button"
                 onClick={() => setActiveTab('subscriptions')}
@@ -1077,7 +1051,7 @@ export default function AdminPortal({ onClose }) {
                 }`}
               >
                 <div className="flex items-center gap-2.5">
-                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <Repeat className="w-4 h-4" />
                   <span>Suivi Abonnements</span>
                 </div>
                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${activeTab === 'subscriptions' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
@@ -1085,7 +1059,7 @@ export default function AdminPortal({ onClose }) {
                 </span>
               </button>
 
-              {/* 3. Répertoire Clients CRM (Admin, Super Admin, Sales) */}
+              {/* 3. Répertoire Clients CRM */}
               {canViewCRM && (
                 <button
                   type="button"
@@ -1093,12 +1067,12 @@ export default function AdminPortal({ onClose }) {
                   className={`w-full h-11 px-3.5 rounded-xl font-bold text-xs flex items-center justify-between transition-all cursor-pointer ${
                     activeTab === 'clients'
                       ? 'bg-[#0D5C3A] text-white shadow-md shadow-[#0D5C3A]/20'
-                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
                     <Users className="w-4 h-4" />
-                    <span>Répertoire Clients (CRM)</span>
+                    <span>Répertoire Clients</span>
                   </div>
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${activeTab === 'clients' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
                     {clients.length}
@@ -1106,7 +1080,7 @@ export default function AdminPortal({ onClose }) {
                 </button>
               )}
 
-              {/* 4. Statistiques & Bilan (Admin & Super Admin) */}
+              {/* 4. Statistiques & Bilan */}
               {canViewStats && (
                 <button
                   type="button"
@@ -1125,7 +1099,7 @@ export default function AdminPortal({ onClose }) {
                 </button>
               )}
 
-              {/* 5. Gestion Équipe Universelle (Super Admin Exclusivement) */}
+              {/* 5. Équipe & Droits */}
               {canManageTeam && (
                 <button
                   type="button"
@@ -1148,7 +1122,6 @@ export default function AdminPortal({ onClose }) {
             </nav>
           </div>
 
-          {/* Bas de sidebar */}
           <div className="space-y-2 pt-4 border-t border-slate-100">
             <button
               type="button"
@@ -1192,7 +1165,6 @@ export default function AdminPortal({ onClose }) {
                   </button>
                 </div>
 
-                {/* Profil Drawer */}
                 <div className="p-3 rounded-xl bg-[#F8FAF7] border border-slate-200/80">
                   <div className="font-['Outfit'] font-bold text-xs text-slate-900 truncate">
                     {currentMember?.full_name}
@@ -1202,7 +1174,6 @@ export default function AdminPortal({ onClose }) {
                   </div>
                 </div>
 
-                {/* Liens Drawer */}
                 <div className="space-y-1.5 font-['Outfit'] text-xs">
                   <button
                     type="button"
@@ -1213,7 +1184,7 @@ export default function AdminPortal({ onClose }) {
                   >
                     <div className="flex items-center gap-3">
                       <Calendar className="w-4 h-4" />
-                      <span>Planning des Commandes</span>
+                      <span>Planning Commandes</span>
                     </div>
                     <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${activeTab === 'bookings' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'}`}>
                       {bookings.length}
@@ -1228,7 +1199,7 @@ export default function AdminPortal({ onClose }) {
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <Sparkles className="w-4 h-4 text-amber-500" />
+                      <Repeat className="w-4 h-4" />
                       <span>Suivi Abonnements</span>
                     </div>
                     <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${activeTab === 'subscriptions' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'}`}>
@@ -1290,7 +1261,6 @@ export default function AdminPortal({ onClose }) {
                 </div>
               </div>
 
-              {/* Actions secondaires Drawer */}
               <div className="pt-3 border-t border-slate-100 space-y-2 font-['Outfit']">
                 <button
                   type="button"
@@ -1316,10 +1286,10 @@ export default function AdminPortal({ onClose }) {
           </div>
         )}
 
-        {/* --- ZONE CENTRALE DE TRAVAIL (Scrollable) --- */}
+        {/* --- ZONE CENTRALE DE TRAVAIL --- */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 pb-24 md:pb-8">
 
-          {/* En-tête de section dynamique avec bouton d'action principal */}
+          {/* En-tête de section dynamique */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 text-xs text-slate-400 font-['Outfit'] font-bold uppercase tracking-wider">
@@ -1342,12 +1312,11 @@ export default function AdminPortal({ onClose }) {
               </h1>
             </div>
 
-            {/* Boutons d'action contextuels */}
             <div className="flex items-center gap-2.5">
               <button
                 type="button"
                 onClick={loadAllData}
-                className="h-10 w-10 rounded-xl bg-white border border-slate-200/90 text-slate-600 hover:text-[#0D5C3A] hover:bg-slate-50 flex items-center justify-center transition-colors shadow-xs"
+                className="h-10 w-10 rounded-xl bg-white border border-slate-200/90 text-slate-600 hover:text-[#0D5C3A] hover:bg-slate-50 flex items-center justify-center transition-colors shadow-xs cursor-pointer"
                 title="Actualiser les données"
               >
                 <RefreshCw className={`w-4 h-4 ${loadingData ? 'animate-spin text-[#0D5C3A]' : ''}`} />
@@ -1371,7 +1340,7 @@ export default function AdminPortal({ onClose }) {
                   className="h-10 px-4 rounded-xl bg-[#0D5C3A] hover:bg-[#0A482E] text-white font-['Outfit'] font-bold text-xs flex items-center gap-2 shadow-md shadow-[#0D5C3A]/20 transition-all cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>Nouvel Abonnement (4 passages)</span>
+                  <span>Nouvel Abonnement</span>
                 </button>
               )}
             </div>
@@ -1383,10 +1352,8 @@ export default function AdminPortal({ onClose }) {
           {activeTab === 'bookings' && (
             <div className="space-y-4">
               
-              {/* Filtres de statut & Barre de recherche */}
+              {/* Filtres & Recherche */}
               <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
-                
-                {/* Pilules de filtres */}
                 <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none font-['Outfit'] text-xs">
                   {[
                     { id: 'all', label: 'Toutes', count: bookings.length },
@@ -1415,7 +1382,6 @@ export default function AdminPortal({ onClose }) {
                   ))}
                 </div>
 
-                {/* Recherche */}
                 <div className="relative w-full md:w-80">
                   <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
@@ -1436,7 +1402,7 @@ export default function AdminPortal({ onClose }) {
                 </div>
               </div>
 
-              {/* --- VUE MOBILE : CARTES MÉTIER TACTILES (< md) SANS DÉBORDEMENT --- */}
+              {/* --- VUE MOBILE : CARTES TACTILES (< md) --- */}
               <div className="md:hidden space-y-3.5">
                 {filteredBookings.length === 0 ? (
                   <div className="py-12 text-center text-slate-500 text-xs bg-white rounded-2xl border border-slate-200 p-6 shadow-xs font-medium">
@@ -1448,7 +1414,6 @@ export default function AdminPortal({ onClose }) {
                       key={b.id}
                       className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-sm space-y-3"
                     >
-                      {/* En-tête : Nom, Quartier et Prix */}
                       <div className="flex items-start justify-between gap-2">
                         <div>
                           <h4 className="font-['Outfit'] font-bold text-base text-slate-900">{b.client_name}</h4>
@@ -1464,7 +1429,6 @@ export default function AdminPortal({ onClose }) {
                         </div>
                       </div>
 
-                      {/* Service & Détails */}
                       <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/60 text-xs space-y-1">
                         <div className="font-bold text-slate-800">{b.service_type}</div>
                         {b.service_details && b.service_details !== b.service_type && (
@@ -1476,7 +1440,6 @@ export default function AdminPortal({ onClose }) {
                         </div>
                       </div>
 
-                      {/* BADGE DE TRAÇABILITÉ : QUI A TRAITÉ CETTE COMMANDE ? */}
                       <div className="flex items-center justify-between text-xs px-2.5 py-1.5 rounded-xl bg-[#F8FAF7] border border-slate-200/80">
                         <div className="flex items-center gap-1.5">
                           <UserCheck className="w-3.5 h-3.5 text-[#0D5C3A]" />
@@ -1492,10 +1455,7 @@ export default function AdminPortal({ onClose }) {
                         )}
                       </div>
 
-                      {/* BOUTONS D'ACTION RAPIDE (1-CLIC COPIER, APPEL, WHATSAPP, DÉTAILS) */}
                       <div className="grid grid-cols-4 gap-2 pt-1 border-t border-slate-100">
-                        
-                        {/* 1. Copier le numéro */}
                         <button
                           type="button"
                           onClick={() => handleCopyPhone(b.client_phone, b.id)}
@@ -1504,7 +1464,6 @@ export default function AdminPortal({ onClose }) {
                               ? 'bg-emerald-50 border-emerald-300 text-[#0D5C3A]'
                               : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
                           }`}
-                          title="Copier le numéro de téléphone"
                         >
                           {copiedId === b.id ? (
                             <>
@@ -1519,7 +1478,6 @@ export default function AdminPortal({ onClose }) {
                           )}
                         </button>
 
-                        {/* 2. Appel direct */}
                         <a
                           href={`tel:${b.client_phone?.replace(/\s+/g, '')}`}
                           className="h-9 px-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-bold font-['Outfit'] flex items-center justify-center gap-1"
@@ -1528,7 +1486,6 @@ export default function AdminPortal({ onClose }) {
                           <span className="text-[11px]">Appel</span>
                         </a>
 
-                        {/* 3. WhatsApp direct */}
                         <a
                           href={`https://wa.me/${b.client_phone?.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Bonjour ${b.client_name}, nous confirmons votre intervention TAARU SET pour ${b.service_type} à ${b.quarter}.`)}`}
                           target="_blank"
@@ -1539,19 +1496,16 @@ export default function AdminPortal({ onClose }) {
                           <span className="text-[11px]">WhatsApp</span>
                         </a>
 
-                        {/* 4. Détails de la commande */}
                         <button
                           type="button"
                           onClick={() => setSelectedBookingDetails(b)}
-                          className="h-9 px-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold font-['Outfit'] flex items-center justify-center gap-1"
-                          title="Voir tous les détails"
+                          className="h-9 px-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold font-['Outfit'] flex items-center justify-center gap-1 cursor-pointer"
                         >
-                          <Info className="w-3.5 h-3.5 text-slate-600" />
+                          <FileText className="w-3.5 h-3.5 text-slate-600" />
                           <span className="text-[11px]">Détails</span>
                         </button>
                       </div>
 
-                      {/* Statut sélecteur et Prise en charge en 1 clic */}
                       <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100">
                         <select
                           value={b.status}
@@ -1607,8 +1561,6 @@ export default function AdminPortal({ onClose }) {
                       ) : (
                         filteredBookings.map((b) => (
                           <tr key={b.id} className="hover:bg-emerald-50/30 transition-colors">
-                            
-                            {/* Client & Téléphone */}
                             <td className="py-4 px-5">
                               <div className="font-['Outfit'] font-bold text-slate-900 text-sm">{b.client_name}</div>
                               <div className="flex items-center gap-2 mt-1">
@@ -1628,13 +1580,11 @@ export default function AdminPortal({ onClose }) {
                               </div>
                             </td>
 
-                            {/* Prestation & Détails */}
                             <td className="py-4 px-5 max-w-xs">
                               <div className="font-bold text-slate-800 text-xs">{b.service_type}</div>
                               <div className="text-[11px] text-slate-500 truncate mt-0.5">{b.service_details}</div>
                             </td>
 
-                            {/* Quartier & Date */}
                             <td className="py-4 px-5">
                               <div className="text-slate-800 font-semibold text-xs">{b.quarter}</div>
                               <div className="text-[11px] text-slate-500 font-medium mt-0.5">
@@ -1642,12 +1592,10 @@ export default function AdminPortal({ onClose }) {
                               </div>
                             </td>
 
-                            {/* Montant */}
                             <td className="py-4 px-5 font-['Outfit'] font-extrabold text-[#0D5C3A] text-sm tabular-nums">
                               {formatPrice(b.estimated_price_fcfa)}
                             </td>
 
-                            {/* Statut sélecteur */}
                             <td className="py-4 px-5">
                               <select
                                 value={b.status}
@@ -1662,7 +1610,6 @@ export default function AdminPortal({ onClose }) {
                               </select>
                             </td>
 
-                            {/* TRAÇABILITÉ DESKTOP : OPÉRATEUR QUI A TRAITÉ */}
                             <td className="py-4 px-5">
                               {b.processed_by_name ? (
                                 <div>
@@ -1688,15 +1635,13 @@ export default function AdminPortal({ onClose }) {
                               )}
                             </td>
 
-                            {/* Actions directes rapides */}
                             <td className="py-4 px-5 text-right">
                               <div className="flex items-center justify-end gap-1.5 font-['Outfit']">
-                                
                                 <button
                                   type="button"
                                   onClick={() => setSelectedBookingDetails(b)}
-                                  className="h-8 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center gap-1"
-                                  title="Détails de la commande"
+                                  className="h-8 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center gap-1 cursor-pointer"
+                                  title="Détails"
                                 >
                                   <FileText className="w-3.5 h-3.5 text-slate-600" />
                                   <span>Détails</span>
@@ -1705,7 +1650,7 @@ export default function AdminPortal({ onClose }) {
                                 <a
                                   href={`tel:${b.client_phone?.replace(/\s+/g, '')}`}
                                   className="h-8 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition-colors"
-                                  title="Appeler directement"
+                                  title="Appeler"
                                 >
                                   <Phone className="w-3.5 h-3.5 text-[#0D5C3A]" />
                                   <span>Appel</span>
@@ -1716,7 +1661,7 @@ export default function AdminPortal({ onClose }) {
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="h-8 px-2.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-[#0D5C3A] border border-emerald-200 text-xs font-bold flex items-center gap-1.5 transition-colors"
-                                  title="Ouvrir WhatsApp"
+                                  title="WhatsApp"
                                 >
                                   <MessageSquare className="w-3.5 h-3.5" />
                                   <span>WhatsApp</span>
@@ -1727,7 +1672,7 @@ export default function AdminPortal({ onClose }) {
                                     type="button"
                                     onClick={() => handleDeleteBooking(b.id)}
                                     className="h-8 w-8 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center transition-colors cursor-pointer"
-                                    title="Supprimer la réservation"
+                                    title="Supprimer"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
                                   </button>
@@ -1746,272 +1691,387 @@ export default function AdminPortal({ onClose }) {
           )}
 
           {/* ========================================================================= */}
-          {/* ONGLET 2 : SUIVI DES ABONNEMENTS (4 PASSAGES DU MOIS)                     */}
+          {/* ONGLET 2 : SUIVI DES ABONNEMENTS (TABLEAU SYNTHÉTIQUE COMPACT SANS SCROLL) */}
           {/* ========================================================================= */}
           {activeTab === 'subscriptions' && (
-            <div className="space-y-6">
+            <div className="space-y-4">
               
-              {/* Statistiques Rapides Abonnements */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="p-5 rounded-2xl bg-white border border-slate-200/90 shadow-sm">
-                  <div className="text-[11px] font-['Outfit'] font-bold uppercase tracking-wider text-slate-400">Abonnements Actifs</div>
-                  <div className="text-2xl font-['Outfit'] font-black text-[#0D5C3A] mt-2 tabular-nums">
-                    {stats.activeSubCount} clients
-                  </div>
-                  <div className="text-[11px] text-slate-500 mt-1 font-medium">Contrats 4 passages en cours</div>
-                </div>
-
-                <div className="p-5 rounded-2xl bg-white border border-slate-200/90 shadow-sm">
-                  <div className="text-[11px] font-['Outfit'] font-bold uppercase tracking-wider text-slate-400">Revenu Récurrent Mensuel (MRR)</div>
-                  <div className="text-2xl font-['Outfit'] font-black text-slate-900 mt-2 tabular-nums">
-                    {formatPrice(stats.monthlyRecurringRevenue)}
-                  </div>
-                  <div className="text-[11px] text-slate-500 mt-1 font-medium">Facturation mensuelle garantie</div>
-                </div>
-
-                <div className="p-5 rounded-2xl bg-white border border-slate-200/90 shadow-sm">
-                  <div className="text-[11px] font-['Outfit'] font-bold uppercase tracking-wider text-slate-400">Fréquence Standard</div>
-                  <div className="text-xl font-['Outfit'] font-black text-blue-700 mt-2">
-                    4 passages / mois
-                  </div>
-                  <div className="text-[11px] text-slate-500 mt-1 font-medium">1 passage par semaine à domicile</div>
-                </div>
-              </div>
-
-              {/* Filtres abonnements */}
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-2 font-['Outfit'] text-xs">
+              {/* En-tête synthétique avec filtres & recherche */}
+              <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+                
+                {/* Pilules de filtres */}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none font-['Outfit'] text-xs">
                   {[
-                    { id: 'all', label: 'Tous les abonnements' },
-                    { id: 'actif', label: 'Actifs en cours' },
-                    { id: 'complete', label: 'Mois terminés' },
+                    { id: 'all', label: 'Tous les abonnements', count: subscriptions.length },
+                    { id: 'actif', label: 'En cours', count: subscriptions.filter(s => s.status === 'actif').length },
+                    { id: 'complete', label: 'Mois terminés', count: subscriptions.filter(s => s.status === 'complete').length },
                   ].map(f => (
                     <button
                       key={f.id}
                       type="button"
                       onClick={() => setSubFilter(f.id)}
-                      className={`h-9 px-3.5 rounded-xl font-bold cursor-pointer transition-colors ${
+                      className={`h-9 px-3.5 rounded-xl font-bold whitespace-nowrap transition-colors flex items-center gap-1.5 cursor-pointer ${
                         subFilter === f.id
                           ? 'bg-[#0D5C3A] text-white shadow-xs'
-                          : 'bg-white border border-slate-200/90 text-slate-600 hover:bg-slate-50'
+                          : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/90'
                       }`}
                     >
-                      {f.label}
+                      <span>{f.label}</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                        subFilter === f.id ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+                      }`}>
+                        {f.count}
+                      </span>
                     </button>
                   ))}
                 </div>
+
+                {/* Recherche abonné */}
+                <div className="relative w-full md:w-80">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="Recherche abonné, téléphone, quartier..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full h-9 pl-9 pr-3 rounded-xl bg-white border border-slate-200/90 text-xs text-slate-800 focus:outline-none focus:border-[#0D5C3A] shadow-xs font-medium"
+                  />
+                  {searchQuery && (
+                    <button 
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
               </div>
 
-              {/* LISTE DES ABONNÉS AVEC SUIVI DÉTAILLÉ DES 4 PASSAGES */}
-              <div className="space-y-4">
-                {filteredSubscriptions.length === 0 ? (
-                  <div className="py-12 text-center text-slate-500 text-xs bg-white rounded-2xl border border-slate-200 p-6 shadow-xs font-medium">
-                    Aucun abonnement enregistré pour le moment. Cliquez sur "Nouvel Abonnement" pour en ajouter un.
+              {/* Message informatif si aucun abonnement */}
+              {filteredSubscriptions.length === 0 ? (
+                <div className="py-16 text-center text-slate-500 bg-white rounded-2xl border border-slate-200/90 p-8 shadow-xs space-y-3">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-[#0D5C3A] flex items-center justify-center mx-auto">
+                    <Repeat className="w-6 h-6" />
                   </div>
-                ) : (
-                  filteredSubscriptions.map((sub) => {
-                    const completedPassages = [1, 2, 3, 4].filter(n => sub[`passage_${n}_status`] === 'effectue').length;
-                    const percent = Math.round((completedPassages / 4) * 100);
+                  <div>
+                    <h4 className="font-['Outfit'] font-bold text-slate-800 text-sm">Aucun abonnement enregistré</h4>
+                    <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+                      Les abonnements 4 passages / mois s'affichent ici. Vous pouvez en créer un manuellement ou attendre les souscriptions du site.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsNewSubModalOpen(true)}
+                    className="h-10 px-4 rounded-xl bg-[#0D5C3A] hover:bg-[#0A482E] text-white text-xs font-['Outfit'] font-bold inline-flex items-center gap-2 cursor-pointer transition-colors shadow-xs"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Nouvel Abonnement (4 passages)</span>
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {/* --- VUE MOBILE : CARTES COMPACTES (< md) SANS SCROLL MASSIF --- */}
+                  <div className="md:hidden space-y-3">
+                    {filteredSubscriptions.map((sub) => {
+                      const completedPassages = [1, 2, 3, 4].filter(n => sub[`passage_${n}_status`] === 'effectue').length;
 
-                    return (
-                      <div
-                        key={sub.id}
-                        className="p-5 sm:p-6 rounded-2xl bg-white border border-slate-200/90 shadow-sm space-y-5"
-                      >
-                        {/* En-tête de l'abonné */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h3 className="font-['Outfit'] font-black text-lg text-slate-900">{sub.client_name}</h3>
-                              <span className={`px-2.5 py-0.5 rounded-full text-xs font-['Outfit'] font-bold border ${
-                                sub.status === 'actif' ? 'bg-emerald-50 text-[#0D5C3A] border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'
-                              }`}>
-                                {sub.status === 'actif' ? 'Abonnement Actif' : 'Mois Terminé'}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
-                              <span className="font-bold text-slate-700">{sub.plan_name}</span>
-                              <span>•</span>
-                              <span className="flex items-center gap-1">
-                                <MapPin className="w-3.5 h-3.5 text-[#0D5C3A]" />
-                                {sub.quarter} {sub.address ? `(${sub.address})` : ''}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Prix & Boutons contact rapide */}
-                          <div className="flex items-center gap-3">
-                            <div className="text-right">
-                              <div className="text-xs text-slate-400 font-bold uppercase tracking-wider font-['Outfit']">Tarif Mensuel</div>
-                              <div className="font-['Outfit'] font-black text-lg text-[#0D5C3A] tabular-nums">
-                                {formatPrice(sub.price_fcfa)}
+                      return (
+                        <div
+                          key={sub.id}
+                          className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-sm space-y-3"
+                        >
+                          {/* Ligne 1 : Nom, Quartier, Statut & Tarif */}
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-['Outfit'] font-bold text-base text-slate-900">{sub.client_name}</h4>
+                                <span className={`px-2 py-0.2 rounded-full text-[10px] font-['Outfit'] font-bold border ${
+                                  sub.status === 'actif' ? 'bg-emerald-50 text-[#0D5C3A] border-emerald-200' : 'bg-slate-100 text-slate-600'
+                                }`}>
+                                  {sub.status === 'actif' ? 'En cours' : 'Terminé'}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
+                                <MapPin className="w-3.5 h-3.5 text-[#0D5C3A] shrink-0" />
+                                <span>{sub.quarter || 'Dakar'}</span>
+                                <span>•</span>
+                                <span className="font-medium text-slate-700">{sub.plan_name}</span>
                               </div>
                             </div>
-
-                            {/* Boutons contact 1-clic */}
-                            <div className="flex items-center gap-1.5 font-['Outfit']">
-                              <button
-                                type="button"
-                                onClick={() => handleCopyPhone(sub.client_phone, sub.id)}
-                                className="h-9 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1 cursor-pointer"
-                                title="Copier le numéro"
-                              >
-                                {copiedId === sub.id ? (
-                                  <>
-                                    <Check className="w-3.5 h-3.5 text-[#16A34A]" />
-                                    <span className="text-[#16A34A]">Copié !</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Copy className="w-3.5 h-3.5 text-slate-500" />
-                                    <span>Copier</span>
-                                  </>
-                                )}
-                              </button>
-
-                              <a
-                                href={`tel:${sub.client_phone?.replace(/\s+/g, '')}`}
-                                className="h-9 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1"
-                              >
-                                <Phone className="w-3.5 h-3.5 text-[#0D5C3A]" />
-                                <span>Appel</span>
-                              </a>
-
-                              <a
-                                href={`https://wa.me/${sub.client_phone?.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Bonjour ${sub.client_name}, nous vous contactons pour le suivi de votre abonnement TAARU SET (${sub.plan_name}).`)}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="h-9 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-[#0D5C3A] text-xs font-bold flex items-center gap-1"
-                              >
-                                <MessageSquare className="w-3.5 h-3.5" />
-                                <span>WhatsApp</span>
-                              </a>
-
-                              {canDeleteBookings && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteSubscription(sub.id)}
-                                  className="h-9 w-9 rounded-xl bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-400 flex items-center justify-center transition-colors cursor-pointer"
-                                  title="Supprimer l'abonnement"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              )}
+                            <div className="text-right">
+                              <span className="font-['Outfit'] font-black text-sm text-[#0D5C3A] tabular-nums">
+                                {formatPrice(sub.price_fcfa)}
+                              </span>
                             </div>
                           </div>
-                        </div>
 
-                        {/* Barre de progression des 4 passages */}
-                        <div className="space-y-1.5">
-                          <div className="flex items-center justify-between text-xs font-['Outfit'] font-bold">
-                            <span className="text-slate-700">
-                              Progression mensuelle : <strong className="text-[#0D5C3A]">{completedPassages} sur 4 passages effectués</strong>
-                            </span>
-                            <span className="text-slate-500 tabular-nums">{percent}% réalisé</span>
+                          {/* Ligne 2 : Contact 1-clic */}
+                          <div className="grid grid-cols-3 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleCopyPhone(sub.client_phone, sub.id)}
+                              className={`h-8 px-2 rounded-xl text-xs font-['Outfit'] font-bold flex items-center justify-center gap-1 border transition-colors ${
+                                copiedId === sub.id
+                                  ? 'bg-emerald-50 border-emerald-300 text-[#0D5C3A]'
+                                  : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
+                              }`}
+                            >
+                              {copiedId === sub.id ? (
+                                <>
+                                  <Check className="w-3.5 h-3.5 text-[#16A34A]" />
+                                  <span className="text-[10px]">Copié !</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="w-3.5 h-3.5 text-slate-500" />
+                                  <span className="text-[10px]">Copier</span>
+                                </>
+                              )}
+                            </button>
+
+                            <a
+                              href={`tel:${sub.client_phone?.replace(/\s+/g, '')}`}
+                              className="h-8 px-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-bold font-['Outfit'] flex items-center justify-center gap-1"
+                            >
+                              <Phone className="w-3.5 h-3.5 text-[#0D5C3A]" />
+                              <span className="text-[10px]">Appel</span>
+                            </a>
+
+                            <a
+                              href={`https://wa.me/${sub.client_phone?.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Bonjour ${sub.client_name}, nous vous contactons pour le suivi de votre abonnement TAARU SET (${sub.plan_name}).`)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="h-8 px-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-[#0D5C3A] text-xs font-bold font-['Outfit'] flex items-center justify-center gap-1"
+                            >
+                              <MessageSquare className="w-3.5 h-3.5" />
+                              <span className="text-[10px]">WhatsApp</span>
+                            </a>
                           </div>
-                          <div className="w-full h-3 rounded-full bg-slate-100 overflow-hidden">
-                            <div
-                              className="h-full bg-gradient-to-r from-[#0D5C3A] to-[#16A34A] rounded-full transition-all duration-500"
-                              style={{ width: `${percent}%` }}
-                            ></div>
-                          </div>
-                        </div>
 
-                        {/* GRILLE DES 4 PASSAGES INDIVIDUELS DU MOIS */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                          {[1, 2, 3, 4].map((num) => {
-                            const isDone = sub[`passage_${num}_status`] === 'effectue';
-                            const dateVal = sub[`passage_${num}_date`] || `Passage ${num}`;
-                            const noteVal = sub[`passage_${num}_notes`];
+                          {/* Ligne 3 : LES 4 PASSAGES EN PILULES TACTILES COMPACTES DIRECTES */}
+                          <div className="pt-2 border-t border-slate-100">
+                            <div className="flex items-center justify-between text-[11px] font-['Outfit'] font-bold text-slate-600 mb-2">
+                              <span>4 Passages du mois :</span>
+                              <span className="text-[#0D5C3A] tabular-nums">{completedPassages}/4 validés</span>
+                            </div>
 
-                            return (
-                              <div
-                                key={num}
-                                className={`p-4 rounded-xl border transition-all ${
-                                  isDone
-                                    ? 'bg-emerald-50/50 border-emerald-200 text-emerald-900'
-                                    : 'bg-slate-50 border-slate-200 text-slate-700'
-                                }`}
-                              >
-                                <div className="flex items-center justify-between mb-2">
-                                  <span className="font-['Outfit'] font-extrabold text-xs">
-                                    Passage {num} sur 4
-                                  </span>
-                                  {isDone ? (
-                                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#16A34A]">
-                                      <CheckCircle2 className="w-3.5 h-3.5" />
-                                      Effectué
-                                    </span>
-                                  ) : (
-                                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-600">
-                                      <Clock className="w-3.5 h-3.5" />
-                                      À faire
-                                    </span>
-                                  )}
-                                </div>
+                            <div className="grid grid-cols-4 gap-1.5">
+                              {[1, 2, 3, 4].map((num) => {
+                                const isDone = sub[`passage_${num}_status`] === 'effectue';
+                                const dateLabel = sub[`passage_${num}_date`] || `P${num}`;
 
-                                <div className="text-xs font-bold text-slate-900 mb-1">
-                                  {dateVal}
-                                </div>
-
-                                {noteVal && (
-                                  <div className="text-[11px] text-slate-500 italic mb-3">
-                                    {noteVal}
-                                  </div>
-                                )}
-
-                                <div className="pt-2 border-t border-slate-200/60 mt-2">
+                                return (
                                   <button
+                                    key={num}
                                     type="button"
                                     onClick={() => handleTogglePassageStatus(sub.id, num, sub[`passage_${num}_status`])}
-                                    className={`w-full h-8 rounded-lg text-xs font-['Outfit'] font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
+                                    className={`py-2 px-1 rounded-xl text-center text-xs font-['Outfit'] font-bold border transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5 ${
                                       isDone
-                                        ? 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-300'
-                                        : 'bg-[#0D5C3A] hover:bg-[#0A482E] text-white shadow-xs'
+                                        ? 'bg-emerald-50 border-emerald-300 text-[#0D5C3A] shadow-xs'
+                                        : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-600'
                                     }`}
+                                    title={`Passage ${num} : Cliquer pour valider/annuler`}
                                   >
-                                    {isDone ? (
-                                      <>
-                                        <X className="w-3 h-3 text-slate-500" />
-                                        <span>Annuler le passage</span>
-                                      </>
+                                    <div className="flex items-center gap-1">
+                                      {isDone ? (
+                                        <CheckCircle2 className="w-3 h-3 text-[#16A34A]" />
+                                      ) : (
+                                        <Circle className="w-3 h-3 text-slate-400" />
+                                      )}
+                                      <span className="text-[11px]">P{num}</span>
+                                    </div>
+                                    <span className="text-[9px] text-slate-500 font-medium truncate max-w-full">
+                                      {dateLabel.replace(/Passage \d/, '').trim() || dateLabel}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Ligne 4 : Traçabilité opérateur */}
+                          <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 font-medium">
+                            <span className="flex items-center gap-1">
+                              <UserCheck className="w-3 h-3 text-[#0D5C3A]" />
+                              <span>Géré par : <strong className="text-slate-700">{sub.processed_by_name || 'Équipe'}</strong></span>
+                            </span>
+                            {canDeleteBookings && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteSubscription(sub.id)}
+                                className="text-slate-400 hover:text-rose-600 font-bold"
+                              >
+                                Supprimer
+                              </button>
+                            )}
+                          </div>
+
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* --- VUE DESKTOP : TABLEAU SYNTHÉTIQUE COMPACT (>= md) --- */}
+                  <div className="hidden md:block border border-slate-200/90 rounded-2xl bg-white overflow-hidden shadow-xs">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-50 text-slate-600 text-xs font-['Outfit'] font-bold uppercase tracking-wider border-b border-slate-200">
+                        <tr>
+                          <th className="py-3.5 px-5">Abonné & Contact</th>
+                          <th className="py-3.5 px-5">Formule & Quartier</th>
+                          <th className="py-3.5 px-5">Progression</th>
+                          <th className="py-3.5 px-5 text-center">Validation Directe des 4 Passages</th>
+                          <th className="py-3.5 px-5">Géré par</th>
+                          <th className="py-3.5 px-5 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-sans">
+                        {filteredSubscriptions.map((sub) => {
+                          const completedPassages = [1, 2, 3, 4].filter(n => sub[`passage_${n}_status`] === 'effectue').length;
+
+                          return (
+                            <tr key={sub.id} className="hover:bg-emerald-50/20 transition-colors">
+                              
+                              {/* Abonné & Contact */}
+                              <td className="py-3.5 px-5">
+                                <div className="font-['Outfit'] font-bold text-slate-900 text-sm">{sub.client_name}</div>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <span className="text-slate-600 text-xs font-medium tabular-nums">{sub.client_phone}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCopyPhone(sub.client_phone, sub.id)}
+                                    className="text-slate-400 hover:text-[#0D5C3A] cursor-pointer"
+                                    title="Copier le numéro"
+                                  >
+                                    {copiedId === sub.id ? (
+                                      <span className="text-[10px] text-[#16A34A] font-bold">Copié !</span>
                                     ) : (
-                                      <>
-                                        <Check className="w-3.5 h-3.5" />
-                                        <span>Valider ce passage</span>
-                                      </>
+                                      <Copy className="w-3.5 h-3.5" />
                                     )}
                                   </button>
                                 </div>
-                              </div>
-                            );
-                          })}
-                        </div>
+                              </td>
 
-                        {/* Traçabilité opérateur pour cet abonnement */}
-                        <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between text-xs text-slate-400 font-medium">
-                          <div className="flex items-center gap-1.5">
-                            <UserCheck className="w-3.5 h-3.5 text-[#0D5C3A]" />
-                            <span>Géré par : <strong className="text-slate-700">{sub.processed_by_name || 'Équipe TAARU SET'}</strong></span>
-                          </div>
-                          {sub.processed_at && (
-                            <span className="text-[11px] text-slate-400 mt-1 sm:mt-0">
-                              Dernière mise à jour le {new Date(sub.processed_at).toLocaleDateString('fr-FR')} à {new Date(sub.processed_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                          )}
-                        </div>
+                              {/* Formule & Tarif */}
+                              <td className="py-3.5 px-5">
+                                <div className="font-bold text-slate-800 text-xs">{sub.plan_name}</div>
+                                <div className="flex items-center gap-1.5 text-[11px] text-slate-500 mt-0.5">
+                                  <span>{sub.quarter}</span>
+                                  <span>•</span>
+                                  <span className="font-['Outfit'] font-bold text-[#0D5C3A]">{formatPrice(sub.price_fcfa)}</span>
+                                </div>
+                              </td>
 
-                      </div>
-                    );
-                  })
-                )}
-              </div>
+                              {/* Progression */}
+                              <td className="py-3.5 px-5">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-16 h-2 rounded-full bg-slate-100 overflow-hidden">
+                                    <div
+                                      className="h-full bg-gradient-to-r from-[#0D5C3A] to-[#16A34A] rounded-full"
+                                      style={{ width: `${(completedPassages / 4) * 100}%` }}
+                                    ></div>
+                                  </div>
+                                  <span className="font-['Outfit'] font-bold text-xs text-slate-700 tabular-nums">
+                                    {completedPassages}/4
+                                  </span>
+                                </div>
+                              </td>
+
+                              {/* Les 4 Passages en Pilules Cliquables Directes */}
+                              <td className="py-3.5 px-5 text-center">
+                                <div className="inline-flex items-center gap-1.5">
+                                  {[1, 2, 3, 4].map((num) => {
+                                    const isDone = sub[`passage_${num}_status`] === 'effectue';
+                                    const dateLabel = sub[`passage_${num}_date`] || `P${num}`;
+
+                                    return (
+                                      <button
+                                        key={num}
+                                        type="button"
+                                        onClick={() => handleTogglePassageStatus(sub.id, num, sub[`passage_${num}_status`])}
+                                        className={`h-8 px-2.5 rounded-lg text-xs font-['Outfit'] font-bold flex items-center gap-1 border transition-all cursor-pointer ${
+                                          isDone
+                                            ? 'bg-emerald-50 hover:bg-emerald-100 border-emerald-300 text-[#0D5C3A] shadow-xs'
+                                            : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-600'
+                                        }`}
+                                        title={`Passage ${num} : Cliquer pour valider/annuler`}
+                                      >
+                                        {isDone ? (
+                                          <CheckCircle2 className="w-3.5 h-3.5 text-[#16A34A]" />
+                                        ) : (
+                                          <Circle className="w-3.5 h-3.5 text-slate-400" />
+                                        )}
+                                        <span>P{num}</span>
+                                        <span className="text-[10px] text-slate-400 font-medium">
+                                          {dateLabel.replace(/Passage \d/, '').trim()}
+                                        </span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </td>
+
+                              {/* Opérateur traçabilité */}
+                              <td className="py-3.5 px-5">
+                                <div className="text-xs font-semibold text-slate-800">
+                                  {sub.processed_by_name || 'Équipe TAARU SET'}
+                                </div>
+                                {sub.processed_at && (
+                                  <div className="text-[10px] text-slate-400">
+                                    {new Date(sub.processed_at).toLocaleDateString('fr-FR')}
+                                  </div>
+                                )}
+                              </td>
+
+                              {/* Actions rapides */}
+                              <td className="py-3.5 px-5 text-right">
+                                <div className="flex items-center justify-end gap-1.5 font-['Outfit']">
+                                  <a
+                                    href={`tel:${sub.client_phone?.replace(/\s+/g, '')}`}
+                                    className="h-8 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1"
+                                    title="Appeler"
+                                  >
+                                    <Phone className="w-3.5 h-3.5 text-[#0D5C3A]" />
+                                    <span>Appel</span>
+                                  </a>
+
+                                  <a
+                                    href={`https://wa.me/${sub.client_phone?.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Bonjour ${sub.client_name}, nous faisons le suivi de vos passages TAARU SET.`)}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="h-8 px-2.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-[#0D5C3A] border border-emerald-200 text-xs font-bold flex items-center gap-1"
+                                    title="WhatsApp"
+                                  >
+                                    <MessageSquare className="w-3.5 h-3.5" />
+                                    <span>WhatsApp</span>
+                                  </a>
+
+                                  {canDeleteBookings && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteSubscription(sub.id)}
+                                      className="h-8 w-8 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center cursor-pointer transition-colors"
+                                      title="Supprimer"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
 
             </div>
           )}
 
           {/* ========================================================================= */}
-          {/* ONGLET 3 : RÉPERTOIRE CLIENTS (CRM)                                       */}
+          {/* ONGLET 3 : RÉPERTOIRE CLIENTS (CRM) - RESPONSIVE MOBILE SANS DÉBORDEMENT  */}
           {/* ========================================================================= */}
           {activeTab === 'clients' && canViewCRM && (
             <div className="space-y-4">
@@ -2025,79 +2085,170 @@ export default function AdminPortal({ onClose }) {
                 </span>
               </div>
 
-              {/* Tableau Clients */}
-              <div className="border border-slate-200/90 rounded-2xl bg-white overflow-hidden shadow-xs">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 text-slate-600 text-xs font-['Outfit'] font-bold uppercase tracking-wider border-b border-slate-200">
+              {/* --- VUE MOBILE : CARTES TACTILES CLIENTS (< md) SANS DÉBORDEMENT --- */}
+              <div className="md:hidden space-y-3.5">
+                {clients.length === 0 ? (
+                  <div className="py-12 text-center text-slate-500 text-xs bg-white rounded-2xl border border-slate-200 p-6 shadow-xs font-medium">
+                    Aucun contact client enregistré. Les clients sont créés automatiquement lors de chaque réservation.
+                  </div>
+                ) : (
+                  clients.map((c) => (
+                    <div
+                      key={c.id}
+                      className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-sm space-y-3"
+                    >
+                      {/* En-tête : Avatar + Nom + Total Dépensé */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-emerald-100 text-[#0D5C3A] font-['Outfit'] font-black text-sm flex items-center justify-center shrink-0 shadow-xs">
+                            {c.full_name ? c.full_name.slice(0, 2).toUpperCase() : 'CL'}
+                          </div>
+                          <div>
+                            <div className="font-['Outfit'] font-bold text-slate-900 text-sm">{c.full_name}</div>
+                            <div className="flex items-center gap-1 text-[11px] text-slate-500 font-medium mt-0.5">
+                              <MapPin className="w-3.5 h-3.5 text-[#0D5C3A]" />
+                              <span>{c.preferred_quarter || 'Dakar'}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-[10px] text-slate-400 font-bold uppercase font-['Outfit']">Total Dépensé</div>
+                          <div className="font-['Outfit'] font-black text-sm text-[#0D5C3A] tabular-nums">
+                            {formatPrice(c.total_spent_fcfa)}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Métriques : Total Commandes & Téléphone */}
+                      <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/60 text-xs flex items-center justify-between">
+                        <div>
+                          <span className="text-slate-500 text-[11px]">Commandes : </span>
+                          <span className="font-['Outfit'] font-bold text-slate-900">{c.total_orders || 1} passée(s)</span>
+                        </div>
+                        <div className="font-['Outfit'] font-bold text-slate-800 text-xs tabular-nums">
+                          {c.phone}
+                        </div>
+                      </div>
+
+                      {/* Boutons d'action rapides 1-clic : Copier, Appel, WhatsApp */}
+                      <div className="grid grid-cols-3 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleCopyPhone(c.phone, c.id)}
+                          className={`h-8 px-2 rounded-xl text-xs font-['Outfit'] font-bold flex items-center justify-center gap-1 border transition-colors ${
+                            copiedId === c.id
+                              ? 'bg-emerald-50 border-emerald-300 text-[#0D5C3A]'
+                              : 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700'
+                          }`}
+                        >
+                          {copiedId === c.id ? (
+                            <>
+                              <Check className="w-3.5 h-3.5 text-[#16A34A]" />
+                              <span className="text-[10px]">Copié !</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3.5 h-3.5 text-slate-500" />
+                              <span className="text-[10px]">Copier</span>
+                            </>
+                          )}
+                        </button>
+
+                        <a
+                          href={`tel:${c.phone?.replace(/\s+/g, '')}`}
+                          className="h-8 px-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold font-['Outfit'] flex items-center justify-center gap-1"
+                        >
+                          <Phone className="w-3.5 h-3.5 text-[#0D5C3A]" />
+                          <span className="text-[10px]">Appel</span>
+                        </a>
+
+                        <a
+                          href={`https://wa.me/${c.phone?.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Bonjour ${c.full_name}, l'équipe TAARU SET vous salue.`)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="h-8 px-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-[#0D5C3A] text-xs font-bold flex items-center justify-center gap-1"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5" />
+                          <span className="text-[10px]">WhatsApp</span>
+                        </a>
+                      </div>
+
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* --- VUE DESKTOP : TABLEAU COMPLET (>= md) --- */}
+              <div className="hidden md:block border border-slate-200/90 rounded-2xl bg-white overflow-hidden shadow-xs">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 text-slate-600 text-xs font-['Outfit'] font-bold uppercase tracking-wider border-b border-slate-200">
+                    <tr>
+                      <th className="py-3.5 px-5">Nom du client</th>
+                      <th className="py-3.5 px-5">Téléphone direct</th>
+                      <th className="py-3.5 px-5">Quartier habituel</th>
+                      <th className="py-3.5 px-5">Total Commandes</th>
+                      <th className="py-3.5 px-5">Montant cumulé</th>
+                      <th className="py-3.5 px-5 text-right">Contacter</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-sans">
+                    {clients.length === 0 ? (
                       <tr>
-                        <th className="py-3.5 px-5">Nom du client</th>
-                        <th className="py-3.5 px-5">Téléphone direct</th>
-                        <th className="py-3.5 px-5">Quartier habituel</th>
-                        <th className="py-3.5 px-5">Total Commandes</th>
-                        <th className="py-3.5 px-5">Montant cumulé</th>
-                        <th className="py-3.5 px-5 text-right">Contacter</th>
+                        <td colSpan={6} className="py-12 text-center text-slate-500">
+                          Aucun contact client enregistré.
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 font-sans">
-                      {clients.length === 0 ? (
-                        <tr>
-                          <td colSpan={6} className="py-12 text-center text-slate-500">
-                            Aucun contact client enregistré. Les clients sont créés automatiquement lors de chaque réservation.
+                    ) : (
+                      clients.map((c) => (
+                        <tr key={c.id} className="hover:bg-emerald-50/30 transition-colors">
+                          <td className="py-4 px-5 font-['Outfit'] font-bold text-slate-900 text-sm">{c.full_name}</td>
+                          
+                          <td className="py-4 px-5">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-slate-700">{c.phone}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleCopyPhone(c.phone, c.id)}
+                                className="text-slate-400 hover:text-[#0D5C3A] cursor-pointer"
+                                title="Copier le numéro"
+                              >
+                                {copiedId === c.id ? (
+                                  <span className="text-[10px] text-[#16A34A] font-bold">Copié !</span>
+                                ) : (
+                                  <Copy className="w-3.5 h-3.5" />
+                                )}
+                              </button>
+                            </div>
+                          </td>
+
+                          <td className="py-4 px-5 text-slate-600">{c.preferred_quarter || 'Dakar'}</td>
+                          <td className="py-4 px-5 font-['Outfit'] font-bold text-slate-900 tabular-nums">{c.total_orders || 1}</td>
+                          <td className="py-4 px-5 font-['Outfit'] font-extrabold text-[#0D5C3A] tabular-nums">{formatPrice(c.total_spent_fcfa)}</td>
+                          <td className="py-4 px-5 text-right">
+                            <div className="flex items-center justify-end gap-2 font-['Outfit']">
+                              <a
+                                href={`tel:${c.phone?.replace(/\s+/g, '')}`}
+                                className="h-8 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5"
+                              >
+                                <Phone className="w-3.5 h-3.5 text-[#0D5C3A]" />
+                                <span>Appel</span>
+                              </a>
+                              <a
+                                href={`https://wa.me/${c.phone?.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Bonjour ${c.full_name}, l'équipe TAARU SET vous salue.`)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="h-8 px-2.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-[#0D5C3A] border border-emerald-200 text-xs font-bold flex items-center gap-1.5"
+                              >
+                                <MessageSquare className="w-3.5 h-3.5" />
+                                <span>WhatsApp</span>
+                              </a>
+                            </div>
                           </td>
                         </tr>
-                      ) : (
-                        clients.map((c) => (
-                          <tr key={c.id} className="hover:bg-emerald-50/30 transition-colors">
-                            <td className="py-4 px-5 font-['Outfit'] font-bold text-slate-900 text-sm">{c.full_name}</td>
-                            
-                            <td className="py-4 px-5">
-                              <div className="flex items-center gap-2">
-                                <span className="font-mono text-slate-700">{c.phone}</span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleCopyPhone(c.phone, c.id)}
-                                  className="text-slate-400 hover:text-[#0D5C3A] cursor-pointer"
-                                  title="Copier le numéro"
-                                >
-                                  {copiedId === c.id ? (
-                                    <span className="text-[10px] text-[#16A34A] font-bold">Copié !</span>
-                                  ) : (
-                                    <Copy className="w-3.5 h-3.5" />
-                                  )}
-                                </button>
-                              </div>
-                            </td>
-
-                            <td className="py-4 px-5 text-slate-600">{c.preferred_quarter || 'Dakar'}</td>
-                            <td className="py-4 px-5 font-['Outfit'] font-bold text-slate-900 tabular-nums">{c.total_orders || 1}</td>
-                            <td className="py-4 px-5 font-['Outfit'] font-extrabold text-[#0D5C3A] tabular-nums">{formatPrice(c.total_spent_fcfa)}</td>
-                            <td className="py-4 px-5 text-right">
-                              <div className="flex items-center justify-end gap-2 font-['Outfit']">
-                                <a
-                                  href={`tel:${c.phone?.replace(/\s+/g, '')}`}
-                                  className="h-8 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5"
-                                >
-                                  <Phone className="w-3.5 h-3.5 text-[#0D5C3A]" />
-                                  <span>Appel</span>
-                                </a>
-                                <a
-                                  href={`https://wa.me/${c.phone?.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Bonjour ${c.full_name}, l'équipe TAARU SET vous salue.`)}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="h-8 px-2.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-[#0D5C3A] border border-emerald-200 text-xs font-bold flex items-center gap-1.5"
-                                >
-                                  <MessageSquare className="w-3.5 h-3.5" />
-                                  <span>WhatsApp</span>
-                                </a>
-                              </div>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
@@ -2108,7 +2259,6 @@ export default function AdminPortal({ onClose }) {
           {activeTab === 'stats' && canViewStats && (
             <div className="space-y-6">
               
-              {/* Grille 4 cartes KPI */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="p-5 rounded-2xl bg-white border border-slate-200/90 shadow-sm">
                   <div className="text-[11px] font-['Outfit'] font-bold uppercase tracking-wider text-slate-400">Chiffre d'Affaires Réalisé</div>
@@ -2143,7 +2293,6 @@ export default function AdminPortal({ onClose }) {
                 </div>
               </div>
 
-              {/* Répartition du Chiffre d'Affaires par Formule */}
               <div className="p-6 rounded-2xl bg-white border border-slate-200/90 space-y-4 shadow-sm">
                 <div className="flex items-center justify-between">
                   <div>
@@ -2190,7 +2339,7 @@ export default function AdminPortal({ onClose }) {
           {activeTab === 'team' && canManageTeam && (
             <div className="space-y-6">
 
-              {/* Formulaire d'ajout universel de collaborateur */}
+              {/* Formulaire d'ajout collaborateur */}
               <div className="p-6 rounded-2xl bg-white border border-slate-200/90 space-y-4 shadow-sm">
                 <div>
                   <div className="flex items-center gap-2">
@@ -2278,7 +2427,6 @@ export default function AdminPortal({ onClose }) {
                     key={m.id}
                     className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-sm space-y-3"
                   >
-                    {/* Header : Avatar + Nom + Rôle */}
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-emerald-100 text-[#0D5C3A] font-['Outfit'] font-black text-sm flex items-center justify-center shrink-0 shadow-xs">
@@ -2294,7 +2442,6 @@ export default function AdminPortal({ onClose }) {
                       </span>
                     </div>
 
-                    {/* Coordonnées : Email & Téléphone */}
                     <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/60 text-xs space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-slate-500 font-medium text-[11px]">Email :</span>
@@ -2306,7 +2453,6 @@ export default function AdminPortal({ onClose }) {
                       </div>
                     </div>
 
-                    {/* Actions de communication 1-clic (Copier, Appel, WhatsApp) */}
                     {m.phone && (
                       <div className="grid grid-cols-3 gap-2">
                         <button
@@ -2351,7 +2497,6 @@ export default function AdminPortal({ onClose }) {
                       </div>
                     )}
 
-                    {/* Statut & Gestion des droits */}
                     <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-xs">
                       <span className={`inline-flex items-center gap-1 text-[11px] font-bold ${m.is_active ? 'text-emerald-700' : 'text-slate-400'}`}>
                         <span className={`w-2 h-2 rounded-full ${m.is_active ? 'bg-[#16A34A]' : 'bg-slate-300'}`}></span>
@@ -2489,7 +2634,7 @@ export default function AdminPortal({ onClose }) {
                                 type="button"
                                 onClick={() => handleDeleteTeamMember(m.id, m.email)}
                                 className="h-8 w-8 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center transition-colors cursor-pointer"
-                                title="Supprimer l'accès définitivement"
+                                title="Supprimer l'accès"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
@@ -2525,15 +2670,13 @@ export default function AdminPortal({ onClose }) {
               <button
                 type="button"
                 onClick={() => setSelectedBookingDetails(null)}
-                className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center"
+                className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Détails structurés */}
             <div className="space-y-3 text-xs">
-              
               <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-slate-500 font-medium">Service / Formule :</span>
@@ -2597,10 +2740,8 @@ export default function AdminPortal({ onClose }) {
                   </button>
                 )}
               </div>
-
             </div>
 
-            {/* Actions de communication et changement de statut */}
             <div className="pt-2 border-t border-slate-100 space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <span className="text-xs font-['Outfit'] font-bold text-slate-700">Changer le statut :</span>
@@ -2621,7 +2762,7 @@ export default function AdminPortal({ onClose }) {
                 <button
                   type="button"
                   onClick={() => handleCopyPhone(selectedBookingDetails.client_phone, 'modal')}
-                  className="h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center justify-center gap-1.5"
+                  className="h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   {copiedId === 'modal' ? (
                     <>
@@ -2671,7 +2812,7 @@ export default function AdminPortal({ onClose }) {
               <button
                 type="button"
                 onClick={() => setIsManualModalOpen(false)}
-                className="w-8 h-8 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center"
+                className="w-8 h-8 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -2792,7 +2933,7 @@ export default function AdminPortal({ onClose }) {
               <button
                 type="button"
                 onClick={() => setIsNewSubModalOpen(false)}
-                className="w-8 h-8 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center"
+                className="w-8 h-8 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -2805,7 +2946,7 @@ export default function AdminPortal({ onClose }) {
                   <input
                     type="text"
                     required
-                    placeholder="Ex: Cheikh Tidiane Sy"
+                    placeholder="Ex: Babacar Diop"
                     value={subClientName}
                     onChange={(e) => setSubClientName(e.target.value)}
                     className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:border-[#0D5C3A]"
@@ -2868,7 +3009,7 @@ export default function AdminPortal({ onClose }) {
                   <label className="block font-['Outfit'] font-bold text-slate-700 mb-1">Adresse / Villa</label>
                   <input
                     type="text"
-                    placeholder="Ex: Villa 42 Rue Aimé Césaire"
+                    placeholder="Ex: Villa 12 Rue des Almadies"
                     value={subAddress}
                     onChange={(e) => setSubAddress(e.target.value)}
                     className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900"
@@ -2876,9 +3017,8 @@ export default function AdminPortal({ onClose }) {
                 </div>
               </div>
 
-              {/* Les 4 passages du mois */}
               <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
-                <span className="font-['Outfit'] font-bold text-slate-800 block text-xs">Planification des 4 passages du mois :</span>
+                <span className="font-['Outfit'] font-bold text-slate-800 block text-xs">Dates prévues des 4 passages du mois :</span>
                 <div className="grid grid-cols-2 gap-2.5">
                   <div>
                     <label className="block text-[11px] text-slate-500 font-medium mb-0.5">Passage 1 :</label>
@@ -2927,7 +3067,7 @@ export default function AdminPortal({ onClose }) {
                 <label className="block font-['Outfit'] font-bold text-slate-700 mb-1">Notes / Instructions particulières</label>
                 <input
                   type="text"
-                  placeholder="Ex: Paiement Wave au 1er passage, clé chez le gardien"
+                  placeholder="Ex: Paiement Wave, voiture garée devant"
                   value={subNotes}
                   onChange={(e) => setSubNotes(e.target.value)}
                   className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900"
@@ -2940,7 +3080,7 @@ export default function AdminPortal({ onClose }) {
                   className="w-full h-11 rounded-xl bg-[#0D5C3A] hover:bg-[#0A482E] text-white font-['Outfit'] font-bold text-xs shadow-md shadow-[#0D5C3A]/20 transition-all cursor-pointer flex items-center justify-center gap-2"
                 >
                   <Check className="w-4 h-4" />
-                  <span>Enregistrer l'Abonnement et le Planning</span>
+                  <span>Enregistrer l'Abonnement</span>
                 </button>
               </div>
             </form>
@@ -2949,7 +3089,7 @@ export default function AdminPortal({ onClose }) {
       )}
 
       {/* ========================================================================= */}
-      {/* 6. BOTTOM NAVIGATION FIXE SUR MOBILE (< md)                                */}
+      {/* 6. BOTTOM NAVIGATION FIXE SUR MOBILE (< md) - SANS ICÔNE IA               */}
       {/* ========================================================================= */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-slate-200/90 z-40 flex items-center justify-around px-2 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] font-['Outfit']">
         
@@ -2972,7 +3112,7 @@ export default function AdminPortal({ onClose }) {
           <span className="text-[10px] font-bold">Planning</span>
         </button>
 
-        {/* Suivi Abonnements */}
+        {/* Suivi Abonnements - Icône sobre Repeat sans aucun effet IA */}
         <button
           type="button"
           onClick={() => setActiveTab('subscriptions')}
@@ -2981,7 +3121,7 @@ export default function AdminPortal({ onClose }) {
           }`}
         >
           <div className="relative">
-            <Sparkles className="w-5 h-5 text-amber-500" />
+            <Repeat className="w-5 h-5" />
             {subscriptions.length > 0 && (
               <span className="absolute -top-1 -right-2 w-3.5 h-3.5 rounded-full bg-[#0D5C3A] text-white text-[8px] font-bold flex items-center justify-center">
                 {subscriptions.length}
