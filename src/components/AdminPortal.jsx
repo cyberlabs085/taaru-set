@@ -773,10 +773,13 @@ export default function AdminPortal({ onClose }) {
   const getRoleBadge = (role) => {
     switch (role) {
       case 'super_admin':
+      case 'co_founder':
         return 'bg-purple-50 text-purple-800 border-purple-200';
       case 'admin':
+      case 'operations':
         return 'bg-blue-50 text-blue-800 border-blue-200';
       case 'sales':
+      case 'strategy':
         return 'bg-amber-50 text-amber-800 border-amber-200';
       case 'agent':
       default:
@@ -787,8 +790,11 @@ export default function AdminPortal({ onClose }) {
   const getRoleLabel = (role) => {
     switch (role) {
       case 'super_admin': return '👑 Super Admin';
-      case 'admin': return '🛡️ Responsable Opérations';
-      case 'sales': return '💼 Chargé(e) Clientèle';
+      case 'co_founder': return '👑 Co-Fondateur';
+      case 'admin':
+      case 'operations': return '🛡️ Responsable Opérations';
+      case 'sales':
+      case 'strategy': return '💼 Chargé(e) Clientèle';
       case 'agent':
       default: return '👷 Chef d\'Équipe Terrain';
     }
