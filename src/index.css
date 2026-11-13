@@ -12,9 +12,10 @@
   --color-charbon: #0F172A;
   --color-textemuted: #64748B;
 
-  --font-serif: "Nunito", "Outfit", Georgia, serif;
-  --font-sans: "Nunito", "Outfit", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", monospace;
+  --font-serif: "Plus Jakarta Sans", "Outfit", system-ui, sans-serif;
+  --font-sans: "Plus Jakarta Sans", "Nunito", "Outfit", system-ui, sans-serif;
+  --font-display: "Outfit", "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-mono: "Outfit", "Plus Jakarta Sans", system-ui, sans-serif;
 }
 
 /* Grille numérique de fond subtile & élégante */
