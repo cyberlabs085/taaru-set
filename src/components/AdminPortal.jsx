@@ -102,14 +102,22 @@ export default function AdminPortal({ onClose }) {
         if (!insErr && newAdmin) {
           setCurrentMember(newAdmin);
         }
-      } else if (allMembers) {
+      } else if (allMembers && allMembers.length > 0) {
         const found = allMembers.find(m => m.email.toLowerCase() === user.email.toLowerCase() || m.user_id === user.id);
-        if (found) {
+        if (found && found.is_active) {
           // Lier le user_id si pas encore fait
           if (!found.user_id) {
             await supabase.from('taaru_team_members').update({ user_id: user.id }).eq('id', found.id);
           }
           setCurrentMember(found);
+        } else {
+          // Refus strict : L'utilisateur n'est pas dans la liste blanche autorisée de TAARU SET
+          await supabase.auth.signOut();
+          setSession(null);
+          setCurrentMember(null);
+          setAuthError("⛔ Accès refusé : Votre adresse email n'est pas autorisée par la direction de TAARU SET.");
+          setAuthLoading(false);
+          return;
         }
       }
     } catch (e) {
@@ -187,15 +195,33 @@ export default function AdminPortal({ onClose }) {
 
     try {
       if (isSignUpMode) {
+        // VÉRIFICATION STRICTE DE LA LISTE BLANCHE (WHITELIST)
+        const cleanEmail = authEmail.trim().toLowerCase();
+        
+        // Vérifier si la table a déjà des membres
+        const { data: isWhitelisted } = await supabase.rpc('is_email_whitelisted', { 
+          p_email: cleanEmail 
+        });
+
+        const { count } = await supabase
+          .from('taaru_team_members')
+          .select('*', { count: 'exact', head: true });
+
+        // Si la table contient déjà des membres et que cet email n'est PAS autorisé : BLOCAGE IMMÉDIAT
+        if (count && count > 0 && !isWhitelisted) {
+          throw new Error(`⛔ Accès refusé : L'adresse "${cleanEmail}" n'est pas autorisée par la direction de TAARU SET. Seuls les collaborateurs invités peuvent créer un accès.`);
+        }
+
         const { error } = await supabase.auth.signUp({
-          email: authEmail,
+          email: cleanEmail,
           password: authPassword,
           options: {
             data: { full_name: fullNameInput }
           }
         });
         if (error) throw error;
-        setAuthSuccessMsg('Compte créé avec succès ! Si un email de confirmation vous a été envoyé, veuillez vérifier votre boîte de réception.');
+        setAuthSuccessMsg('Compte activé avec succès ! Vous pouvez maintenant vous connecter.');
+        setIsSignUpMode(false);
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email: authEmail,
@@ -1069,3 +1095,4 @@ export default function AdminPortal({ onClose }) {
     </div>
   );
 }
+
