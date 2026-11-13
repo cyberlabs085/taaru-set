@@ -205,10 +205,70 @@ export default function AdminPortal({ onClose }) {
         supabase.from('taaru_subscriptions').select('*').order('created_at', { ascending: false })
       ]);
 
+      let currentSubs = subsRes.data || [];
       if (bookingsRes.data) setBookings(bookingsRes.data);
       if (clientsRes.data) setClients(clientsRes.data);
       if (teamRes.data) setTeamMembers(teamRes.data);
-      if (subsRes.data) setSubscriptions(subsRes.data);
+
+      // Auto-réconciliation des réservations de formules abonnements vers taaru_subscriptions
+      if (bookingsRes.data) {
+        const missing = bookingsRes.data.filter(b => {
+          const txt = `${b.service_type || ''} ${b.service_details || ''}`.toLowerCase();
+          const isSub = txt.includes('abonnement') || txt.includes('pack mensuel') || txt.includes('4 lavages');
+          if (!isSub) return false;
+          const bP = b.client_phone ? b.client_phone.replace(/[^0-9]/g, '') : '';
+          const bN = b.client_name ? b.client_name.trim().toLowerCase() : '';
+          return !currentSubs.some(s => {
+            const sP = s.client_phone ? s.client_phone.replace(/[^0-9]/g, '') : '';
+            const sN = s.client_name ? s.client_name.trim().toLowerCase() : '';
+            return (bP && sP && bP === sP) || (bN && sN && (bN.includes(sN) || sN.includes(bN)));
+          });
+        });
+
+        if (missing.length > 0) {
+          for (const b of missing) {
+            let p1 = 'P1: À caler';
+            let p2 = 'P2: À caler';
+            let p3 = 'P3: À caler';
+            let p4 = 'P4: À caler';
+            const matchDates = b.service_details?.match(/Dates:\s*([^\]]+)/i);
+            if (matchDates && matchDates[1]) {
+              const parts = matchDates[1].split(',').map(s => s.trim());
+              if (parts[0]) p1 = parts[0];
+              if (parts[1]) p2 = parts[1];
+              if (parts[2]) p3 = parts[2];
+              if (parts[3]) p4 = parts[3];
+            }
+
+            const { data: newSub } = await supabase.from('taaru_subscriptions').insert({
+              client_name: b.client_name || 'Client Dakar',
+              client_phone: b.client_phone || 'Non précisé',
+              service_type: b.service_type || 'Abonnement',
+              plan_name: b.service_details ? b.service_details.split(' - ')[0] : 'Pack Mensuel Sérénité',
+              price_fcfa: b.estimated_price_fcfa || 30000,
+              quarter: b.quarter || 'Dakar',
+              frequency: '4 passages par mois',
+              preferred_day: 'À convenir',
+              passage_1_date: p1,
+              passage_1_status: 'a_venir',
+              passage_2_date: p2,
+              passage_2_status: 'a_venir',
+              passage_3_date: p3,
+              passage_3_status: 'a_venir',
+              passage_4_date: p4,
+              passage_4_status: 'a_venir',
+              status: 'actif',
+              notes: b.service_details || 'Créé depuis la réservation client'
+            }).select().single();
+
+            if (newSub) {
+              currentSubs = [newSub, ...currentSubs];
+            }
+          }
+        }
+      }
+
+      setSubscriptions(currentSubs);
     } catch (err) {
       console.error(err);
     } finally {
@@ -764,6 +824,40 @@ export default function AdminPortal({ onClose }) {
       return matchesFilter && matchesSearch;
     });
   }, [subscriptions, subFilter, searchQuery]);
+
+  // Détection & liaison automatique des commandes sous formule abonnement
+  const isAbonnementBooking = (booking) => {
+    if (!booking) return false;
+    const text = `${booking.service_type || ''} ${booking.service_details || ''} ${booking.notes || ''}`.toLowerCase();
+    return (
+      text.includes('abonnement') ||
+      text.includes('pack mensuel') ||
+      text.includes('4 lavages') ||
+      text.includes('4 passages') ||
+      text.includes('passages')
+    );
+  };
+
+  const findSubscriptionForBooking = (booking) => {
+    if (!booking || !subscriptions.length) return null;
+    const cleanPhone = booking.client_phone ? booking.client_phone.replace(/[^0-9]/g, '') : '';
+    const cleanName = booking.client_name ? booking.client_name.trim().toLowerCase() : '';
+
+    return subscriptions.find(s => {
+      const sPhone = s.client_phone ? s.client_phone.replace(/[^0-9]/g, '') : '';
+      const sName = s.client_name ? s.client_name.trim().toLowerCase() : '';
+      return (cleanPhone && sPhone && cleanPhone === sPhone) || (cleanName && sName && (cleanName.includes(sName) || sName.includes(cleanName)));
+    });
+  };
+
+  const handleGoToSubscription = (clientNameOrPhone) => {
+    setActiveTab('subscriptions');
+    setSearchQuery(clientNameOrPhone ? clientNameOrPhone.trim() : '');
+    setSubFilter('all');
+    if (selectedBookingDetails) {
+      setSelectedBookingDetails(null);
+    }
+  };
 
   // Badges statuts de réservations
   const getStatusBadge = (status) => {
@@ -1495,6 +1589,45 @@ export default function AdminPortal({ onClose }) {
                           </div>
                         </div>
 
+                        {/* MODULE SUIVI ABONNEMENT EN DIRECT SUR PLANNING (MOBILE) */}
+                        {isAbonnementBooking(b) && (
+                          <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50/50 to-white border border-emerald-300 text-xs space-y-2.5">
+                            <div className="flex items-center justify-between">
+                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-[#0D5C3A] text-white font-['Outfit'] font-black text-[10px] uppercase tracking-wide shadow-xs">
+                                <Repeat className="w-3 h-3 text-emerald-300" />
+                                <span>Formule Abonnement (4 Passages)</span>
+                              </span>
+                              {(() => {
+                                const sub = findSubscriptionForBooking(b);
+                                if (sub) {
+                                  const done = [1, 2, 3, 4].filter(n => sub[`passage_${n}_status`] === 'effectue').length;
+                                  return (
+                                    <span className="font-['Outfit'] font-bold text-[#0D5C3A] text-xs">
+                                      {done}/4 passés
+                                    </span>
+                                  );
+                                }
+                                return (
+                                  <span className="text-[10px] text-emerald-700 font-bold bg-emerald-100 px-2 py-0.5 rounded-md">
+                                    Abonné
+                                  </span>
+                                );
+                              })()}
+                            </div>
+
+                            {/* Bouton direct d'accès au Suivi des Abonnements */}
+                            <button
+                              type="button"
+                              onClick={() => handleGoToSubscription(b.client_name)}
+                              className="w-full h-8 px-3 rounded-xl bg-white hover:bg-[#0D5C3A] hover:text-white border border-emerald-300 text-[#0D5C3A] font-['Outfit'] font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer transition-all"
+                            >
+                              <Repeat className="w-3.5 h-3.5" />
+                              <span>Suivi des 4 Passages Abonnement</span>
+                              <ChevronRight className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
+
                         {/* BADGE DE TRAÇABILITÉ AUDITÉ */}
                         <div className="flex items-center justify-between text-xs px-2.5 py-1.5 rounded-xl bg-[#F8FAF7] border border-slate-200/80">
                           <div className="flex items-center gap-1.5">
@@ -1646,6 +1779,26 @@ export default function AdminPortal({ onClose }) {
                               <td className="py-4 px-5 max-w-xs">
                                 <div className="font-bold text-slate-800 text-xs">{b.service_type}</div>
                                 <div className="text-[11px] text-slate-500 truncate mt-0.5">{b.service_details}</div>
+                                {isAbonnementBooking(b) && (
+                                  <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-[#0D5C3A] border border-emerald-300 text-[10px] font-['Outfit'] font-extrabold">
+                                      <Repeat className="w-2.5 h-2.5 text-[#16A34A]" />
+                                      <span>Abonnement 4 Passages</span>
+                                    </span>
+                                    {(() => {
+                                      const sub = findSubscriptionForBooking(b);
+                                      if (sub) {
+                                        const done = [1, 2, 3, 4].filter(n => sub[`passage_${n}_status`] === 'effectue').length;
+                                        return (
+                                          <span className="text-[10px] font-bold text-[#0D5C3A] bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded">
+                                            {done}/4 validés
+                                          </span>
+                                        );
+                                      }
+                                      return null;
+                                    })()}
+                                  </div>
+                                )}
                               </td>
 
                               <td className="py-4 px-5">
@@ -1704,6 +1857,18 @@ export default function AdminPortal({ onClose }) {
 
                               <td className="py-4 px-5 text-right">
                                 <div className="flex items-center justify-end gap-1.5 font-['Outfit']">
+                                  {isAbonnementBooking(b) && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleGoToSubscription(b.client_name)}
+                                      className="h-8 px-2.5 rounded-lg bg-emerald-50 hover:bg-[#0D5C3A] hover:text-white text-[#0D5C3A] border border-emerald-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs"
+                                      title="Suivi de l'abonnement"
+                                    >
+                                      <Repeat className="w-3.5 h-3.5" />
+                                      <span>Suivi Abonnement</span>
+                                    </button>
+                                  )}
+
                                   <button
                                     type="button"
                                     onClick={() => setSelectedBookingDetails(b)}
@@ -2740,6 +2905,81 @@ export default function AdminPortal({ onClose }) {
                   </span>
                 </div>
               </div>
+
+              {/* ENCADRÉ SPÉCIFIQUE SI C'EST UN ABONNEMENT */}
+              {isAbonnementBooking(selectedBookingDetails) && (() => {
+                const sub = findSubscriptionForBooking(selectedBookingDetails);
+                const done = sub ? [1, 2, 3, 4].filter(n => sub[`passage_${n}_status`] === 'effectue').length : 0;
+                return (
+                  <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50 via-teal-50/40 to-white border border-emerald-300 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-xl bg-[#0D5C3A] text-white flex items-center justify-center shadow-xs">
+                          <Repeat className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <div className="font-['Outfit'] font-black text-slate-900 text-xs">Formule Abonnement Mensuel</div>
+                          <div className="text-[10px] text-slate-500 font-medium">Contrat récurrent 4 passages / mois</div>
+                        </div>
+                      </div>
+                      {sub && (
+                        <span className="font-['Outfit'] font-black text-xs text-[#0D5C3A] bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200">
+                          {done}/4 passés
+                        </span>
+                      )}
+                    </div>
+
+                    {sub ? (
+                      <div className="space-y-2.5">
+                        <div className="grid grid-cols-4 gap-1.5">
+                          {[1, 2, 3, 4].map(num => {
+                            const isDone = sub[`passage_${num}_status`] === 'effectue';
+                            const label = sub[`passage_${num}_date`] || `P${num}`;
+                            return (
+                              <button
+                                key={num}
+                                type="button"
+                                onClick={() => handleTogglePassageStatus(sub.id, num, sub[`passage_${num}_status`])}
+                                className={`p-2 rounded-xl text-center text-xs font-['Outfit'] font-bold border transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer ${
+                                  isDone
+                                    ? 'bg-emerald-100 text-[#0D5C3A] border-emerald-300 shadow-xs'
+                                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                                }`}
+                              >
+                                <div className="flex items-center gap-1">
+                                  {isDone ? <CheckCircle2 className="w-3 h-3 text-[#16A34A]" /> : <Circle className="w-3 h-3 text-slate-400" />}
+                                  <span>P{num}</span>
+                                </div>
+                                <span className="text-[9px] text-slate-500 truncate max-w-full font-medium">
+                                  {label.replace(/Passage \d/, '').trim()}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleGoToSubscription(selectedBookingDetails.client_name)}
+                          className="w-full h-8 px-3 rounded-xl bg-white hover:bg-[#0D5C3A] hover:text-white border border-emerald-300 text-[#0D5C3A] font-['Outfit'] font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-xs"
+                        >
+                          <Repeat className="w-3.5 h-3.5" />
+                          <span>Ouvrir la fiche dans l'onglet Abonnements ➔</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleGoToSubscription(selectedBookingDetails.client_name)}
+                        className="w-full h-8 rounded-xl bg-[#0D5C3A] hover:bg-[#0A482E] text-white font-['Outfit'] font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                      >
+                        <Repeat className="w-3.5 h-3.5" />
+                        <span>Créer la fiche de suivi dans Abonnements</span>
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
 
               <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
                 <div className="flex items-center justify-between">

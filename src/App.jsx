@@ -943,6 +943,63 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
       }).then(({ error }) => {
         if (error) console.error('Erreur insertion Supabase:', error);
       });
+
+      // Si la commande est une formule abonnement, insertion automatique dans taaru_subscriptions
+      if (isSub) {
+        let p1Date = 'Passage 1';
+        let p2Date = 'Passage 2';
+        let p3Date = 'Passage 3';
+        let p4Date = 'Passage 4';
+
+        if (customPassageDates && customPassageDates.some(Boolean)) {
+          if (customPassageDates[0]) {
+            const parts = customPassageDates[0].split('-');
+            p1Date = `P1: ${parts[2]}/${parts[1]}`;
+          }
+          if (customPassageDates[1]) {
+            const parts = customPassageDates[1].split('-');
+            p2Date = `P2: ${parts[2]}/${parts[1]}`;
+          }
+          if (customPassageDates[2]) {
+            const parts = customPassageDates[2].split('-');
+            p3Date = `P3: ${parts[2]}/${parts[1]}`;
+          }
+          if (customPassageDates[3]) {
+            const parts = customPassageDates[3].split('-');
+            p4Date = `P4: ${parts[2]}/${parts[1]}`;
+          }
+        } else if (recurringDay) {
+          const cleanDay = recurringDay.replace(' (4 passages)', '');
+          p1Date = `P1: ${cleanDay}`;
+          p2Date = `P2: ${cleanDay} (+7j)`;
+          p3Date = `P3: ${cleanDay} (+14j)`;
+          p4Date = `P4: ${cleanDay} (+21j)`;
+        }
+
+        supabase.from('taaru_subscriptions').insert({
+          client_name: clientName || 'Client Dakar',
+          client_phone: clientPhone || 'Non précisé',
+          service_type: currentService.title,
+          plan_name: selectedPack.name,
+          price_fcfa: selectedPack.price || 30000,
+          quarter: quarterFinal,
+          address: clientAddress || '',
+          frequency: recurringDay || '4 passages par mois',
+          preferred_day: recurringDay || 'Tous les Samedis',
+          passage_1_date: p1Date,
+          passage_1_status: 'a_venir',
+          passage_2_date: p2Date,
+          passage_2_status: 'a_venir',
+          passage_3_date: p3Date,
+          passage_3_status: 'a_venir',
+          passage_4_date: p4Date,
+          passage_4_status: 'a_venir',
+          status: 'actif',
+          notes: `Créneau : ${selectedTime}${subscriptionNotes ? ` • ${subscriptionNotes}` : ''}`
+        }).then(({ error }) => {
+          if (error) console.error('Erreur insertion Supabase Abonnement:', error);
+        });
+      }
     }
 
     // Sauvegarde locale de secours
