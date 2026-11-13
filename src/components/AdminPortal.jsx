@@ -10,7 +10,7 @@ import {
   Menu, ChevronRight, Building2, Car, Briefcase, 
   UserCheck, UserX, ChevronDown, CheckCircle, ShieldCheck, 
   Eye, EyeOff, Copy, FileText, Info, Repeat, CalendarCheck,
-  CheckCircle as CheckIcon, Circle
+  CheckCircle as CheckIcon, Circle, UserCog
 } from 'lucide-react';
 
 export default function AdminPortal({ onClose }) {
@@ -101,7 +101,7 @@ export default function AdminPortal({ onClose }) {
   const canViewCRM = isSuperAdmin || userRole === 'admin' || userRole === 'sales';
   const canDeleteBookings = isSuperAdmin || userRole === 'admin';
 
-  // Sécurité navigation : si un utilisateur n'a pas les droits pour l'onglet courant, le rediriger vers 'bookings'
+  // Sécurité navigation
   useEffect(() => {
     if (activeTab === 'team' && !canManageTeam) {
       setActiveTab('bookings');
@@ -151,7 +151,7 @@ export default function AdminPortal({ onClose }) {
     }
   }, [lockoutTimer]);
 
-  // 2. VÉRIFICATION STRICTE ZERO-TRUST EXÉCUTÉE EN BASE DE DONNÉES (POSTGRESQL SECURITY DEFINER)
+  // 2. VÉRIFICATION STRICTE ZERO-TRUST
   const checkAndLoadTeamMember = async (user) => {
     try {
       const { data: memberList, error: rpcErr } = await supabase.rpc('get_current_team_member');
@@ -193,7 +193,7 @@ export default function AdminPortal({ onClose }) {
     }
   };
 
-  // 3. Chargement des données (protégé par RLS en base)
+  // 3. Chargement des données réelles
   const loadAllData = async () => {
     if (!supabase) return;
     setLoadingData(true);
@@ -233,7 +233,7 @@ export default function AdminPortal({ onClose }) {
     };
   }, [session]);
 
-  // GESTIONNAIRE DE CONNEXION SÉCURISÉE
+  // Connexion sécurisée
   const handleAuthSubmit = async (e) => {
     e.preventDefault();
     setAuthError('');
@@ -306,28 +306,41 @@ export default function AdminPortal({ onClose }) {
     setCurrentMember(null);
   };
 
-  // Modification statut réservation avec MISE À JOUR OPTIMISTE IMMÉDIATE (0ms) + Traçabilité
+  // ---------------------------------------------------------------------------
+  // LOGIQUE AUDITÉE & CORRIGÉE : STATUT & PRISE EN CHARGE
+  // ---------------------------------------------------------------------------
+
+  // 1. Modification du statut :
+  // - Si la commande a déjà été prise en charge par quelqu'un, ON PRÉSERVE l'opérateur d'origine !
+  // - Si elle n'a jamais été prise en charge et qu'on la valide, on l'attribue à l'opérateur courant.
   const handleUpdateStatus = async (bookingId, newStatus) => {
     const now = new Date().toISOString();
     const updaterName = currentMember?.full_name || session?.user?.email?.split('@')[0] || 'Opérateur TAARU SET';
     const updaterEmail = session?.user?.email || '';
 
-    // Mise à jour optimiste instantanée de l'interface
+    const target = bookings.find(b => b.id === bookingId);
+    const operatorName = target?.processed_by_name || (newStatus !== 'en_attente' ? updaterName : null);
+    const operatorEmail = target?.processed_by_email || (newStatus !== 'en_attente' ? updaterEmail : null);
+    const operatorAt = target?.processed_at || (newStatus !== 'en_attente' ? now : null);
+
+    // Mise à jour optimiste immédiate (0ms)
     setBookings(prev => prev.map(b => b.id === bookingId ? { 
       ...b, 
       status: newStatus,
-      processed_by_name: updaterName,
-      processed_by_email: updaterEmail,
-      processed_at: now
+      updated_at: now,
+      processed_by_name: operatorName,
+      processed_by_email: operatorEmail,
+      processed_at: operatorAt
     } : b));
 
     if (selectedBookingDetails?.id === bookingId) {
       setSelectedBookingDetails(prev => ({
         ...prev,
         status: newStatus,
-        processed_by_name: updaterName,
-        processed_by_email: updaterEmail,
-        processed_at: now
+        updated_at: now,
+        processed_by_name: operatorName,
+        processed_by_email: operatorEmail,
+        processed_at: operatorAt
       }));
     }
 
@@ -338,9 +351,9 @@ export default function AdminPortal({ onClose }) {
         .update({ 
           status: newStatus, 
           updated_at: now,
-          processed_by_name: updaterName,
-          processed_by_email: updaterEmail,
-          processed_at: now
+          processed_by_name: operatorName,
+          processed_by_email: operatorEmail,
+          processed_at: operatorAt
         })
         .eq('id', bookingId);
     } catch (e) {
@@ -348,19 +361,29 @@ export default function AdminPortal({ onClose }) {
     }
   };
 
-  // Prendre en charge une commande en 1 clic (Optimiste 0ms)
+  // 2. Prendre en charge :
+  // STRICTEMENT RÉSERVÉ aux commandes en statut 'en_attente' sans opérateur.
+  // Fait passer instantanément le statut à 'confirmee', estampille l'opérateur et fait disparaître le bouton.
   const handleTakeOverBooking = async (bookingId) => {
+    const target = bookings.find(b => b.id === bookingId);
+    if (!target) return;
+
+    // Règle logique stricte : si la commande n'est plus en attente OU si déjà prise en charge
+    if (target.status !== 'en_attente' || target.processed_by_name) {
+      alert("Cette commande a déjà été acceptée ou prise en charge par un collaborateur.");
+      return;
+    }
+
     const now = new Date().toISOString();
     const updaterName = currentMember?.full_name || session?.user?.email?.split('@')[0] || 'Opérateur TAARU SET';
     const updaterEmail = session?.user?.email || '';
+    const nextStatus = 'confirmee'; // Dès qu'on prend en charge, la commande est acceptée et confirmée
 
-    const target = bookings.find(b => b.id === bookingId);
-    const nextStatus = target?.status === 'en_attente' ? 'confirmee' : (target?.status || 'confirmee');
-
-    // Mise à jour optimiste
+    // Mise à jour optimiste (0ms)
     setBookings(prev => prev.map(b => b.id === bookingId ? {
       ...b,
       status: nextStatus,
+      updated_at: now,
       processed_by_name: updaterName,
       processed_by_email: updaterEmail,
       processed_at: now
@@ -370,6 +393,7 @@ export default function AdminPortal({ onClose }) {
       setSelectedBookingDetails(prev => ({
         ...prev,
         status: nextStatus,
+        updated_at: now,
         processed_by_name: updaterName,
         processed_by_email: updaterEmail,
         processed_at: now
@@ -393,7 +417,40 @@ export default function AdminPortal({ onClose }) {
     }
   };
 
-  // Suppression réservation
+  // 3. Réassignation d'opérateur (Super Admin / Admin uniquement)
+  const handleReassignBooking = async (bookingId, newOperatorName, newOperatorEmail) => {
+    if (!canViewStats) return;
+    const now = new Date().toISOString();
+
+    setBookings(prev => prev.map(b => b.id === bookingId ? {
+      ...b,
+      processed_by_name: newOperatorName,
+      processed_by_email: newOperatorEmail,
+      processed_at: now
+    } : b));
+
+    if (selectedBookingDetails?.id === bookingId) {
+      setSelectedBookingDetails(prev => ({
+        ...prev,
+        processed_by_name: newOperatorName,
+        processed_by_email: newOperatorEmail,
+        processed_at: now
+      }));
+    }
+
+    if (!supabase) return;
+    try {
+      await supabase.from('taaru_bookings').update({
+        processed_by_name: newOperatorName,
+        processed_by_email: newOperatorEmail,
+        processed_at: now
+      }).eq('id', bookingId);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // 4. Suppression réservation
   const handleDeleteBooking = async (bookingId) => {
     if (!canDeleteBookings) {
       alert("Seuls les Super Administrateurs et Responsables d'Opérations peuvent supprimer une réservation.");
@@ -401,7 +458,6 @@ export default function AdminPortal({ onClose }) {
     }
     if (!confirm('Confirmer la suppression définitive de cette réservation du registre officiel TAARU SET ?')) return;
     
-    // Mise à jour optimiste
     setBookings(prev => prev.filter(b => b.id !== bookingId));
     if (selectedBookingDetails?.id === bookingId) setSelectedBookingDetails(null);
 
@@ -413,7 +469,7 @@ export default function AdminPortal({ onClose }) {
     }
   };
 
-  // Ajout réservation manuelle avec traçabilité
+  // Ajout réservation manuelle
   const handleCreateManualBooking = async (e) => {
     e.preventDefault();
     if (!supabase) return;
@@ -516,7 +572,7 @@ export default function AdminPortal({ onClose }) {
       return targetSub?.[`passage_${n}_status`] === 'effectue';
     });
 
-    // Mise à jour locale optimiste immédiate (0ms de latence pour l'utilisateur)
+    // Mise à jour locale optimiste immédiate (0ms)
     setSubscriptions(prev => prev.map(s => s.id === subId ? {
       ...s,
       [fieldKey]: newPassageStatus,
@@ -541,7 +597,6 @@ export default function AdminPortal({ onClose }) {
         .eq('id', subId);
     } catch (e) {
       console.error(e);
-      // En cas d'erreur réseau, recharge les données
       loadAllData();
     }
   };
@@ -554,7 +609,6 @@ export default function AdminPortal({ onClose }) {
     }
     if (!confirm('Confirmer la suppression de cet abonnement ?')) return;
 
-    // Mise à jour optimiste
     setSubscriptions(prev => prev.filter(s => s.id !== subId));
 
     if (!supabase) return;
@@ -565,7 +619,7 @@ export default function AdminPortal({ onClose }) {
     }
   };
 
-  // Ajout universel d'un collaborateur (Super-Admin uniquement)
+  // Ajout universel d'un collaborateur
   const handleAddTeamMember = async (e) => {
     e.preventDefault();
     if (!canManageTeam) {
@@ -609,7 +663,7 @@ export default function AdminPortal({ onClose }) {
     }
   };
 
-  // Désactiver ou réactiver un collaborateur (Super-Admin)
+  // Désactiver ou réactiver un collaborateur
   const handleToggleMemberActive = async (memberId, currentStatus, memberEmail) => {
     if (!canManageTeam) return;
     if (memberEmail === 'ssow2006@gmail.com') {
@@ -617,7 +671,6 @@ export default function AdminPortal({ onClose }) {
       return;
     }
 
-    // Mise à jour optimiste
     setTeamMembers(prev => prev.map(m => m.id === memberId ? { ...m, is_active: !currentStatus } : m));
 
     if (!supabase) return;
@@ -631,7 +684,7 @@ export default function AdminPortal({ onClose }) {
     }
   };
 
-  // Suppression d'un collaborateur (Super-Admin)
+  // Suppression d'un collaborateur
   const handleDeleteTeamMember = async (memberId, memberEmail) => {
     if (!canManageTeam) return;
     if (memberEmail === 'ssow2006@gmail.com') {
@@ -640,7 +693,6 @@ export default function AdminPortal({ onClose }) {
     }
     if (!confirm(`Supprimer définitivement l'accréditation du collaborateur "${memberEmail}" ? Il ne pourra plus accéder au portail.`)) return;
 
-    // Mise à jour optimiste
     setTeamMembers(prev => prev.filter(m => m.id !== memberId));
 
     if (!supabase) return;
@@ -730,7 +782,7 @@ export default function AdminPortal({ onClose }) {
     }
   };
 
-  // Calcul des statistiques réelles (sans aucune fausse donnée)
+  // Calcul des statistiques réelles (sans fausses données)
   const stats = useMemo(() => {
     const totalBookings = bookings.length;
     const completedBookings = bookings.filter(b => b.status === 'terminee');
@@ -764,7 +816,7 @@ export default function AdminPortal({ onClose }) {
     };
   }, [bookings, subscriptions]);
 
-  // Export CSV officiel des interventions
+  // Export CSV officiel
   const exportBookingsToCSV = () => {
     if (bookings.length === 0) return;
     const headers = ['ID', 'Date_Creation', 'Client', 'Telephone', 'Service', 'Details', 'Quartier', 'Date_Intervention', 'Heure', 'Montant_FCFA', 'Statut', 'Traite_Par', 'Date_Traitement'];
@@ -1000,7 +1052,6 @@ export default function AdminPortal({ onClose }) {
         <aside className="hidden md:flex w-64 bg-white border-r border-slate-200/90 flex-col justify-between p-4 shrink-0 shadow-xs font-['Outfit']">
           <div className="space-y-6">
             
-            {/* Profil badge */}
             <div className="p-3.5 rounded-2xl bg-[#F8FAF7] border border-slate-200/80 space-y-1.5">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Accréditation</span>
@@ -1018,7 +1069,7 @@ export default function AdminPortal({ onClose }) {
               </div>
             </div>
 
-            {/* Menu standard sans éléments IA slop */}
+            {/* Navigation standardisée (sans icônes IA) */}
             <nav className="space-y-1.5">
               
               {/* 1. Planning Réservations */}
@@ -1040,7 +1091,7 @@ export default function AdminPortal({ onClose }) {
                 </span>
               </button>
 
-              {/* 2. Suivi Abonnements (Icône sobre Repeat) */}
+              {/* 2. Suivi Abonnements (Icône Repeat sobre) */}
               <button
                 type="button"
                 onClick={() => setActiveTab('subscriptions')}
@@ -1289,7 +1340,7 @@ export default function AdminPortal({ onClose }) {
         {/* --- ZONE CENTRALE DE TRAVAIL --- */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 pb-24 md:pb-8">
 
-          {/* En-tête de section dynamique */}
+          {/* En-tête de section */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 text-xs text-slate-400 font-['Outfit'] font-bold uppercase tracking-wider">
@@ -1402,137 +1453,146 @@ export default function AdminPortal({ onClose }) {
                 </div>
               </div>
 
-              {/* --- VUE MOBILE : CARTES TACTILES (< md) --- */}
+              {/* --- VUE MOBILE : CARTES TACTILES (< md) SANS DÉBORDEMENT --- */}
               <div className="md:hidden space-y-3.5">
                 {filteredBookings.length === 0 ? (
                   <div className="py-12 text-center text-slate-500 text-xs bg-white rounded-2xl border border-slate-200 p-6 shadow-xs font-medium">
                     Aucune réservation ne correspond à votre filtre.
                   </div>
                 ) : (
-                  filteredBookings.map((b) => (
-                    <div
-                      key={b.id}
-                      className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-sm space-y-3"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <h4 className="font-['Outfit'] font-bold text-base text-slate-900">{b.client_name}</h4>
-                          <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
-                            <MapPin className="w-3.5 h-3.5 text-[#0D5C3A] shrink-0" />
-                            <span className="font-medium">{b.quarter || 'Dakar'}</span>
+                  filteredBookings.map((b) => {
+                    // RÈGLE LOGIQUE STRICTE : La prise en charge n'est possible QUE SI la commande est en attente ET non assignée
+                    const canTakeOver = b.status === 'en_attente' && !b.processed_by_name;
+
+                    return (
+                      <div
+                        key={b.id}
+                        className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-sm space-y-3"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <h4 className="font-['Outfit'] font-bold text-base text-slate-900">{b.client_name}</h4>
+                            <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
+                              <MapPin className="w-3.5 h-3.5 text-[#0D5C3A] shrink-0" />
+                              <span className="font-medium">{b.quarter || 'Dakar'}</span>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <span className="font-['Outfit'] font-extrabold text-base text-[#0D5C3A] tabular-nums">
+                              {formatPrice(b.estimated_price_fcfa)}
+                            </span>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <span className="font-['Outfit'] font-extrabold text-base text-[#0D5C3A] tabular-nums">
-                            {formatPrice(b.estimated_price_fcfa)}
-                          </span>
-                        </div>
-                      </div>
 
-                      <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/60 text-xs space-y-1">
-                        <div className="font-bold text-slate-800">{b.service_type}</div>
-                        {b.service_details && b.service_details !== b.service_type && (
-                          <div className="text-slate-600 text-[11px] leading-relaxed line-clamp-2">{b.service_details}</div>
-                        )}
-                        <div className="flex items-center gap-1.5 text-[11px] text-slate-500 pt-1 font-medium">
-                          <Calendar className="w-3.5 h-3.5 text-[#0D5C3A]" />
-                          <span>{b.intervention_date || 'Date à définir'} {b.intervention_time ? `• ${b.intervention_time}` : ''}</span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between text-xs px-2.5 py-1.5 rounded-xl bg-[#F8FAF7] border border-slate-200/80">
-                        <div className="flex items-center gap-1.5">
-                          <UserCheck className="w-3.5 h-3.5 text-[#0D5C3A]" />
-                          <span className="text-slate-500 text-[11px]">Traité par :</span>
-                          <span className="font-bold text-slate-800 text-[11px]">
-                            {b.processed_by_name || 'En attente de prise en charge'}
-                          </span>
-                        </div>
-                        {b.processed_at && (
-                          <span className="text-[10px] text-slate-400 font-medium">
-                            {new Date(b.processed_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="grid grid-cols-4 gap-2 pt-1 border-t border-slate-100">
-                        <button
-                          type="button"
-                          onClick={() => handleCopyPhone(b.client_phone, b.id)}
-                          className={`h-9 px-2 rounded-xl text-xs font-['Outfit'] font-bold flex items-center justify-center gap-1 border transition-colors ${
-                            copiedId === b.id
-                              ? 'bg-emerald-50 border-emerald-300 text-[#0D5C3A]'
-                              : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
-                          }`}
-                        >
-                          {copiedId === b.id ? (
-                            <>
-                              <Check className="w-3.5 h-3.5 text-[#16A34A]" />
-                              <span className="text-[11px]">Copié !</span>
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="w-3.5 h-3.5 text-slate-500" />
-                              <span className="text-[11px]">Copier</span>
-                            </>
+                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/60 text-xs space-y-1">
+                          <div className="font-bold text-slate-800">{b.service_type}</div>
+                          {b.service_details && b.service_details !== b.service_type && (
+                            <div className="text-slate-600 text-[11px] leading-relaxed line-clamp-2">{b.service_details}</div>
                           )}
-                        </button>
+                          <div className="flex items-center gap-1.5 text-[11px] text-slate-500 pt-1 font-medium">
+                            <Calendar className="w-3.5 h-3.5 text-[#0D5C3A]" />
+                            <span>{b.intervention_date || 'Date à définir'} {b.intervention_time ? `• ${b.intervention_time}` : ''}</span>
+                          </div>
+                        </div>
 
-                        <a
-                          href={`tel:${b.client_phone?.replace(/\s+/g, '')}`}
-                          className="h-9 px-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-bold font-['Outfit'] flex items-center justify-center gap-1"
-                        >
-                          <Phone className="w-3.5 h-3.5 text-[#0D5C3A]" />
-                          <span className="text-[11px]">Appel</span>
-                        </a>
+                        {/* BADGE DE TRAÇABILITÉ AUDITÉ */}
+                        <div className="flex items-center justify-between text-xs px-2.5 py-1.5 rounded-xl bg-[#F8FAF7] border border-slate-200/80">
+                          <div className="flex items-center gap-1.5">
+                            <UserCheck className="w-3.5 h-3.5 text-[#0D5C3A]" />
+                            <span className="text-slate-500 text-[11px]">Traité par :</span>
+                            <span className={`font-bold text-[11px] ${b.processed_by_name ? 'text-slate-900' : 'text-amber-700'}`}>
+                              {b.processed_by_name || (b.status === 'en_attente' ? 'En attente d\'attribution' : 'Acceptée')}
+                            </span>
+                          </div>
+                          {b.processed_at && (
+                            <span className="text-[10px] text-slate-400 font-medium">
+                              {new Date(b.processed_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
+                            </span>
+                          )}
+                        </div>
 
-                        <a
-                          href={`https://wa.me/${b.client_phone?.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Bonjour ${b.client_name}, nous confirmons votre intervention TAARU SET pour ${b.service_type} à ${b.quarter}.`)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="h-9 px-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-[#0D5C3A] text-xs font-bold font-['Outfit'] flex items-center justify-center gap-1"
-                        >
-                          <MessageSquare className="w-3.5 h-3.5" />
-                          <span className="text-[11px]">WhatsApp</span>
-                        </a>
-
-                        <button
-                          type="button"
-                          onClick={() => setSelectedBookingDetails(b)}
-                          className="h-9 px-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold font-['Outfit'] flex items-center justify-center gap-1 cursor-pointer"
-                        >
-                          <FileText className="w-3.5 h-3.5 text-slate-600" />
-                          <span className="text-[11px]">Détails</span>
-                        </button>
-                      </div>
-
-                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100">
-                        <select
-                          value={b.status}
-                          onChange={(e) => handleUpdateStatus(b.id, e.target.value)}
-                          className={`text-xs font-['Outfit'] font-bold py-1.5 px-3 rounded-xl border focus:outline-none cursor-pointer ${getStatusBadge(b.status)}`}
-                        >
-                          <option value="en_attente">En attente</option>
-                          <option value="confirmee">Confirmée</option>
-                          <option value="en_cours">En cours</option>
-                          <option value="terminee">Terminée</option>
-                          <option value="annulee">Annulée</option>
-                        </select>
-
-                        {!b.processed_by_name && (
+                        {/* Boutons d'action rapides */}
+                        <div className="grid grid-cols-4 gap-2 pt-1 border-t border-slate-100">
                           <button
                             type="button"
-                            onClick={() => handleTakeOverBooking(b.id)}
-                            className="h-8 px-3 rounded-xl bg-[#0D5C3A] hover:bg-[#0A482E] text-white text-xs font-['Outfit'] font-bold flex items-center gap-1 shadow-xs cursor-pointer"
+                            onClick={() => handleCopyPhone(b.client_phone, b.id)}
+                            className={`h-9 px-2 rounded-xl text-xs font-['Outfit'] font-bold flex items-center justify-center gap-1 border transition-colors ${
+                              copiedId === b.id
+                                ? 'bg-emerald-50 border-emerald-300 text-[#0D5C3A]'
+                                : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
+                            }`}
                           >
-                            <UserCheck className="w-3.5 h-3.5" />
-                            <span>Prendre en charge</span>
+                            {copiedId === b.id ? (
+                              <>
+                                <Check className="w-3.5 h-3.5 text-[#16A34A]" />
+                                <span className="text-[11px]">Copié !</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3.5 h-3.5 text-slate-500" />
+                                <span className="text-[11px]">Copier</span>
+                              </>
+                            )}
                           </button>
-                        )}
-                      </div>
 
-                    </div>
-                  ))
+                          <a
+                            href={`tel:${b.client_phone?.replace(/\s+/g, '')}`}
+                            className="h-9 px-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-bold font-['Outfit'] flex items-center justify-center gap-1"
+                          >
+                            <Phone className="w-3.5 h-3.5 text-[#0D5C3A]" />
+                            <span className="text-[11px]">Appel</span>
+                          </a>
+
+                          <a
+                            href={`https://wa.me/${b.client_phone?.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Bonjour ${b.client_name}, nous confirmons votre intervention TAARU SET pour ${b.service_type} à ${b.quarter}.`)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="h-9 px-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-[#0D5C3A] text-xs font-bold font-['Outfit'] flex items-center justify-center gap-1"
+                          >
+                            <MessageSquare className="w-3.5 h-3.5" />
+                            <span className="text-[11px]">WhatsApp</span>
+                          </a>
+
+                          <button
+                            type="button"
+                            onClick={() => setSelectedBookingDetails(b)}
+                            className="h-9 px-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold font-['Outfit'] flex items-center justify-center gap-1 cursor-pointer"
+                          >
+                            <FileText className="w-3.5 h-3.5 text-slate-600" />
+                            <span className="text-[11px]">Détails</span>
+                          </button>
+                        </div>
+
+                        {/* Statut sélecteur et Bouton Prendre en charge STRICTEMENT CONDITIONNÉ */}
+                        <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100">
+                          <select
+                            value={b.status}
+                            onChange={(e) => handleUpdateStatus(b.id, e.target.value)}
+                            className={`text-xs font-['Outfit'] font-bold py-1.5 px-3 rounded-xl border focus:outline-none cursor-pointer ${getStatusBadge(b.status)}`}
+                          >
+                            <option value="en_attente">En attente</option>
+                            <option value="confirmee">Confirmée</option>
+                            <option value="en_cours">En cours</option>
+                            <option value="terminee">Terminée</option>
+                            <option value="annulee">Annulée</option>
+                          </select>
+
+                          {/* AFFICHÉ UNIQUEMENT SI EN ATTENTE ET PAS ENCORE ATTRIBUÉ */}
+                          {canTakeOver && (
+                            <button
+                              type="button"
+                              onClick={() => handleTakeOverBooking(b.id)}
+                              className="h-8 px-3 rounded-xl bg-[#0D5C3A] hover:bg-[#0A482E] text-white text-xs font-['Outfit'] font-bold flex items-center gap-1 shadow-xs cursor-pointer transition-all"
+                            >
+                              <UserCheck className="w-3.5 h-3.5" />
+                              <span>Prendre en charge</span>
+                            </button>
+                          )}
+                        </div>
+
+                      </div>
+                    );
+                  })
                 )}
               </div>
 
@@ -1559,128 +1619,136 @@ export default function AdminPortal({ onClose }) {
                           </td>
                         </tr>
                       ) : (
-                        filteredBookings.map((b) => (
-                          <tr key={b.id} className="hover:bg-emerald-50/30 transition-colors">
-                            <td className="py-4 px-5">
-                              <div className="font-['Outfit'] font-bold text-slate-900 text-sm">{b.client_name}</div>
-                              <div className="flex items-center gap-2 mt-1">
-                                <span className="text-slate-600 text-xs font-medium tabular-nums">{b.client_phone}</span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleCopyPhone(b.client_phone, b.id)}
-                                  className="text-slate-400 hover:text-[#0D5C3A] cursor-pointer"
-                                  title="Copier le numéro"
-                                >
-                                  {copiedId === b.id ? (
-                                    <span className="text-[10px] text-[#16A34A] font-bold">Copié !</span>
-                                  ) : (
-                                    <Copy className="w-3.5 h-3.5" />
-                                  )}
-                                </button>
-                              </div>
-                            </td>
+                        filteredBookings.map((b) => {
+                          const canTakeOver = b.status === 'en_attente' && !b.processed_by_name;
 
-                            <td className="py-4 px-5 max-w-xs">
-                              <div className="font-bold text-slate-800 text-xs">{b.service_type}</div>
-                              <div className="text-[11px] text-slate-500 truncate mt-0.5">{b.service_details}</div>
-                            </td>
-
-                            <td className="py-4 px-5">
-                              <div className="text-slate-800 font-semibold text-xs">{b.quarter}</div>
-                              <div className="text-[11px] text-slate-500 font-medium mt-0.5">
-                                {b.intervention_date || 'Date à fixer'} {b.intervention_time ? `• ${b.intervention_time}` : ''}
-                              </div>
-                            </td>
-
-                            <td className="py-4 px-5 font-['Outfit'] font-extrabold text-[#0D5C3A] text-sm tabular-nums">
-                              {formatPrice(b.estimated_price_fcfa)}
-                            </td>
-
-                            <td className="py-4 px-5">
-                              <select
-                                value={b.status}
-                                onChange={(e) => handleUpdateStatus(b.id, e.target.value)}
-                                className={`text-xs font-['Outfit'] font-bold py-1 px-3 rounded-lg border focus:outline-none cursor-pointer ${getStatusBadge(b.status)}`}
-                              >
-                                <option value="en_attente">En attente</option>
-                                <option value="confirmee">Confirmée</option>
-                                <option value="en_cours">En cours</option>
-                                <option value="terminee">Terminée</option>
-                                <option value="annulee">Annulée</option>
-                              </select>
-                            </td>
-
-                            <td className="py-4 px-5">
-                              {b.processed_by_name ? (
-                                <div>
-                                  <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-50 text-[#0D5C3A] border border-emerald-200 text-[11px] font-bold font-['Outfit']">
-                                    <CheckCircle2 className="w-3 h-3 text-[#16A34A]" />
-                                    <span>{b.processed_by_name}</span>
-                                  </div>
-                                  {b.processed_at && (
-                                    <div className="text-[10px] text-slate-400 mt-0.5 font-medium">
-                                      Le {new Date(b.processed_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })} à {new Date(b.processed_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                                    </div>
-                                  )}
-                                </div>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => handleTakeOverBooking(b.id)}
-                                  className="text-[11px] font-['Outfit'] font-bold text-slate-500 hover:text-[#0D5C3A] flex items-center gap-1 px-2 py-1 rounded-lg border border-dashed border-slate-300 hover:border-[#0D5C3A] cursor-pointer"
-                                >
-                                  <UserPlus className="w-3 h-3" />
-                                  <span>Prendre en charge</span>
-                                </button>
-                              )}
-                            </td>
-
-                            <td className="py-4 px-5 text-right">
-                              <div className="flex items-center justify-end gap-1.5 font-['Outfit']">
-                                <button
-                                  type="button"
-                                  onClick={() => setSelectedBookingDetails(b)}
-                                  className="h-8 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center gap-1 cursor-pointer"
-                                  title="Détails"
-                                >
-                                  <FileText className="w-3.5 h-3.5 text-slate-600" />
-                                  <span>Détails</span>
-                                </button>
-
-                                <a
-                                  href={`tel:${b.client_phone?.replace(/\s+/g, '')}`}
-                                  className="h-8 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition-colors"
-                                  title="Appeler"
-                                >
-                                  <Phone className="w-3.5 h-3.5 text-[#0D5C3A]" />
-                                  <span>Appel</span>
-                                </a>
-
-                                <a
-                                  href={`https://wa.me/${b.client_phone?.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Bonjour ${b.client_name}, nous confirmons votre intervention TAARU SET pour ${b.service_type} à ${b.quarter}.`)}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="h-8 px-2.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-[#0D5C3A] border border-emerald-200 text-xs font-bold flex items-center gap-1.5 transition-colors"
-                                  title="WhatsApp"
-                                >
-                                  <MessageSquare className="w-3.5 h-3.5" />
-                                  <span>WhatsApp</span>
-                                </a>
-
-                                {canDeleteBookings && (
+                          return (
+                            <tr key={b.id} className="hover:bg-emerald-50/30 transition-colors">
+                              <td className="py-4 px-5">
+                                <div className="font-['Outfit'] font-bold text-slate-900 text-sm">{b.client_name}</div>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <span className="text-slate-600 text-xs font-medium tabular-nums">{b.client_phone}</span>
                                   <button
                                     type="button"
-                                    onClick={() => handleDeleteBooking(b.id)}
-                                    className="h-8 w-8 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center transition-colors cursor-pointer"
-                                    title="Supprimer"
+                                    onClick={() => handleCopyPhone(b.client_phone, b.id)}
+                                    className="text-slate-400 hover:text-[#0D5C3A] cursor-pointer"
+                                    title="Copier le numéro"
                                   >
-                                    <Trash2 className="w-3.5 h-3.5" />
+                                    {copiedId === b.id ? (
+                                      <span className="text-[10px] text-[#16A34A] font-bold">Copié !</span>
+                                    ) : (
+                                      <Copy className="w-3.5 h-3.5" />
+                                    )}
                                   </button>
+                                </div>
+                              </td>
+
+                              <td className="py-4 px-5 max-w-xs">
+                                <div className="font-bold text-slate-800 text-xs">{b.service_type}</div>
+                                <div className="text-[11px] text-slate-500 truncate mt-0.5">{b.service_details}</div>
+                              </td>
+
+                              <td className="py-4 px-5">
+                                <div className="text-slate-800 font-semibold text-xs">{b.quarter}</div>
+                                <div className="text-[11px] text-slate-500 font-medium mt-0.5">
+                                  {b.intervention_date || 'Date à fixer'} {b.intervention_time ? `• ${b.intervention_time}` : ''}
+                                </div>
+                              </td>
+
+                              <td className="py-4 px-5 font-['Outfit'] font-extrabold text-[#0D5C3A] text-sm tabular-nums">
+                                {formatPrice(b.estimated_price_fcfa)}
+                              </td>
+
+                              <td className="py-4 px-5">
+                                <select
+                                  value={b.status}
+                                  onChange={(e) => handleUpdateStatus(b.id, e.target.value)}
+                                  className={`text-xs font-['Outfit'] font-bold py-1 px-3 rounded-lg border focus:outline-none cursor-pointer ${getStatusBadge(b.status)}`}
+                                >
+                                  <option value="en_attente">En attente</option>
+                                  <option value="confirmee">Confirmée</option>
+                                  <option value="en_cours">En cours</option>
+                                  <option value="terminee">Terminée</option>
+                                  <option value="annulee">Annulée</option>
+                                </select>
+                              </td>
+
+                              {/* OPÉRATEUR & TRAÇABILITÉ AUDITÉE */}
+                              <td className="py-4 px-5">
+                                {b.processed_by_name ? (
+                                  <div>
+                                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-50 text-[#0D5C3A] border border-emerald-200 text-[11px] font-bold font-['Outfit']">
+                                      <CheckCircle2 className="w-3 h-3 text-[#16A34A]" />
+                                      <span>{b.processed_by_name}</span>
+                                    </div>
+                                    {b.processed_at && (
+                                      <div className="text-[10px] text-slate-400 mt-0.5 font-medium">
+                                        Le {new Date(b.processed_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })} à {new Date(b.processed_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : canTakeOver ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleTakeOverBooking(b.id)}
+                                    className="text-[11px] font-['Outfit'] font-bold text-slate-600 hover:text-white bg-slate-50 hover:bg-[#0D5C3A] flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-slate-200 hover:border-[#0D5C3A] cursor-pointer transition-colors shadow-xs"
+                                    title="Accepter et prendre en charge"
+                                  >
+                                    <UserPlus className="w-3.5 h-3.5 text-[#16A34A]" />
+                                    <span>Prendre en charge</span>
+                                  </button>
+                                ) : (
+                                  <span className="text-[11px] text-slate-400 italic font-medium">Non assigné</span>
                                 )}
-                              </div>
-                            </td>
-                          </tr>
-                        ))
+                              </td>
+
+                              <td className="py-4 px-5 text-right">
+                                <div className="flex items-center justify-end gap-1.5 font-['Outfit']">
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedBookingDetails(b)}
+                                    className="h-8 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center gap-1 cursor-pointer"
+                                    title="Détails"
+                                  >
+                                    <FileText className="w-3.5 h-3.5 text-slate-600" />
+                                    <span>Détails</span>
+                                  </button>
+
+                                  <a
+                                    href={`tel:${b.client_phone?.replace(/\s+/g, '')}`}
+                                    className="h-8 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition-colors"
+                                    title="Appeler"
+                                  >
+                                    <Phone className="w-3.5 h-3.5 text-[#0D5C3A]" />
+                                    <span>Appel</span>
+                                  </a>
+
+                                  <a
+                                    href={`https://wa.me/${b.client_phone?.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Bonjour ${b.client_name}, nous confirmons votre intervention TAARU SET pour ${b.service_type} à ${b.quarter}.`)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="h-8 px-2.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-[#0D5C3A] border border-emerald-200 text-xs font-bold flex items-center gap-1.5 transition-colors"
+                                    title="WhatsApp"
+                                  >
+                                    <MessageSquare className="w-3.5 h-3.5" />
+                                    <span>WhatsApp</span>
+                                  </a>
+
+                                  {canDeleteBookings && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteBooking(b.id)}
+                                      className="h-8 w-8 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center transition-colors cursor-pointer"
+                                      title="Supprimer"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
                       )}
                     </tbody>
                   </table>
@@ -1691,15 +1759,12 @@ export default function AdminPortal({ onClose }) {
           )}
 
           {/* ========================================================================= */}
-          {/* ONGLET 2 : SUIVI DES ABONNEMENTS (TABLEAU SYNTHÉTIQUE COMPACT SANS SCROLL) */}
+          {/* ONGLET 2 : SUIVI DES ABONNEMENTS                                          */}
           {/* ========================================================================= */}
           {activeTab === 'subscriptions' && (
             <div className="space-y-4">
               
-              {/* En-tête synthétique avec filtres & recherche */}
               <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
-                
-                {/* Pilules de filtres */}
                 <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none font-['Outfit'] text-xs">
                   {[
                     { id: 'all', label: 'Tous les abonnements', count: subscriptions.length },
@@ -1726,7 +1791,6 @@ export default function AdminPortal({ onClose }) {
                   ))}
                 </div>
 
-                {/* Recherche abonné */}
                 <div className="relative w-full md:w-80">
                   <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
@@ -1747,7 +1811,6 @@ export default function AdminPortal({ onClose }) {
                 </div>
               </div>
 
-              {/* Message informatif si aucun abonnement */}
               {filteredSubscriptions.length === 0 ? (
                 <div className="py-16 text-center text-slate-500 bg-white rounded-2xl border border-slate-200/90 p-8 shadow-xs space-y-3">
                   <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-[#0D5C3A] flex items-center justify-center mx-auto">
@@ -1756,7 +1819,7 @@ export default function AdminPortal({ onClose }) {
                   <div>
                     <h4 className="font-['Outfit'] font-bold text-slate-800 text-sm">Aucun abonnement enregistré</h4>
                     <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
-                      Les abonnements 4 passages / mois s'affichent ici. Vous pouvez en créer un manuellement ou attendre les souscriptions du site.
+                      Les abonnements récurrents (4 passages / mois) s'affichent ici. Vous pouvez en créer un manuellement avec le bouton ci-dessous.
                     </p>
                   </div>
                   <button
@@ -1770,7 +1833,7 @@ export default function AdminPortal({ onClose }) {
                 </div>
               ) : (
                 <>
-                  {/* --- VUE MOBILE : CARTES COMPACTES (< md) SANS SCROLL MASSIF --- */}
+                  {/* --- VUE MOBILE : CARTES COMPACTES --- */}
                   <div className="md:hidden space-y-3">
                     {filteredSubscriptions.map((sub) => {
                       const completedPassages = [1, 2, 3, 4].filter(n => sub[`passage_${n}_status`] === 'effectue').length;
@@ -1780,7 +1843,6 @@ export default function AdminPortal({ onClose }) {
                           key={sub.id}
                           className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-sm space-y-3"
                         >
-                          {/* Ligne 1 : Nom, Quartier, Statut & Tarif */}
                           <div className="flex items-start justify-between gap-2">
                             <div>
                               <div className="flex items-center gap-2">
@@ -1805,7 +1867,6 @@ export default function AdminPortal({ onClose }) {
                             </div>
                           </div>
 
-                          {/* Ligne 2 : Contact 1-clic */}
                           <div className="grid grid-cols-3 gap-2">
                             <button
                               type="button"
@@ -1848,7 +1909,7 @@ export default function AdminPortal({ onClose }) {
                             </a>
                           </div>
 
-                          {/* Ligne 3 : LES 4 PASSAGES EN PILULES TACTILES COMPACTES DIRECTES */}
+                          {/* LES 4 PASSAGES TACTILES COMPACTS SANS SCROLL */}
                           <div className="pt-2 border-t border-slate-100">
                             <div className="flex items-center justify-between text-[11px] font-['Outfit'] font-bold text-slate-600 mb-2">
                               <span>4 Passages du mois :</span>
@@ -1870,7 +1931,6 @@ export default function AdminPortal({ onClose }) {
                                         ? 'bg-emerald-50 border-emerald-300 text-[#0D5C3A] shadow-xs'
                                         : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-600'
                                     }`}
-                                    title={`Passage ${num} : Cliquer pour valider/annuler`}
                                   >
                                     <div className="flex items-center gap-1">
                                       {isDone ? (
@@ -1889,7 +1949,6 @@ export default function AdminPortal({ onClose }) {
                             </div>
                           </div>
 
-                          {/* Ligne 4 : Traçabilité opérateur */}
                           <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 font-medium">
                             <span className="flex items-center gap-1">
                               <UserCheck className="w-3 h-3 text-[#0D5C3A]" />
@@ -1911,7 +1970,7 @@ export default function AdminPortal({ onClose }) {
                     })}
                   </div>
 
-                  {/* --- VUE DESKTOP : TABLEAU SYNTHÉTIQUE COMPACT (>= md) --- */}
+                  {/* --- VUE DESKTOP : TABLEAU SYNTHÉTIQUE COMPACT --- */}
                   <div className="hidden md:block border border-slate-200/90 rounded-2xl bg-white overflow-hidden shadow-xs">
                     <table className="w-full text-left text-xs">
                       <thead className="bg-slate-50 text-slate-600 text-xs font-['Outfit'] font-bold uppercase tracking-wider border-b border-slate-200">
@@ -1930,8 +1989,6 @@ export default function AdminPortal({ onClose }) {
 
                           return (
                             <tr key={sub.id} className="hover:bg-emerald-50/20 transition-colors">
-                              
-                              {/* Abonné & Contact */}
                               <td className="py-3.5 px-5">
                                 <div className="font-['Outfit'] font-bold text-slate-900 text-sm">{sub.client_name}</div>
                                 <div className="flex items-center gap-2 mt-1">
@@ -1951,7 +2008,6 @@ export default function AdminPortal({ onClose }) {
                                 </div>
                               </td>
 
-                              {/* Formule & Tarif */}
                               <td className="py-3.5 px-5">
                                 <div className="font-bold text-slate-800 text-xs">{sub.plan_name}</div>
                                 <div className="flex items-center gap-1.5 text-[11px] text-slate-500 mt-0.5">
@@ -1961,7 +2017,6 @@ export default function AdminPortal({ onClose }) {
                                 </div>
                               </td>
 
-                              {/* Progression */}
                               <td className="py-3.5 px-5">
                                 <div className="flex items-center gap-2">
                                   <div className="w-16 h-2 rounded-full bg-slate-100 overflow-hidden">
@@ -1976,7 +2031,6 @@ export default function AdminPortal({ onClose }) {
                                 </div>
                               </td>
 
-                              {/* Les 4 Passages en Pilules Cliquables Directes */}
                               <td className="py-3.5 px-5 text-center">
                                 <div className="inline-flex items-center gap-1.5">
                                   {[1, 2, 3, 4].map((num) => {
@@ -1993,7 +2047,6 @@ export default function AdminPortal({ onClose }) {
                                             ? 'bg-emerald-50 hover:bg-emerald-100 border-emerald-300 text-[#0D5C3A] shadow-xs'
                                             : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-600'
                                         }`}
-                                        title={`Passage ${num} : Cliquer pour valider/annuler`}
                                       >
                                         {isDone ? (
                                           <CheckCircle2 className="w-3.5 h-3.5 text-[#16A34A]" />
@@ -2010,7 +2063,6 @@ export default function AdminPortal({ onClose }) {
                                 </div>
                               </td>
 
-                              {/* Opérateur traçabilité */}
                               <td className="py-3.5 px-5">
                                 <div className="text-xs font-semibold text-slate-800">
                                   {sub.processed_by_name || 'Équipe TAARU SET'}
@@ -2022,7 +2074,6 @@ export default function AdminPortal({ onClose }) {
                                 )}
                               </td>
 
-                              {/* Actions rapides */}
                               <td className="py-3.5 px-5 text-right">
                                 <div className="flex items-center justify-end gap-1.5 font-['Outfit']">
                                   <a
@@ -2085,7 +2136,7 @@ export default function AdminPortal({ onClose }) {
                 </span>
               </div>
 
-              {/* --- VUE MOBILE : CARTES TACTILES CLIENTS (< md) SANS DÉBORDEMENT --- */}
+              {/* --- VUE MOBILE : CARTES TACTILES CLIENTS (< md) --- */}
               <div className="md:hidden space-y-3.5">
                 {clients.length === 0 ? (
                   <div className="py-12 text-center text-slate-500 text-xs bg-white rounded-2xl border border-slate-200 p-6 shadow-xs font-medium">
@@ -2097,7 +2148,6 @@ export default function AdminPortal({ onClose }) {
                       key={c.id}
                       className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-sm space-y-3"
                     >
-                      {/* En-tête : Avatar + Nom + Total Dépensé */}
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-xl bg-emerald-100 text-[#0D5C3A] font-['Outfit'] font-black text-sm flex items-center justify-center shrink-0 shadow-xs">
@@ -2107,7 +2157,7 @@ export default function AdminPortal({ onClose }) {
                             <div className="font-['Outfit'] font-bold text-slate-900 text-sm">{c.full_name}</div>
                             <div className="flex items-center gap-1 text-[11px] text-slate-500 font-medium mt-0.5">
                               <MapPin className="w-3.5 h-3.5 text-[#0D5C3A]" />
-                              <span>{c.preferred_quarter || 'Dakar'}</span>
+                              <span>{c.quarter || c.preferred_quarter || 'Dakar'}</span>
                             </div>
                           </div>
                         </div>
@@ -2119,7 +2169,6 @@ export default function AdminPortal({ onClose }) {
                         </div>
                       </div>
 
-                      {/* Métriques : Total Commandes & Téléphone */}
                       <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/60 text-xs flex items-center justify-between">
                         <div>
                           <span className="text-slate-500 text-[11px]">Commandes : </span>
@@ -2130,7 +2179,6 @@ export default function AdminPortal({ onClose }) {
                         </div>
                       </div>
 
-                      {/* Boutons d'action rapides 1-clic : Copier, Appel, WhatsApp */}
                       <div className="grid grid-cols-3 gap-2">
                         <button
                           type="button"
@@ -2221,7 +2269,7 @@ export default function AdminPortal({ onClose }) {
                             </div>
                           </td>
 
-                          <td className="py-4 px-5 text-slate-600">{c.preferred_quarter || 'Dakar'}</td>
+                          <td className="py-4 px-5 text-slate-600">{c.quarter || c.preferred_quarter || 'Dakar'}</td>
                           <td className="py-4 px-5 font-['Outfit'] font-bold text-slate-900 tabular-nums">{c.total_orders || 1}</td>
                           <td className="py-4 px-5 font-['Outfit'] font-extrabold text-[#0D5C3A] tabular-nums">{formatPrice(c.total_spent_fcfa)}</td>
                           <td className="py-4 px-5 text-right">
@@ -2254,7 +2302,7 @@ export default function AdminPortal({ onClose }) {
           )}
 
           {/* ========================================================================= */}
-          {/* ONGLET 4 : STATISTIQUES & BILAN FINANCIER (Admin & Super Admin)            */}
+          {/* ONGLET 4 : STATISTIQUES & BILAN FINANCIER                                 */}
           {/* ========================================================================= */}
           {activeTab === 'stats' && canViewStats && (
             <div className="space-y-6">
@@ -2339,7 +2387,6 @@ export default function AdminPortal({ onClose }) {
           {activeTab === 'team' && canManageTeam && (
             <div className="space-y-6">
 
-              {/* Formulaire d'ajout collaborateur */}
               <div className="p-6 rounded-2xl bg-white border border-slate-200/90 space-y-4 shadow-sm">
                 <div>
                   <div className="flex items-center gap-2">
@@ -2399,7 +2446,7 @@ export default function AdminPortal({ onClose }) {
                     <select
                       value={newMemberRole}
                       onChange={(e) => setNewMemberRole(e.target.value)}
-                      className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:outline-none focus:bg-white focus:border-[#0D5C3A] font-bold font-['Outfit']"
+                      className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 focus:outline-none focus:bg-white focus:border-[#0D5C3A] font-bold font-['Outfit']"
                     >
                       <option value="agent">Chef d'Équipe Terrain (Planning uniquement)</option>
                       <option value="sales">Chargé(e) Clientèle (Planning + CRM Clients)</option>
@@ -2420,7 +2467,7 @@ export default function AdminPortal({ onClose }) {
                 </form>
               </div>
 
-              {/* --- VUE MOBILE : CARTES TACTILES COLLABORATEURS (< md) SANS DÉBORDEMENT --- */}
+              {/* --- VUE MOBILE : CARTES TACTILES COLLABORATEURS (< md) --- */}
               <div className="md:hidden space-y-3.5">
                 {teamMembers.map((m) => (
                   <div
@@ -2528,7 +2575,7 @@ export default function AdminPortal({ onClose }) {
                             </button>
                           </>
                         ) : (
-                          <span className="text-[10px] font-bold text-slate-400 italic">Protection Direction</span>
+                          <span className="text-[10px] font-bold text-slate-400 italic">Direction Générale</span>
                         )}
                       </div>
                     </div>
@@ -2656,7 +2703,7 @@ export default function AdminPortal({ onClose }) {
       </div>
 
       {/* ========================================================================= */}
-      {/* 3. MODALE DÉTAILS COMPLETS DE COMMANDE                                    */}
+      {/* 3. MODALE DÉTAILS COMPLETS DE COMMANDE (AUDITÉE & LOGIQUE PARFAITE)       */}
       {/* ========================================================================= */}
       {selectedBookingDetails && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
@@ -2687,7 +2734,7 @@ export default function AdminPortal({ onClose }) {
                   <span className="font-semibold text-slate-800 text-right">{selectedBookingDetails.service_details}</span>
                 </div>
                 <div className="flex items-center justify-between pt-1 border-t border-slate-200/60">
-                  <span className="text-slate-500 font-medium">Montant estimé :</span>
+                  <span className="text-slate-500 font-medium">Montant convenu :</span>
                   <span className="font-['Outfit'] font-black text-base text-[#0D5C3A] tabular-nums">
                     {formatPrice(selectedBookingDetails.estimated_price_fcfa)}
                   </span>
@@ -2713,38 +2760,73 @@ export default function AdminPortal({ onClose }) {
                 </div>
               </div>
 
-              {/* Traçabilité Opérateur */}
-              <div className="p-3.5 rounded-2xl bg-emerald-50/60 border border-emerald-200 text-xs space-y-2">
+              {/* TRAÇABILITÉ & GESTION OPÉRATEUR AUDITÉE */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 text-xs space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 font-bold text-[#0D5C3A]">
-                    <UserCheck className="w-4 h-4" />
-                    <span>Prise en charge opérateur :</span>
+                  <div className="flex items-center gap-1.5 font-bold text-slate-700">
+                    <UserCheck className="w-4 h-4 text-[#0D5C3A]" />
+                    <span>Statut de prise en charge :</span>
                   </div>
-                  <span className="font-['Outfit'] font-bold text-slate-900">
-                    {selectedBookingDetails.processed_by_name || 'Non attribué'}
+                  <span className={`font-['Outfit'] font-bold ${selectedBookingDetails.processed_by_name ? 'text-[#0D5C3A]' : 'text-amber-700'}`}>
+                    {selectedBookingDetails.processed_by_name ? (
+                      <span className="inline-flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-[#16A34A]" />
+                        <span>Pris en charge par {selectedBookingDetails.processed_by_name}</span>
+                      </span>
+                    ) : (
+                      selectedBookingDetails.status === 'en_attente' ? 'En attente d\'attribution' : 'Équipe TAARU SET'
+                    )}
                   </span>
                 </div>
+
                 {selectedBookingDetails.processed_at && (
                   <div className="text-[11px] text-slate-500 font-medium">
-                    Traité le {new Date(selectedBookingDetails.processed_at).toLocaleDateString('fr-FR')} à {new Date(selectedBookingDetails.processed_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                    Horodatage : {new Date(selectedBookingDetails.processed_at).toLocaleDateString('fr-FR')} à {new Date(selectedBookingDetails.processed_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
                   </div>
                 )}
-                {!selectedBookingDetails.processed_by_name && (
+
+                {/* RÈGLE LOGIQUE STRICTE : Bouton Prendre en charge uniquement si en_attente et non assigné */}
+                {selectedBookingDetails.status === 'en_attente' && !selectedBookingDetails.processed_by_name && (
                   <button
                     type="button"
                     onClick={() => handleTakeOverBooking(selectedBookingDetails.id)}
-                    className="w-full h-9 rounded-xl bg-[#0D5C3A] hover:bg-[#0A482E] text-white font-['Outfit'] font-bold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-xs mt-1"
+                    className="w-full h-9 rounded-xl bg-[#0D5C3A] hover:bg-[#0A482E] text-white font-['Outfit'] font-bold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-xs mt-1 transition-all"
                   >
-                    <UserCheck className="w-4 h-4" />
-                    <span>Je prends en charge cette intervention</span>
+                    <UserCheck className="w-4 h-4 text-emerald-300" />
+                    <span>Accepter & Prendre en charge cette intervention</span>
                   </button>
+                )}
+
+                {/* RÉASSIGNATION PROPRE RÉSERVÉE AU SUPER ADMIN SI DÉJÀ PRIS EN CHARGE */}
+                {isSuperAdmin && selectedBookingDetails.processed_by_name && (
+                  <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between gap-2">
+                    <span className="text-[11px] text-slate-500 font-medium flex items-center gap-1">
+                      <UserCog className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Réassigner à un autre membre :</span>
+                    </span>
+                    <select
+                      onChange={(e) => {
+                        const selectedMember = teamMembers.find(m => m.id === e.target.value);
+                        if (selectedMember) {
+                          handleReassignBooking(selectedBookingDetails.id, selectedMember.full_name, selectedMember.email);
+                        }
+                      }}
+                      className="text-[11px] font-['Outfit'] font-bold bg-white border border-slate-200 rounded-lg px-2 py-1 focus:outline-none cursor-pointer"
+                      defaultValue=""
+                    >
+                      <option value="" disabled>Changer de collaborateur...</option>
+                      {teamMembers.map(m => (
+                        <option key={m.id} value={m.id}>{m.full_name}</option>
+                      ))}
+                    </select>
+                  </div>
                 )}
               </div>
             </div>
 
             <div className="pt-2 border-t border-slate-100 space-y-3">
               <div className="flex items-center justify-between gap-3">
-                <span className="text-xs font-['Outfit'] font-bold text-slate-700">Changer le statut :</span>
+                <span className="text-xs font-['Outfit'] font-bold text-slate-700">Statut de la réservation :</span>
                 <select
                   value={selectedBookingDetails.status}
                   onChange={(e) => handleUpdateStatus(selectedBookingDetails.id, e.target.value)}
@@ -3089,7 +3171,7 @@ export default function AdminPortal({ onClose }) {
       )}
 
       {/* ========================================================================= */}
-      {/* 6. BOTTOM NAVIGATION FIXE SUR MOBILE (< md) - SANS ICÔNE IA               */}
+      {/* 6. BOTTOM NAVIGATION FIXE SUR MOBILE (< md)                                */}
       {/* ========================================================================= */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-slate-200/90 z-40 flex items-center justify-around px-2 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] font-['Outfit']">
         
@@ -3112,7 +3194,7 @@ export default function AdminPortal({ onClose }) {
           <span className="text-[10px] font-bold">Planning</span>
         </button>
 
-        {/* Suivi Abonnements - Icône sobre Repeat sans aucun effet IA */}
+        {/* Suivi Abonnements */}
         <button
           type="button"
           onClick={() => setActiveTab('subscriptions')}
