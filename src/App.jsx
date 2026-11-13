@@ -25,7 +25,7 @@ function playHapticClickSound() {
 
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Sparkles, CheckCircle2, Phone, MessageSquare, Clock, ShieldCheck, 
+  CheckCircle2, Phone, MessageSquare, Clock, ShieldCheck, 
   MapPin, ArrowRight, ChevronDown, ChevronLeft, ChevronRight, Check, Star, Wrench, Droplets, 
   Car, Home, Sofa, RefreshCw, Calculator, Send, Zap, Award, ThumbsUp, X, Calendar, User, Navigation,
   Building2, Truck, FileText, Menu, ExternalLink, HelpCircle, Play, Users, Crosshair,
@@ -408,7 +408,7 @@ function BeforeAfterSection({ handleOpenDrawer }) {
         <div className="mt-4 p-3.5 sm:p-4 rounded-2xl bg-white border border-slate-200/90 shadow-xs flex items-center justify-between gap-3 text-left">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-emerald-100 text-[#0D5C3A] flex items-center justify-center shrink-0">
-              {sliderTheme === 'video' ? <Sparkles className="w-5 h-5 text-amber-500" /> : sliderTheme === 'auto' ? <Car className="w-5 h-5" /> : sliderTheme === 'sofa' ? <Sofa className="w-5 h-5" /> : <Home className="w-5 h-5" />}
+              {sliderTheme === 'video' ? <Play className="w-4 h-4 text-[#0D5C3A] fill-[#0D5C3A]" /> : sliderTheme === 'auto' ? <Car className="w-5 h-5" /> : sliderTheme === 'sofa' ? <Sofa className="w-5 h-5" /> : <Home className="w-5 h-5" />}
             </div>
             <div>
               <div className="text-xs sm:text-sm font-extrabold text-slate-900">
@@ -1547,85 +1547,97 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
               </p>
             </div>
 
-            {/* Grille des 3 membres fondateurs de l'équipe */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {/* Grille des 3 membres fondateurs de l'équipe (Alignement parfait à la même hauteur) */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-stretch">
               
-              {/* Membre 1 : Mamadou (Fondateur & CEO) */}
-              <div className="bg-white rounded-3xl p-5 border border-slate-200/90 shadow-xs flex flex-col items-center text-center hover:border-emerald-300 hover:shadow-md transition-all group">
-                <div className="relative mb-3.5">
-                  <img 
-                    src={mamadouFounderImg} 
-                    alt="Mamadou — Fondateur & CEO TAARU SET" 
-                    className="w-24 h-24 rounded-2xl object-cover ring-4 ring-[#0D5C3A]/20 shadow-md group-hover:scale-105 transition-transform"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-[#16A34A] rounded-full border-2 border-white flex items-center justify-center shadow-xs">
-                    <Check className="w-3.5 h-3.5 text-white" />
+              {/* Membre 1 : Mamadou (Co-fondateur & CEO) */}
+              <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-xs flex flex-col justify-between h-full hover:border-emerald-300 hover:shadow-md transition-all group">
+                <div className="flex-1 flex flex-col items-center text-center">
+                  <div className="relative mb-3.5">
+                    <img 
+                      src={mamadouFounderImg} 
+                      alt="Mamadou - Co-fondateur & CEO TAARU SET" 
+                      className="w-24 h-24 rounded-2xl object-cover ring-4 ring-[#0D5C3A]/20 shadow-md group-hover:scale-105 transition-transform"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                    <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-[#16A34A] rounded-full border-2 border-white flex items-center justify-center shadow-xs">
+                      <Check className="w-3.5 h-3.5 text-white" />
+                    </div>
+                  </div>
+                  <h4 className="font-extrabold text-[#0D5C3A] text-base sm:text-lg">Mamadou</h4>
+                  <div className="inline-block mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                    Co-fondateur & CEO
+                  </div>
+                  <div className="my-auto py-3">
+                    <p className="text-xs text-slate-600 leading-relaxed font-normal">
+                      « Notre engagement avec TAARU SET est d'apporter un standard d'excellence et de rigueur dans le nettoyage à domicile et en entreprise à Dakar. Nos équipes interviennent chez vous avec un matériel de pointe et une exigence absolue de résultat. »
+                    </p>
                   </div>
                 </div>
-                <h4 className="font-extrabold text-[#0D5C3A] text-base sm:text-lg">Mamadou</h4>
-                <div className="inline-block mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                  Fondateur & CEO
-                </div>
-                <p className="text-xs text-slate-600 mt-2.5 leading-relaxed font-normal">
-                  « Notre engagement avec TAARU SET est d'apporter un standard d'excellence et de rigueur dans le nettoyage à domicile et en entreprise à Dakar. Nos équipes interviennent chez vous avec un matériel de pointe, dans le respect de votre intimité et avec une exigence absolue de résultat. »
-                </p>
-                <div className="mt-4 pt-3 border-t border-slate-100 w-full flex items-center justify-center gap-1.5 text-[11px] font-semibold text-slate-500">
+                <div className="mt-auto pt-3 border-t border-slate-100 w-full flex items-center justify-center gap-1.5 text-[11px] font-semibold text-slate-500 shrink-0">
                   <ShieldCheck className="w-3.5 h-3.5 text-[#16A34A]" />
                   <span>Direction Générale & Vision</span>
                 </div>
               </div>
 
               {/* Membre 2 : Mouhamadou (Co-fondateur & Stratégie) */}
-              <div className="bg-white rounded-3xl p-5 border border-slate-200/90 shadow-xs flex flex-col items-center text-center hover:border-emerald-300 hover:shadow-md transition-all group">
-                <div className="relative mb-3.5">
-                  <img 
-                    src={mouhamadouStrategieImg} 
-                    alt="Mouhamadou — Co-fondateur & Responsable Stratégie TAARU SET" 
-                    className="w-24 h-24 rounded-2xl object-cover ring-4 ring-[#0D5C3A]/20 shadow-md group-hover:scale-105 transition-transform"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-[#16A34A] rounded-full border-2 border-white flex items-center justify-center shadow-xs">
-                    <Check className="w-3.5 h-3.5 text-white" />
+              <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-xs flex flex-col justify-between h-full hover:border-emerald-300 hover:shadow-md transition-all group">
+                <div className="flex-1 flex flex-col items-center text-center">
+                  <div className="relative mb-3.5">
+                    <img 
+                      src={mouhamadouStrategieImg} 
+                      alt="Mouhamadou - Co-fondateur & Responsable Stratégie TAARU SET" 
+                      className="w-24 h-24 rounded-2xl object-cover ring-4 ring-[#0D5C3A]/20 shadow-md group-hover:scale-105 transition-transform"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                    <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-[#16A34A] rounded-full border-2 border-white flex items-center justify-center shadow-xs">
+                      <Check className="w-3.5 h-3.5 text-white" />
+                    </div>
+                  </div>
+                  <h4 className="font-extrabold text-[#0D5C3A] text-base sm:text-lg">Mouhamadou</h4>
+                  <div className="inline-block mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                    Co-fondateur • Responsable Stratégie
+                  </div>
+                  <div className="my-auto py-3">
+                    <p className="text-xs text-slate-600 leading-relaxed font-normal">
+                      « Pilotage du développement stratégique de TAARU SET, structuration des offres et des partenariats pour garantir aux particuliers et entreprises une qualité de service irréprochable et un suivi personnalisé. »
+                    </p>
                   </div>
                 </div>
-                <h4 className="font-extrabold text-[#0D5C3A] text-base sm:text-lg">Mouhamadou</h4>
-                <div className="inline-block mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                  Co-fondateur • Responsable Stratégie
-                </div>
-                <p className="text-xs text-slate-600 mt-2.5 leading-relaxed font-normal">
-                  « Pilotage du développement stratégique de TAARU SET, des partenariats entreprises et de l'innovation de service pour offrir une expérience client irréprochable partout à Dakar. »
-                </p>
-                <div className="mt-4 pt-3 border-t border-slate-100 w-full flex items-center justify-center gap-1.5 text-[11px] font-semibold text-slate-500">
+                <div className="mt-auto pt-3 border-t border-slate-100 w-full flex items-center justify-center gap-1.5 text-[11px] font-semibold text-slate-500 shrink-0">
                   <Shield className="w-3.5 h-3.5 text-[#16A34A]" />
                   <span>Stratégie & Partenariats</span>
                 </div>
               </div>
 
               {/* Membre 3 : Manager Opérationnel (Co-fondateur & Opérations) */}
-              <div className="bg-white rounded-3xl p-5 border border-slate-200/90 shadow-xs flex flex-col items-center text-center hover:border-emerald-300 hover:shadow-md transition-all group">
-                <div className="relative mb-3.5">
-                  <img 
-                    src={managerOperationnelImg} 
-                    alt="Responsable Opérationnel — Co-fondateur TAARU SET" 
-                    className="w-24 h-24 rounded-2xl object-cover ring-4 ring-[#0D5C3A]/20 shadow-md group-hover:scale-105 transition-transform"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-[#16A34A] rounded-full border-2 border-white flex items-center justify-center shadow-xs">
-                    <Check className="w-3.5 h-3.5 text-white" />
+              <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-xs flex flex-col justify-between h-full hover:border-emerald-300 hover:shadow-md transition-all group">
+                <div className="flex-1 flex flex-col items-center text-center">
+                  <div className="relative mb-3.5">
+                    <img 
+                      src={managerOperationnelImg} 
+                      alt="Responsable Opérationnel - Co-fondateur TAARU SET" 
+                      className="w-24 h-24 rounded-2xl object-cover ring-4 ring-[#0D5C3A]/20 shadow-md group-hover:scale-105 transition-transform"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                    <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-[#16A34A] rounded-full border-2 border-white flex items-center justify-center shadow-xs">
+                      <Check className="w-3.5 h-3.5 text-white" />
+                    </div>
+                  </div>
+                  <h4 className="font-extrabold text-[#0D5C3A] text-base sm:text-lg">Responsable Opérationnel</h4>
+                  <div className="inline-block mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                    Co-fondateur • Responsable Opérationnel
+                  </div>
+                  <div className="my-auto py-3">
+                    <p className="text-xs text-slate-600 leading-relaxed font-normal">
+                      « Coordination opérationnelle sur le terrain, supervision directe des techniciens, logistique du matériel professionnel Kärcher et contrôle minutieux de la satisfaction client après chaque intervention. »
+                    </p>
                   </div>
                 </div>
-                <h4 className="font-extrabold text-[#0D5C3A] text-base sm:text-lg">Responsable Opérationnel</h4>
-                <div className="inline-block mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                  Co-fondateur • Responsable Opérationnel
-                </div>
-                <p className="text-xs text-slate-600 mt-2.5 leading-relaxed font-normal">
-                  « Coordination opérationnelle sur le terrain, supervision directe des équipes de techniciens, déploiement des machines Kärcher et contrôle strict de la satisfaction client après chaque intervention. »
-                </p>
-                <div className="mt-4 pt-3 border-t border-slate-100 w-full flex items-center justify-center gap-1.5 text-[11px] font-semibold text-slate-500">
+                <div className="mt-auto pt-3 border-t border-slate-100 w-full flex items-center justify-center gap-1.5 text-[11px] font-semibold text-slate-500 shrink-0">
                   <Truck className="w-3.5 h-3.5 text-[#16A34A]" />
                   <span>Coordination Terrain Dakar</span>
                 </div>
@@ -1637,7 +1649,7 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
             <div className="mt-6 bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-950 text-white rounded-3xl p-5 sm:p-6 border border-emerald-800/50 shadow-md flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
               <div>
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold uppercase tracking-wider mb-2">
-                  <Sparkles className="w-3 h-3 text-emerald-400" />
+                  <Play className="w-3 h-3 text-emerald-400 fill-emerald-400" />
                   <span>CULTURE DU PROPRE & VIDÉOS AVANT / APRÈS</span>
                 </div>
                 <h4 className="text-base sm:text-lg font-extrabold text-white">
