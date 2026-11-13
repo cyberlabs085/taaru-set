@@ -38,8 +38,11 @@ import teamUniformImg from './assets/team_uniform.jpg';
 import teamLobbyImg from './assets/team_lobby.jpg';
 // Logo officiel TAARU SET
 import logoOfficialSq from './assets/logo_official_sq.jpg';
-// Portrait officiel Mamadou (Fondateur & Égérie réseaux sociaux)
+// Portrait officiel Mamadou (Fondateur & CEO TAARU SET)
 import mamadouFounderImg from './assets/mamadou_founder.jpg';
+// Portraits officiels des co-fondateurs TAARU SET
+import mouhamadouStrategieImg from './assets/mouhamadou_strategie.jpg';
+import managerOperationnelImg from './assets/manager_operationnel.jpg';
 // Vraies photos locales haute performance pour le comparateur Avant / Après (100% cohérentes même cadrage)
 import dirtyCarBeforeImg from './assets/dirty_car_before.jpg';
 import cleanCarAfterImg from './assets/clean_car_after.jpg';
@@ -308,7 +311,7 @@ function BeforeAfterSection({ handleOpenDrawer }) {
             <div className={`absolute inset-0 transition-opacity duration-200 ${sliderTheme === 'auto' ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'}`}>
               <img 
                 src={cleanCarAfterImg} 
-                alt="Carrosserie brillante et pneus rénovés par TAARU SET" 
+                alt="Carrosserie étincelante et pneus lustrés par TAARU SET" 
                 className="absolute inset-0 w-full h-full object-cover object-center"
                 loading="eager"
                 decoding="sync"
@@ -410,9 +413,9 @@ function BeforeAfterSection({ handleOpenDrawer }) {
             <div>
               <div className="text-xs sm:text-sm font-extrabold text-slate-900">
                 {sliderTheme === 'video' && 'Démonstration Réelle Dakar : Décapage d\'un fauteuil à l\'injecteur-extracteur RUSTGO par notre technicien'}
-                {sliderTheme === 'auto' && 'Rénovation Carrosserie & Habitacle : Décapage du film routier et poussière dakaroise sur Range Rover'}
-                {sliderTheme === 'sofa' && 'Shampouinage & Injection : Élimination des auréoles et poussière sur velours'}
-                {sliderTheme === 'chantier' && 'Remise à Neuf Clé en Main : Décapage ciment, colle, vitres et faïences'}
+                {sliderTheme === 'auto' && 'Lavage & Décapage Carrosserie : Décapage du film routier et poussière dakaroise sur Range Rover'}
+                {sliderTheme === 'sofa' && 'Shampouinage & Injection Kärcher : Élimination des auréoles et poussière sur velours'}
+                {sliderTheme === 'chantier' && 'Nettoyage Fin de Chantier Post-Construction : Dépoussiérage intégral, élimination traces de ciment & peinture avant emménagement'}
               </div>
               <div className="text-[11px] text-slate-500 mt-0.5">
                 Résultat garanti par l'équipe TAARU SET avec matériel professionnel Kärcher.
@@ -441,7 +444,7 @@ const DEFAULT_SEED_BOOKINGS = [
   {
     id: 'TS-2026-081',
     createdAt: '2026-11-13T08:30:00Z',
-    service: 'Rénovation Canapé & Tapis',
+    service: 'Nettoyage Canapés & Salons Kärcher',
     pack: 'Canapé 5-7 places (Complet)',
     price: '35 000 FCFA',
     rawPrice: 35000,
@@ -489,7 +492,7 @@ const DEFAULT_SEED_BOOKINGS = [
   {
     id: 'TS-2026-078',
     createdAt: '2026-11-12T11:20:00Z',
-    service: 'Rénovation Canapé & Tapis',
+    service: 'Nettoyage Canapés & Salons Kärcher',
     pack: 'Salon 3 places + 2 Fauteuils',
     price: '30 000 FCFA',
     rawPrice: 30000,
@@ -551,7 +554,7 @@ export default function App() {
   const [manualForm, setManualForm] = useState({
     name: '',
     phone: '',
-    service: 'Rénovation Canapé & Tapis',
+    service: 'Nettoyage Canapés & Salons Kärcher',
     pack: 'Canapé 5-7 places (Complet)',
     price: '35 000 FCFA',
     dateInfo: 'Aujourd\'hui 14h00',
@@ -620,7 +623,7 @@ export default function App() {
     setManualForm({
       name: '',
       phone: '',
-      service: 'Rénovation Canapé & Tapis',
+      service: 'Nettoyage Canapés & Salons Kärcher',
       pack: 'Canapé 5-7 places (Complet)',
       price: '35 000 FCFA',
       dateInfo: 'Aujourd\'hui',
@@ -828,7 +831,7 @@ export default function App() {
     chantier: {
       id: 'chantier',
       title: 'Remise en État & Fin de Chantier',
-      subtitle: 'Nettoyage complet après travaux, rénovation ou avant emménagement',
+      subtitle: 'Nettoyage en profondeur post-construction avant emménagement',
       icon: Home,
       tag: 'Gros Volume',
       startingPrice: 'Dès 45 000 FCFA',
@@ -1361,7 +1364,7 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
                 </div>
                 <h3 className="text-xl font-bold text-slate-900 mb-2">Fin de Chantier & Villas</h3>
                 <p className="text-slate-500 text-xs sm:text-sm leading-relaxed mb-4 font-normal">
-                  Remise à neuf complète après travaux ou avant emménagement. Décapage ciment, colle, vitres et désinfection totale.
+                  Grand nettoyage post-construction avant emménagement. Élimination ciment, plâtre, peinture sur carrelage et vitres pour emménager immédiatement.
                 </p>
 
                 {/* Encadré Devis Express */}
@@ -1544,16 +1547,16 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
               </p>
             </div>
 
-            {/* Grille des 3 membres de l'équipe */}
+            {/* Grille des 3 membres fondateurs de l'équipe */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               
-              {/* Membre 1 : Mamadou */}
+              {/* Membre 1 : Mamadou (Fondateur & CEO) */}
               <div className="bg-white rounded-3xl p-5 border border-slate-200/90 shadow-xs flex flex-col items-center text-center hover:border-emerald-300 hover:shadow-md transition-all group">
                 <div className="relative mb-3.5">
                   <img 
                     src={mamadouFounderImg} 
-                    alt="Mamadou — Co-fondateur TAARU SET" 
-                    className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover ring-4 ring-[#0D5C3A]/20 shadow-md group-hover:scale-105 transition-transform"
+                    alt="Mamadou — Fondateur & CEO TAARU SET" 
+                    className="w-24 h-24 rounded-2xl object-cover ring-4 ring-[#0D5C3A]/20 shadow-md group-hover:scale-105 transition-transform"
                     loading="lazy"
                     decoding="async"
                   />
@@ -1563,24 +1566,24 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
                 </div>
                 <h4 className="font-extrabold text-[#0D5C3A] text-base sm:text-lg">Mamadou</h4>
                 <div className="inline-block mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                  Co-fondateur • Direction Stratégique
+                  Fondateur & CEO
                 </div>
                 <p className="text-xs text-slate-600 mt-2.5 leading-relaxed font-normal">
-                  Supervision de l'excellence du service, des partenariats et du développement des protocoles d'hygiène de pointe pour TAARU SET.
+                  « Notre engagement avec TAARU SET est d'apporter un standard d'excellence et de rigueur dans le nettoyage à domicile et en entreprise à Dakar. Nos équipes interviennent chez vous avec un matériel de pointe, dans le respect de votre intimité et avec une exigence absolue de résultat. »
                 </p>
                 <div className="mt-4 pt-3 border-t border-slate-100 w-full flex items-center justify-center gap-1.5 text-[11px] font-semibold text-slate-500">
                   <ShieldCheck className="w-3.5 h-3.5 text-[#16A34A]" />
-                  <span>Standards & Qualité de service</span>
+                  <span>Direction Générale & Vision</span>
                 </div>
               </div>
 
-              {/* Membre 2 : Co-fondateur Opérations Dakar */}
+              {/* Membre 2 : Mouhamadou (Co-fondateur & Stratégie) */}
               <div className="bg-white rounded-3xl p-5 border border-slate-200/90 shadow-xs flex flex-col items-center text-center hover:border-emerald-300 hover:shadow-md transition-all group">
                 <div className="relative mb-3.5">
                   <img 
-                    src={teamUniformImg} 
-                    alt="Co-fondateur & Direction Opérations Dakar — TAARU SET" 
-                    className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover ring-4 ring-[#0D5C3A]/20 shadow-md group-hover:scale-105 transition-transform"
+                    src={mouhamadouStrategieImg} 
+                    alt="Mouhamadou — Co-fondateur & Responsable Stratégie TAARU SET" 
+                    className="w-24 h-24 rounded-2xl object-cover ring-4 ring-[#0D5C3A]/20 shadow-md group-hover:scale-105 transition-transform"
                     loading="lazy"
                     decoding="async"
                   />
@@ -1588,43 +1591,43 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
                     <Check className="w-3.5 h-3.5 text-white" />
                   </div>
                 </div>
-                <h4 className="font-extrabold text-[#0D5C3A] text-base sm:text-lg">Direction Opérations Dakar</h4>
+                <h4 className="font-extrabold text-[#0D5C3A] text-base sm:text-lg">Mouhamadou</h4>
                 <div className="inline-block mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                  Co-fondateur • Coordination Terrain
+                  Co-fondateur • Responsable Stratégie
                 </div>
                 <p className="text-xs text-slate-600 mt-2.5 leading-relaxed font-normal">
-                  Gestion opérationnelle en direct à Dakar, déploiement des véhicules et respect rigoureux des créneaux horaires chez nos clients.
+                  « Pilotage du développement stratégique de TAARU SET, des partenariats entreprises et de l'innovation de service pour offrir une expérience client irréprochable partout à Dakar. »
+                </p>
+                <div className="mt-4 pt-3 border-t border-slate-100 w-full flex items-center justify-center gap-1.5 text-[11px] font-semibold text-slate-500">
+                  <Shield className="w-3.5 h-3.5 text-[#16A34A]" />
+                  <span>Stratégie & Partenariats</span>
+                </div>
+              </div>
+
+              {/* Membre 3 : Manager Opérationnel (Co-fondateur & Opérations) */}
+              <div className="bg-white rounded-3xl p-5 border border-slate-200/90 shadow-xs flex flex-col items-center text-center hover:border-emerald-300 hover:shadow-md transition-all group">
+                <div className="relative mb-3.5">
+                  <img 
+                    src={managerOperationnelImg} 
+                    alt="Responsable Opérationnel — Co-fondateur TAARU SET" 
+                    className="w-24 h-24 rounded-2xl object-cover ring-4 ring-[#0D5C3A]/20 shadow-md group-hover:scale-105 transition-transform"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-[#16A34A] rounded-full border-2 border-white flex items-center justify-center shadow-xs">
+                    <Check className="w-3.5 h-3.5 text-white" />
+                  </div>
+                </div>
+                <h4 className="font-extrabold text-[#0D5C3A] text-base sm:text-lg">Responsable Opérationnel</h4>
+                <div className="inline-block mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                  Co-fondateur • Responsable Opérationnel
+                </div>
+                <p className="text-xs text-slate-600 mt-2.5 leading-relaxed font-normal">
+                  « Coordination opérationnelle sur le terrain, supervision directe des équipes de techniciens, déploiement des machines Kärcher et contrôle strict de la satisfaction client après chaque intervention. »
                 </p>
                 <div className="mt-4 pt-3 border-t border-slate-100 w-full flex items-center justify-center gap-1.5 text-[11px] font-semibold text-slate-500">
                   <Truck className="w-3.5 h-3.5 text-[#16A34A]" />
-                  <span>Déploiement rapide tout Dakar</span>
-                </div>
-              </div>
-
-              {/* Membre 3 : Superviseur Technique Kärcher */}
-              <div className="bg-white rounded-3xl p-5 border border-slate-200/90 shadow-xs flex flex-col items-center text-center hover:border-emerald-300 hover:shadow-md transition-all group">
-                <div className="relative mb-3.5">
-                  <img 
-                    src={teamLobbyImg} 
-                    alt="Chef d'Équipe Technique — TAARU SET" 
-                    className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover ring-4 ring-[#0D5C3A]/20 shadow-md group-hover:scale-105 transition-transform"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-[#16A34A] rounded-full border-2 border-white flex items-center justify-center shadow-xs">
-                    <Check className="w-3.5 h-3.5 text-white" />
-                  </div>
-                </div>
-                <h4 className="font-extrabold text-[#0D5C3A] text-base sm:text-lg">Superviseur Technique</h4>
-                <div className="inline-block mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                  Chef d'Équipe • Matériel & Procédés
-                </div>
-                <p className="text-xs text-slate-600 mt-2.5 leading-relaxed font-normal">
-                  Expertise approfondie des injecteurs-extracteurs haute pression Kärcher, dosages éco-certifiés et diagnostic des fibres délicates.
-                </p>
-                <div className="mt-4 pt-3 border-t border-slate-100 w-full flex items-center justify-center gap-1.5 text-[11px] font-semibold text-slate-500">
-                  <Wrench className="w-3.5 h-3.5 text-[#16A34A]" />
-                  <span>Technologie Kärcher Professionnelle</span>
+                  <span>Coordination Terrain Dakar</span>
                 </div>
               </div>
 
@@ -2034,7 +2037,7 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
             </div>
             <div className="text-xs text-slate-600 space-y-3 leading-relaxed">
               <p>
-                <strong>Éditeur du service :</strong> TAARU SET Dakar, entreprise de nettoyage professionnel et rénovation à domicile, dirigée par l'équipe fondatrice TAARU SET (+221 77 154 86 10).
+                <strong>Éditeur du service :</strong> TAARU SET Dakar, entreprise de nettoyage professionnel à domicile, lavage auto mobile et fin de chantier après construction à Dakar (+221 77 154 86 10).
               </p>
               <p>
                 <strong>Données personnelles & Réservations :</strong> Les coordonnées renseignées dans le formulaire (nom, numéro de téléphone, quartier) sont utilisées exclusivement pour vous recontacter sur WhatsApp afin de confirmer votre prestation. Aucune donnée n'est revendue à des tiers.
@@ -2985,7 +2988,7 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
                     onChange={(e) => setManualForm({...manualForm, service: e.target.value})}
                     className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-emerald-500"
                   >
-                    <option value="Rénovation Canapé & Tapis">Rénovation Canapé & Tapis</option>
+                    <option value="Nettoyage Canapés & Salons Kärcher">Nettoyage Canapés & Salons Kärcher</option>
                     <option value="Lavage Auto Mobile à Domicile">Lavage Auto Mobile à Domicile</option>
                     <option value="Nettoyage Fin de Chantier & Villas">Nettoyage Fin de Chantier & Villas</option>
                     <option value="Bureaux & Entreprises">Bureaux & Entreprises</option>
