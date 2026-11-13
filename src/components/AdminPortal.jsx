@@ -7,7 +7,8 @@ import {
   Trash2, Download, LogOut, RefreshCw, X, ArrowUpRight, 
   UserPlus, BarChart3, TrendingUp, DollarSign, MapPin, 
   Layers, ExternalLink, Activity, Check, Lock, KeyRound,
-  Menu, ChevronRight, Sparkles, Building2, Car, Sparkle
+  Menu, ChevronRight, Sparkles, Building2, Car, Sparkle,
+  Briefcase, UserCheck, UserX, ChevronDown, CheckCircle
 } from 'lucide-react';
 
 export default function AdminPortal({ onClose }) {
@@ -48,10 +49,12 @@ export default function AdminPortal({ onClose }) {
   const [manualPrice, setManualPrice] = useState('35000');
   const [manualDate, setManualDate] = useState('Demain matin');
 
-  // --- FORMULAIRE NOUVEAU MEMBRE D'ÉQUIPE (Super Admin) ---
+  // --- FORMULAIRE D'AJOUT COLLABORATEUR FLEXIBLE (Super Admin) ---
   const [newMemberEmail, setNewMemberEmail] = useState('');
   const [newMemberName, setNewMemberName] = useState('');
-  const [newMemberRole, setNewMemberRole] = useState('operations');
+  const [newMemberPhone, setNewMemberPhone] = useState('');
+  const [newMemberJobTitle, setNewMemberJobTitle] = useState('');
+  const [newMemberRole, setNewMemberRole] = useState('admin');
   const [teamMsg, setTeamMsg] = useState('');
 
   // 1. Initialisation Session Supabase & Audit de Sécurité
@@ -101,7 +104,7 @@ export default function AdminPortal({ onClose }) {
         await supabase.auth.signOut();
         setSession(null);
         setCurrentMember(null);
-        setAuthError(`⛔ ACCÈS REFUSÉ (Code 403) : Le compte "${user.email}" n'est pas autorisé par la direction de TAARU SET. Toute tentative d'intrusion est bloquée et journalisée.`);
+        setAuthError(`⛔ ACCÈS REFUSÉ (Code 403) : Le compte "${user.email}" n'est pas accrédité sur le portail TAARU SET. Seuls les membres enregistrés par la direction peuvent y accéder.`);
         setAuthLoading(false);
         return;
       }
@@ -199,7 +202,7 @@ export default function AdminPortal({ onClose }) {
           if (next >= 4) setLockoutTimer(60);
           return next;
         });
-        setAuthError(`⛔ ACCÈS STRICTEMENT REFUSÉ : L'adresse "${cleanEmail}" ne figure pas dans le registre officiel de TAARU SET. Seuls les collaborateurs accrédités peuvent se connecter.`);
+        setAuthError(`⛔ ACCÈS STRICTEMENT REFUSÉ : L'adresse "${cleanEmail}" n'est pas accréditée dans le registre officiel de TAARU SET. Demandez à votre administrateur de vous ajouter.`);
         return;
       }
 
@@ -208,7 +211,7 @@ export default function AdminPortal({ onClose }) {
           redirectTo: window.location.origin + '/?admin'
         });
         if (error) throw error;
-        setAuthSuccessMsg(`Un lien d'activation sécurisé a été expédié à ${cleanEmail}. Consultez votre boîte de réception pour définir votre mot de passe personnel.`);
+        setAuthSuccessMsg(`Un lien d'activation sécurisé a été expédié à ${cleanEmail}. Consultez vos emails pour définir votre mot de passe.`);
         setIsResetMode(false);
         return;
       }
@@ -286,7 +289,7 @@ export default function AdminPortal({ onClose }) {
         service_details: manualDetails.trim() || manualService,
         quarter: manualQuarter.trim(),
         estimated_price_fcfa: parseInt(manualPrice, 10) || 0,
-        intervention_date: manualDate.trim() || 'À caler',
+        intervention_date: manualDate.trim() || 'À fixer',
         status: 'confirmee',
         source: 'appel_direct'
       });
@@ -303,7 +306,7 @@ export default function AdminPortal({ onClose }) {
     }
   };
 
-  // Gestion Équipe
+  // --- GESTION ÉQUIPE UNIVERSELLE (Super Admin) ---
   const handleAddTeamMember = async (e) => {
     e.preventDefault();
     setTeamMsg('');
@@ -313,17 +316,21 @@ export default function AdminPortal({ onClose }) {
       const { error } = await supabase.from('taaru_team_members').insert({
         email: newMemberEmail.trim().toLowerCase(),
         full_name: newMemberName.trim(),
+        phone: newMemberPhone.trim() || null,
+        job_title: newMemberJobTitle.trim() || null,
         role: newMemberRole,
         is_active: true
       });
 
       if (error) throw error;
-      setTeamMsg('✅ Collaborateur accrédité dans le registre. Il peut désormais activer son mot de passe en toute sécurité.');
+      setTeamMsg(`✅ Collaborateur « ${newMemberName.trim()} » accrédité avec succès ! Il peut désormais activer son compte ou se connecter.`);
       setNewMemberEmail('');
       setNewMemberName('');
+      setNewMemberPhone('');
+      setNewMemberJobTitle('');
       loadAllData();
     } catch (err) {
-      setTeamMsg(`❌ Erreur : ${err.message || 'Impossible d\'ajouter ce membre.'}`);
+      setTeamMsg(`❌ Erreur : ${err.message || 'Impossible d\'ajouter ce collaborateur.'}`);
     }
   };
 
@@ -337,6 +344,28 @@ export default function AdminPortal({ onClose }) {
       loadAllData();
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const handleDeleteTeamMember = async (memberId, memberEmail, memberName) => {
+    if (memberEmail === 'ssow2006@gmail.com') {
+      alert('Action bloquée : Le compte Super Admin principal ne peut pas être supprimé.');
+      return;
+    }
+    if (!confirm(`Confirmer la suppression définitive de l'accès pour « ${memberName || memberEmail} » ?`)) return;
+    if (!supabase) return;
+
+    try {
+      const { error } = await supabase
+        .from('taaru_team_members')
+        .delete()
+        .eq('id', memberId);
+
+      if (error) throw error;
+      setTeamMembers(prev => prev.filter(m => m.id !== memberId));
+      setTeamMsg(`✅ Collaborateur ${memberEmail} révoqué et supprimé du registre.`);
+    } catch (err) {
+      setTeamMsg(`❌ Erreur de suppression : ${err.message}`);
     }
   };
 
@@ -389,7 +418,7 @@ export default function AdminPortal({ onClose }) {
 
     const serviceMap = {};
     bookings.forEach(b => {
-      const s = b.service_type || 'Autre';
+      const s = b.service_type || 'Autre formule';
       serviceMap[s] = (serviceMap[s] || 0) + (b.estimated_price_fcfa || 0);
     });
 
@@ -430,119 +459,123 @@ export default function AdminPortal({ onClose }) {
 
   const formatPrice = (p) => (p || 0).toLocaleString('fr-FR') + ' FCFA';
 
-  // Sélecteur de couleur de badge de statut
+  // Badges de statut aux couleurs douces et nobles de Taaru Sett
   const getStatusBadge = (status) => {
     switch (status) {
       case 'en_attente':
-        return 'bg-amber-950/50 text-amber-300 border-amber-800/60';
+        return 'bg-amber-50 text-amber-800 border-amber-200';
       case 'confirmee':
-        return 'bg-blue-950/50 text-blue-300 border-blue-800/60';
+        return 'bg-blue-50 text-blue-800 border-blue-200';
       case 'en_cours':
-        return 'bg-purple-950/50 text-purple-300 border-purple-800/60';
+        return 'bg-purple-50 text-purple-800 border-purple-200';
       case 'terminee':
-        return 'bg-emerald-950/50 text-emerald-300 border-emerald-800/60';
+        return 'bg-emerald-50 text-[#0D5C3A] border-emerald-200';
       case 'annulee':
-        return 'bg-rose-950/50 text-rose-300 border-rose-800/60';
+        return 'bg-rose-50 text-rose-700 border-rose-200';
       default:
-        return 'bg-slate-800 text-slate-300 border-slate-700';
+        return 'bg-slate-100 text-slate-700 border-slate-200';
     }
   };
 
-  const getStatusLabel = (status) => {
-    switch (status) {
-      case 'en_attente': return 'En attente';
-      case 'confirmee': return 'Confirmée';
-      case 'en_cours': return 'En cours';
-      case 'terminee': return 'Terminée';
-      case 'annulee': return 'Annulée';
-      default: return status;
+  const getRoleLabel = (role) => {
+    switch (role) {
+      case 'super_admin': return 'Super Admin / Direction';
+      case 'admin': return 'Responsable Opérations';
+      case 'agent': return 'Chef d\'Équipe Terrain';
+      case 'sales': return 'Chargé(e) Clientèle';
+      default: return role;
     }
   };
 
-  // --- ÉCRAN DE CHARGEMENT INITIAL ---
+  // --- ÉCRAN DE CHARGEMENT INITIAL TAARU SET ---
   if (authLoading) {
     return (
-      <div className="fixed inset-0 z-50 bg-[#070A10] flex flex-col items-center justify-center p-4 font-sans text-white">
+      <div className="fixed inset-0 z-50 bg-[#F8FAF7] flex flex-col items-center justify-center p-4 font-sans text-slate-800">
         <div className="relative mb-5">
-          <img 
-            src={logoOfficialSq} 
-            alt="TAARU SET" 
-            className="w-16 h-16 rounded-2xl object-cover ring-2 ring-emerald-500/40 shadow-2xl shadow-emerald-950/80" 
-          />
-          <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-[#070A10] animate-pulse"></span>
+          <div className="w-16 h-16 rounded-2xl overflow-hidden ring-2 ring-[#0D5C3A]/20 shadow-xl shadow-[#0D5C3A]/10 bg-white p-1">
+            <img 
+              src={logoOfficialSq} 
+              alt="TAARU SET" 
+              className="w-full h-full object-cover rounded-xl" 
+            />
+          </div>
+          <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-[#16A34A] border-2 border-white animate-pulse"></span>
         </div>
-        <div className="flex items-center gap-2 text-sm font-semibold tracking-wide font-['Outfit']">
-          <RefreshCw className="w-4 h-4 text-emerald-400 animate-spin" />
-          <span>Vérification de sécurité Zero-Trust...</span>
+        <div className="flex items-center gap-2 text-sm font-bold font-['Outfit'] text-slate-900 tracking-tight">
+          <RefreshCw className="w-4 h-4 text-[#0D5C3A] animate-spin" />
+          <span>Vérification de sécurité Taaru Sett...</span>
         </div>
-        <p className="text-xs text-slate-500 mt-2">Accréditation du terminal auprès du noyau Supabase</p>
+        <p className="text-xs text-slate-500 mt-1 font-medium">Contrôle d'habilitation auprès du serveur</p>
       </div>
     );
   }
 
-  // --- ÉCRAN DE CONNEXION ZERO-TRUST HAUTE SÉCURITÉ ---
+  // --- ÉCRAN DE CONNEXION ÉLÉGANT STYLE OFFICIEL TAARU SET (FOND CLAIR & ÉCO-ORGANIQUE) ---
   if (!session) {
     return (
-      <div className="fixed inset-0 z-50 bg-[#070A10] flex items-center justify-center p-4 sm:p-6 font-sans">
-        <div className="w-full max-w-sm sm:max-w-md border border-slate-800/90 bg-[#0B0F19] rounded-3xl p-6 sm:p-8 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)] relative overflow-hidden">
-          
-          {/* Lueur d'ambiance émeraude subtile */}
-          <div className="absolute -top-24 -left-24 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="fixed inset-0 z-50 bg-[#F8FAF7] flex items-center justify-center p-4 sm:p-6 font-sans antialiased overflow-y-auto">
+        
+        {/* Motif décoratif végétal subtil */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-100/40 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
+        <div className="absolute bottom-0 left-0 w-80 h-80 bg-[#0D5C3A]/5 rounded-full blur-3xl pointer-events-none -ml-20 -mb-20"></div>
 
+        <div className="w-full max-w-sm sm:max-w-md bg-white border border-slate-200/90 rounded-[2rem] p-6 sm:p-8 shadow-[0_20px_50px_-15px_rgba(13,92,58,0.12)] relative z-10">
+          
           {/* En-tête avec VRAI LOGO TAARU SET */}
-          <div className="flex items-start justify-between pb-5 mb-5 border-b border-slate-800/80 relative">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl overflow-hidden ring-2 ring-emerald-500/40 shadow-lg shadow-emerald-950/60 bg-[#072212] flex items-center justify-center shrink-0">
+          <div className="flex items-start justify-between pb-5 mb-5 border-b border-slate-100">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl overflow-hidden ring-2 ring-[#0D5C3A]/15 shadow-md shadow-[#0D5C3A]/10 bg-white p-0.5 shrink-0">
                 <img 
                   src={logoOfficialSq} 
                   alt="Logo officiel TAARU SET" 
-                  className="w-full h-full object-cover" 
+                  className="w-full h-full object-cover rounded-xl" 
                 />
               </div>
               <div>
-                <div className="flex items-center gap-1.5 font-['Outfit'] font-black text-lg tracking-tight leading-none text-white">
+                <div className="flex items-center gap-1.5 font-['Outfit'] font-black text-xl tracking-tight leading-none text-slate-900">
                   <span>TAARU</span>
                   <span className="text-[#16A34A]">SET</span>
                 </div>
-                <p className="text-xs font-semibold text-slate-400 mt-1">Portail de Gestion Officiel</p>
-                <p className="text-[10px] text-slate-500">Le charme de la propreté • Dakar</p>
+                <p className="text-xs font-bold text-[#0D5C3A] mt-1 font-['Outfit']">Portail de Gestion Officiel</p>
+                <p className="text-[11px] text-slate-500 font-medium">Le charme de la propreté • Dakar</p>
               </div>
             </div>
+
             <button
               type="button"
               onClick={onClose}
-              className="text-slate-500 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-slate-800/50 cursor-pointer"
+              className="text-slate-400 hover:text-slate-700 transition-colors p-1.5 rounded-xl hover:bg-slate-100 cursor-pointer"
               title="Retourner au site public"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
-          {/* Badge Zero-Trust */}
-          <div className="mb-4">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-['Outfit'] font-semibold bg-emerald-950/80 text-emerald-300 border border-emerald-800/50">
-              <Lock className="w-3 h-3 text-emerald-400" />
-              Accès Privé Protégé (Noyau PostgreSQL)
+          {/* Badge officiel de sécurité */}
+          <div className="mb-5">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-['Outfit'] font-bold bg-emerald-50 text-[#0D5C3A] border border-emerald-200/80">
+              <Lock className="w-3.5 h-3.5 text-[#16A34A]" />
+              Espace Restreint à l'Équipe
             </span>
           </div>
 
           {authError && (
-            <div className="mb-4 p-3.5 rounded-xl bg-rose-950/60 border border-rose-800 text-rose-200 text-xs leading-relaxed flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
-              <span>{authError}</span>
+            <div className="mb-4 p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs leading-relaxed flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+              <span className="font-medium">{authError}</span>
             </div>
           )}
 
           {authSuccessMsg && (
-            <div className="mb-4 p-3.5 rounded-xl bg-emerald-950/60 border border-emerald-800 text-emerald-200 text-xs leading-relaxed flex items-start gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-              <span>{authSuccessMsg}</span>
+            <div className="mb-4 p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs leading-relaxed flex items-start gap-2.5">
+              <CheckCircle2 className="w-4 h-4 text-[#16A34A] shrink-0 mt-0.5" />
+              <span className="font-medium">{authSuccessMsg}</span>
             </div>
           )}
 
           <form onSubmit={handleAuthSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1.5 font-['Outfit']">
+              <label className="block text-xs font-bold text-slate-700 mb-1.5 font-['Outfit']">
                 Adresse email accréditée
               </label>
               <input 
@@ -552,13 +585,13 @@ export default function AdminPortal({ onClose }) {
                 value={authEmail}
                 onChange={(e) => setAuthEmail(e.target.value)}
                 disabled={lockoutTimer > 0}
-                className="w-full h-11 px-3.5 rounded-xl bg-[#070A10] border border-slate-700/80 text-white text-xs placeholder-slate-600 focus:outline-none focus:border-emerald-500 disabled:opacity-50 transition-colors font-medium"
+                className="w-full h-11 px-3.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#0D5C3A] focus:ring-2 focus:ring-[#0D5C3A]/10 disabled:opacity-50 transition-all font-medium"
               />
             </div>
 
             {!isResetMode && (
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1.5 font-['Outfit']">
+                <label className="block text-xs font-bold text-slate-700 mb-1.5 font-['Outfit']">
                   Mot de passe personnel
                 </label>
                 <input 
@@ -568,7 +601,7 @@ export default function AdminPortal({ onClose }) {
                   value={authPassword}
                   onChange={(e) => setAuthPassword(e.target.value)}
                   disabled={lockoutTimer > 0}
-                  className="w-full h-11 px-3.5 rounded-xl bg-[#070A10] border border-slate-700/80 text-white text-xs placeholder-slate-600 focus:outline-none focus:border-emerald-500 disabled:opacity-50 transition-colors font-medium"
+                  className="w-full h-11 px-3.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#0D5C3A] focus:ring-2 focus:ring-[#0D5C3A]/10 disabled:opacity-50 transition-all font-medium"
                 />
               </div>
             )}
@@ -576,28 +609,28 @@ export default function AdminPortal({ onClose }) {
             <button
               type="submit"
               disabled={lockoutTimer > 0}
-              className="w-full h-11 rounded-xl bg-gradient-to-r from-[#0D5C3A] to-[#16A34A] hover:from-[#0f6c44] hover:to-[#18b553] disabled:bg-slate-800 disabled:text-slate-600 text-white font-['Outfit'] font-bold text-sm transition-all cursor-pointer shadow-lg shadow-emerald-950/60 active:scale-[0.99] flex items-center justify-center gap-2"
+              className="w-full h-11 rounded-xl bg-[#0D5C3A] hover:bg-[#0A482E] active:scale-[0.99] disabled:bg-slate-300 disabled:text-slate-500 text-white font-['Outfit'] font-bold text-sm transition-all cursor-pointer shadow-md shadow-[#0D5C3A]/25 flex items-center justify-center gap-2"
             >
               {lockoutTimer > 0 ? (
                 <>
                   <Clock className="w-4 h-4 animate-spin" />
-                  <span>Verrouillé ({lockoutTimer}s)</span>
+                  <span>Verrouillé temporairement ({lockoutTimer}s)</span>
                 </>
               ) : isResetMode ? (
                 <>
                   <KeyRound className="w-4 h-4" />
-                  <span>Envoyer le lien d'activation</span>
+                  <span>Recevoir le lien d'activation</span>
                 </>
               ) : (
                 <>
                   <Shield className="w-4 h-4" />
-                  <span>Se connecter au portail</span>
+                  <span>Accéder au tableau de bord</span>
                 </>
               )}
             </button>
           </form>
 
-          <div className="mt-5 pt-4 border-t border-slate-800/80 text-center">
+          <div className="mt-5 pt-4 border-t border-slate-100 text-center">
             <button
               type="button"
               onClick={() => {
@@ -605,9 +638,9 @@ export default function AdminPortal({ onClose }) {
                 setAuthError('');
                 setAuthSuccessMsg('');
               }}
-              className="text-xs font-semibold text-slate-400 hover:text-emerald-400 transition-colors cursor-pointer py-1"
+              className="text-xs font-bold font-['Outfit'] text-[#0D5C3A] hover:text-[#16A34A] transition-colors cursor-pointer py-1"
             >
-              {isResetMode ? '← Retour à la connexion standard' : 'Première invitation / Mot de passe oublié ?'}
+              {isResetMode ? '← Retour à la connexion habituelle' : 'Première activation ou mot de passe oublié ?'}
             </button>
           </div>
 
@@ -616,25 +649,27 @@ export default function AdminPortal({ onClose }) {
     );
   }
 
-  // --- PORTAIL PLEIN ÉCRAN DÉDIÉ (STANDALONE WORKSPACE) ---
+  // --- PORTAIL PLEIN ÉCRAN DÉDIÉ (THÈME CLAIR & ÉCO-ORGANIQUE TAARU SET) ---
   return (
-    <div className="fixed inset-0 z-50 bg-[#070A10] text-slate-100 flex flex-col md:flex-row overflow-hidden font-sans">
+    <div className="fixed inset-0 z-50 bg-[#F8FAF7] text-slate-800 flex flex-col md:flex-row overflow-hidden font-sans antialiased">
       
       {/* ========================================================================= */}
-      {/* 1. EN-TÊTE MOBILE TOPBAR (Visible uniquement sur mobile < md)             */}
+      {/* 1. EN-TÊTE MOBILE TOPBAR (Smartphone < md)                                */}
       {/* ========================================================================= */}
-      <header className="md:hidden h-14 bg-[#0B0F19] border-b border-slate-800/90 px-4 flex items-center justify-between shrink-0 z-30">
+      <header className="md:hidden h-14 bg-white border-b border-slate-200/90 px-4 flex items-center justify-between shrink-0 z-30 shadow-xs">
         <div className="flex items-center gap-2.5">
-          <img 
-            src={logoOfficialSq} 
-            alt="TAARU SET" 
-            className="w-7 h-7 rounded-lg object-cover ring-1 ring-emerald-500/40" 
-          />
-          <div className="flex items-center gap-1 font-['Outfit'] font-black text-sm tracking-tight text-white leading-none">
+          <div className="w-8 h-8 rounded-xl overflow-hidden ring-1 ring-[#0D5C3A]/20 p-0.5 bg-white">
+            <img 
+              src={logoOfficialSq} 
+              alt="TAARU SET" 
+              className="w-full h-full object-cover rounded-lg" 
+            />
+          </div>
+          <div className="flex items-center gap-1 font-['Outfit'] font-black text-sm tracking-tight text-slate-900 leading-none">
             <span>TAARU</span>
             <span className="text-[#16A34A]">SET</span>
           </div>
-          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800/60 font-semibold ml-1">
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-[#0D5C3A] border border-emerald-200 font-bold font-['Outfit'] ml-1">
             Admin
           </span>
         </div>
@@ -644,7 +679,7 @@ export default function AdminPortal({ onClose }) {
             <button
               type="button"
               onClick={() => setIsManualModalOpen(true)}
-              className="h-8 px-2.5 rounded-lg bg-emerald-600 text-white text-xs font-bold font-['Outfit'] flex items-center gap-1 shadow-sm"
+              className="h-8 px-2.5 rounded-xl bg-[#0D5C3A] text-white text-xs font-bold font-['Outfit'] flex items-center gap-1 shadow-sm"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Nouveau</span>
@@ -654,31 +689,31 @@ export default function AdminPortal({ onClose }) {
           <button
             type="button"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="w-9 h-9 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition-colors"
+            className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-colors"
             aria-label="Ouvrir le menu"
           >
-            {isMobileMenuOpen ? <X className="w-4 h-4 text-white" /> : <Menu className="w-4 h-4" />}
+            {isMobileMenuOpen ? <X className="w-4 h-4 text-slate-900" /> : <Menu className="w-4 h-4" />}
           </button>
         </div>
       </header>
 
       {/* TIROIR DÉROULANT MOBILE (Slide-Over Drawer) */}
       {isMobileMenuOpen && (
-        <div className="md:hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex flex-col justify-end">
-          <div className="bg-[#0B0F19] border-t border-slate-800 rounded-t-3xl p-5 space-y-4 max-h-[85vh] overflow-y-auto shadow-2xl animate-in slide-in-from-bottom duration-300">
+        <div className="md:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex flex-col justify-end">
+          <div className="bg-white border-t border-slate-200 rounded-t-3xl p-5 space-y-4 max-h-[85vh] overflow-y-auto shadow-2xl animate-in slide-in-from-bottom duration-300">
             
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
-                <img src={logoOfficialSq} alt="TAARU SET" className="w-8 h-8 rounded-xl object-cover ring-1 ring-emerald-500/40" />
+                <img src={logoOfficialSq} alt="TAARU SET" className="w-9 h-9 rounded-xl object-cover ring-1 ring-[#0D5C3A]/20" />
                 <div>
-                  <div className="font-['Outfit'] font-extrabold text-sm text-white">Menu Gestionnaire</div>
-                  <div className="text-[11px] text-slate-400 truncate max-w-[200px]">{session.user.email}</div>
+                  <div className="font-['Outfit'] font-extrabold text-sm text-slate-900">Portail Taaru Sett</div>
+                  <div className="text-[11px] text-slate-500 font-medium truncate max-w-[200px]">{session.user.email}</div>
                 </div>
               </div>
               <button 
                 type="button" 
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="w-8 h-8 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center"
+                className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800 flex items-center justify-center"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -690,14 +725,14 @@ export default function AdminPortal({ onClose }) {
                 type="button"
                 onClick={() => { setActiveTab('bookings'); setIsMobileMenuOpen(false); }}
                 className={`w-full h-11 px-4 rounded-xl font-bold flex items-center justify-between transition-colors ${
-                  activeTab === 'bookings' ? 'bg-emerald-600 text-white' : 'bg-slate-900/60 text-slate-300 hover:bg-slate-800'
+                  activeTab === 'bookings' ? 'bg-[#0D5C3A] text-white shadow-sm' : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <Calendar className="w-4 h-4" />
                   <span>Réservations & Planning</span>
                 </div>
-                <span className="px-2 py-0.5 rounded-full text-xs bg-black/30 text-white font-semibold">
+                <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${activeTab === 'bookings' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'}`}>
                   {bookings.length}
                 </span>
               </button>
@@ -706,14 +741,14 @@ export default function AdminPortal({ onClose }) {
                 type="button"
                 onClick={() => { setActiveTab('clients'); setIsMobileMenuOpen(false); }}
                 className={`w-full h-11 px-4 rounded-xl font-bold flex items-center justify-between transition-colors ${
-                  activeTab === 'clients' ? 'bg-blue-600 text-white' : 'bg-slate-900/60 text-slate-300 hover:bg-slate-800'
+                  activeTab === 'clients' ? 'bg-[#0D5C3A] text-white shadow-sm' : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <Users className="w-4 h-4" />
                   <span>Répertoire Clients CRM</span>
                 </div>
-                <span className="px-2 py-0.5 rounded-full text-xs bg-black/30 text-white font-semibold">
+                <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${activeTab === 'clients' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'}`}>
                   {clients.length}
                 </span>
               </button>
@@ -722,14 +757,14 @@ export default function AdminPortal({ onClose }) {
                 type="button"
                 onClick={() => { setActiveTab('stats'); setIsMobileMenuOpen(false); }}
                 className={`w-full h-11 px-4 rounded-xl font-bold flex items-center justify-between transition-colors ${
-                  activeTab === 'stats' ? 'bg-amber-600 text-white' : 'bg-slate-900/60 text-slate-300 hover:bg-slate-800'
+                  activeTab === 'stats' ? 'bg-[#0D5C3A] text-white shadow-sm' : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <BarChart3 className="w-4 h-4" />
                   <span>Statistiques & Bilan</span>
                 </div>
-                <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                <span className="w-2 h-2 rounded-full bg-[#16A34A]"></span>
               </button>
 
               {currentMember?.role === 'super_admin' && (
@@ -737,14 +772,14 @@ export default function AdminPortal({ onClose }) {
                   type="button"
                   onClick={() => { setActiveTab('team'); setIsMobileMenuOpen(false); }}
                   className={`w-full h-11 px-4 rounded-xl font-bold flex items-center justify-between transition-colors ${
-                    activeTab === 'team' ? 'bg-purple-600 text-white' : 'bg-slate-900/60 text-slate-300 hover:bg-slate-800'
+                    activeTab === 'team' ? 'bg-[#0D5C3A] text-white shadow-sm' : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
                   }`}
                 >
                   <div className="flex items-center gap-3">
                     <UserPlus className="w-4 h-4" />
                     <span>Équipe & Droits</span>
                   </div>
-                  <span className="px-2 py-0.5 rounded-full text-xs bg-black/30 text-white font-semibold">
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${activeTab === 'team' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'}`}>
                     {teamMembers.length}
                   </span>
                 </button>
@@ -752,19 +787,19 @@ export default function AdminPortal({ onClose }) {
             </div>
 
             {/* Actions secondaires Drawer */}
-            <div className="pt-3 border-t border-slate-800 space-y-2">
+            <div className="pt-3 border-t border-slate-100 space-y-2 font-['Outfit']">
               <button
                 type="button"
                 onClick={onClose}
-                className="w-full h-10 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 flex items-center justify-center gap-2 text-xs font-semibold"
+                className="w-full h-10 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center gap-2 text-xs font-bold"
               >
-                <ExternalLink className="w-4 h-4" />
+                <ExternalLink className="w-4 h-4 text-[#0D5C3A]" />
                 <span>Voir le site public TAARU SET</span>
               </button>
               <button
                 type="button"
                 onClick={handleSignOut}
-                className="w-full h-10 px-4 rounded-xl bg-rose-950/40 hover:bg-rose-900/50 text-rose-300 border border-rose-800/40 flex items-center justify-center gap-2 text-xs font-semibold"
+                className="w-full h-10 px-4 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 flex items-center justify-center gap-2 text-xs font-bold"
               >
                 <LogOut className="w-4 h-4" />
                 <span>Se déconnecter</span>
@@ -776,64 +811,66 @@ export default function AdminPortal({ onClose }) {
       )}
 
       {/* ========================================================================= */}
-      {/* 2. SIDEBAR DE NAVIGATION DESKTOP (Fixée à gauche sur md+)                 */}
+      {/* 2. SIDEBAR DE NAVIGATION DESKTOP (Fixée à gauche, Thème Blanc & Vert)      */}
       {/* ========================================================================= */}
-      <aside className="hidden md:flex flex-col w-64 lg:w-72 bg-[#0B0F19] border-r border-slate-800/90 shrink-0">
+      <aside className="hidden md:flex flex-col w-64 lg:w-72 bg-white border-r border-slate-200/90 shrink-0 shadow-xs">
         
         {/* Identité Entreprise avec Logo Officiel */}
-        <div className="p-4 lg:p-5 border-b border-slate-800/80 flex items-center justify-between">
+        <div className="p-4 lg:p-5 border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl overflow-hidden ring-1 ring-emerald-500/40 shadow-md shadow-emerald-950/60 bg-[#072212] shrink-0">
+            <div className="w-10 h-10 rounded-2xl overflow-hidden ring-1 ring-[#0D5C3A]/20 shadow-md shadow-[#0D5C3A]/10 bg-white p-0.5 shrink-0">
               <img 
                 src={logoOfficialSq} 
                 alt="Logo TAARU SET" 
-                className="w-full h-full object-cover" 
+                className="w-full h-full object-cover rounded-xl" 
               />
             </div>
             <div>
-              <div className="flex items-center gap-1 font-['Outfit'] font-black text-sm tracking-tight text-white leading-none">
+              <div className="flex items-center gap-1 font-['Outfit'] font-black text-base tracking-tight text-slate-900 leading-none">
                 <span>TAARU</span>
                 <span className="text-[#16A34A]">SET</span>
               </div>
-              <span className="text-[10px] text-slate-400 font-semibold tracking-wide block mt-0.5">
+              <span className="text-[11px] text-[#0D5C3A] font-bold font-['Outfit'] tracking-wide block mt-0.5">
                 Portail Gestionnaire
               </span>
             </div>
           </div>
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-['Outfit'] font-semibold bg-emerald-950 text-emerald-400 border border-emerald-800/60">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-['Outfit'] font-bold bg-emerald-50 text-[#0D5C3A] border border-emerald-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A] animate-pulse"></span>
             Sync
           </span>
         </div>
 
         {/* Profil Collaborateur Certifié */}
-        <div className="p-3.5 mx-3.5 my-3.5 rounded-2xl bg-slate-900/70 border border-slate-800/90">
-          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-['Outfit']">Accès Vérifié</div>
-          <div className="text-xs font-bold text-slate-100 truncate mt-0.5">{session.user.email}</div>
+        <div className="p-3.5 mx-3.5 my-3.5 rounded-2xl bg-[#F8FAF7] border border-slate-200/80">
+          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-['Outfit']">Accès Certifié</div>
+          <div className="text-xs font-bold text-slate-900 truncate mt-0.5">{session.user.email}</div>
           <div className="mt-1.5 flex items-center gap-1.5">
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-['Outfit'] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800/60">
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-['Outfit'] font-bold bg-[#0D5C3A] text-white shadow-xs">
               {currentMember?.role === 'super_admin' ? 'Super Admin' : (currentMember?.role || 'Opérateur')}
             </span>
-            <span className="text-[10px] text-slate-400 font-medium">• Dakar, SN</span>
+            <span className="text-[11px] text-slate-500 font-medium">• Dakar, SN</span>
           </div>
         </div>
 
         {/* Navigation Onglets */}
-        <nav className="p-3.5 space-y-1.5 flex-1 overflow-y-auto text-xs font-['Outfit'] font-semibold">
+        <nav className="p-3.5 space-y-1.5 flex-1 overflow-y-auto text-xs font-['Outfit'] font-bold">
           <button
             type="button"
             onClick={() => setActiveTab('bookings')}
             className={`w-full h-10 px-3.5 rounded-xl flex items-center justify-between transition-all cursor-pointer ${
               activeTab === 'bookings'
-                ? 'bg-gradient-to-r from-emerald-600 to-[#15803D] text-white shadow-md shadow-emerald-950/60 font-bold'
-                : 'text-slate-400 hover:text-white hover:bg-slate-900/60'
+                ? 'bg-[#0D5C3A] text-white shadow-md shadow-[#0D5C3A]/20'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
             }`}
           >
             <div className="flex items-center gap-2.5">
-              <Calendar className="w-4 h-4 text-emerald-300" />
+              <Calendar className="w-4 h-4" />
               <span>Réservations</span>
             </div>
-            <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-black/20 text-white">
+            <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
+              activeTab === 'bookings' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+            }`}>
               {bookings.length}
             </span>
           </button>
@@ -843,15 +880,17 @@ export default function AdminPortal({ onClose }) {
             onClick={() => setActiveTab('clients')}
             className={`w-full h-10 px-3.5 rounded-xl flex items-center justify-between transition-all cursor-pointer ${
               activeTab === 'clients'
-                ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md shadow-blue-950/60 font-bold'
-                : 'text-slate-400 hover:text-white hover:bg-slate-900/60'
+                ? 'bg-[#0D5C3A] text-white shadow-md shadow-[#0D5C3A]/20'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
             }`}
           >
             <div className="flex items-center gap-2.5">
-              <Users className="w-4 h-4 text-blue-300" />
+              <Users className="w-4 h-4" />
               <span>Répertoire Clients</span>
             </div>
-            <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-black/20 text-white">
+            <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
+              activeTab === 'clients' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+            }`}>
               {clients.length}
             </span>
           </button>
@@ -861,15 +900,15 @@ export default function AdminPortal({ onClose }) {
             onClick={() => setActiveTab('stats')}
             className={`w-full h-10 px-3.5 rounded-xl flex items-center justify-between transition-all cursor-pointer ${
               activeTab === 'stats'
-                ? 'bg-gradient-to-r from-amber-600 to-amber-700 text-white shadow-md shadow-amber-950/60 font-bold'
-                : 'text-slate-400 hover:text-white hover:bg-slate-900/60'
+                ? 'bg-[#0D5C3A] text-white shadow-md shadow-[#0D5C3A]/20'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
             }`}
           >
             <div className="flex items-center gap-2.5">
-              <BarChart3 className="w-4 h-4 text-amber-300" />
+              <BarChart3 className="w-4 h-4" />
               <span>Statistiques & Bilan</span>
             </div>
-            <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+            <span className="w-2 h-2 rounded-full bg-[#16A34A]"></span>
           </button>
 
           {currentMember?.role === 'super_admin' && (
@@ -878,15 +917,17 @@ export default function AdminPortal({ onClose }) {
               onClick={() => setActiveTab('team')}
               className={`w-full h-10 px-3.5 rounded-xl flex items-center justify-between transition-all cursor-pointer ${
                 activeTab === 'team'
-                  ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-md shadow-purple-950/60 font-bold'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-900/60'
+                  ? 'bg-[#0D5C3A] text-white shadow-md shadow-[#0D5C3A]/20'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
               }`}
             >
               <div className="flex items-center gap-2.5">
-                <UserPlus className="w-4 h-4 text-purple-300" />
-                <span>Équipe & Droits</span>
+                <UserPlus className="w-4 h-4" />
+                <span>Équipe & Accès</span>
               </div>
-              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-black/20 text-white">
+              <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                activeTab === 'team' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+              }`}>
                 {teamMembers.length}
               </span>
             </button>
@@ -894,19 +935,19 @@ export default function AdminPortal({ onClose }) {
         </nav>
 
         {/* Footer Sidebar */}
-        <div className="p-3.5 border-t border-slate-800/80 space-y-1.5 font-['Outfit']">
+        <div className="p-3.5 border-t border-slate-100 space-y-1.5 font-['Outfit']">
           <button
             type="button"
             onClick={onClose}
-            className="w-full h-9 px-3 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 flex items-center gap-2 text-xs font-semibold transition-colors cursor-pointer"
+            className="w-full h-9 px-3 rounded-xl text-slate-600 hover:text-[#0D5C3A] hover:bg-emerald-50/50 flex items-center gap-2 text-xs font-bold transition-colors cursor-pointer"
           >
-            <ExternalLink className="w-4 h-4 text-emerald-400" />
+            <ExternalLink className="w-4 h-4 text-[#0D5C3A]" />
             <span>Voir le site public</span>
           </button>
           <button
             type="button"
             onClick={handleSignOut}
-            className="w-full h-9 px-3 rounded-xl text-rose-400/80 hover:text-rose-300 hover:bg-rose-950/20 flex items-center gap-2 text-xs font-semibold transition-colors cursor-pointer"
+            className="w-full h-9 px-3 rounded-xl text-rose-600 hover:bg-rose-50 flex items-center gap-2 text-xs font-bold transition-colors cursor-pointer"
           >
             <LogOut className="w-4 h-4" />
             <span>Déconnexion</span>
@@ -915,21 +956,21 @@ export default function AdminPortal({ onClose }) {
       </aside>
 
       {/* ========================================================================= */}
-      {/* 3. ESPACE DE TRAVAIL PRINCIPAL                                            */}
+      {/* 3. ESPACE DE TRAVAIL PRINCIPAL (Fond clair #F8FAF7)                       */}
       {/* ========================================================================= */}
-      <main className="flex-1 flex flex-col bg-[#070A10] overflow-hidden">
+      <main className="flex-1 flex flex-col bg-[#F8FAF7] overflow-hidden">
         
-        {/* Topbar Header Desktop (Masqué sur mobile, visible sur md+) */}
-        <header className="hidden md:flex h-14 px-6 border-b border-slate-800/80 items-center justify-between shrink-0 bg-[#0B0F19]/60 backdrop-blur-md">
+        {/* Topbar Header Desktop */}
+        <header className="hidden md:flex h-16 px-6 sm:px-8 border-b border-slate-200/80 items-center justify-between shrink-0 bg-white/80 backdrop-blur-md">
           <div className="flex items-center gap-3">
-            <h2 className="text-base font-bold font-['Outfit'] text-white tracking-tight">
+            <h2 className="text-lg font-bold font-['Outfit'] text-slate-900 tracking-tight">
               {activeTab === 'bookings' && 'Planning des Réservations & Interventions'}
               {activeTab === 'clients' && 'Répertoire des Clients (CRM)'}
-              {activeTab === 'stats' && 'Tableau de Bord Décisionnel & Bilan'}
-              {activeTab === 'team' && 'Collaborateurs & Gestion des Droits'}
+              {activeTab === 'stats' && 'Tableau de Bord Décisionnel & Bilan Financier'}
+              {activeTab === 'team' && 'Équipe & Gestion Universelle des Accès'}
             </h2>
             {loadingData && (
-              <RefreshCw className="w-3.5 h-3.5 text-emerald-400 animate-spin" />
+              <RefreshCw className="w-4 h-4 text-[#0D5C3A] animate-spin" />
             )}
           </div>
 
@@ -938,7 +979,7 @@ export default function AdminPortal({ onClose }) {
               <button
                 type="button"
                 onClick={() => setIsManualModalOpen(true)}
-                className="h-9 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-2 transition-all cursor-pointer shadow-md shadow-emerald-950/60"
+                className="h-10 px-4 rounded-xl bg-[#0D5C3A] hover:bg-[#0A482E] text-white text-xs font-bold flex items-center gap-2 transition-all cursor-pointer shadow-md shadow-[#0D5C3A]/20"
               >
                 <Plus className="w-4 h-4" />
                 <span>Nouvelle intervention</span>
@@ -949,9 +990,9 @@ export default function AdminPortal({ onClose }) {
               <button
                 type="button"
                 onClick={exportClientsCSV}
-                className="h-9 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 flex items-center gap-2 transition-colors cursor-pointer"
+                className="h-10 px-4 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold border border-slate-200 flex items-center gap-2 transition-colors cursor-pointer shadow-xs"
               >
-                <Download className="w-4 h-4 text-emerald-400" />
+                <Download className="w-4 h-4 text-[#0D5C3A]" />
                 <span>Exporter CSV</span>
               </button>
             )}
@@ -959,7 +1000,7 @@ export default function AdminPortal({ onClose }) {
             <button
               type="button"
               onClick={loadAllData}
-              className="w-9 h-9 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+              className="w-10 h-10 rounded-xl bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 border border-slate-200 flex items-center justify-center transition-colors cursor-pointer shadow-xs"
               title="Actualiser les données"
             >
               <RefreshCw className="w-4 h-4" />
@@ -967,8 +1008,8 @@ export default function AdminPortal({ onClose }) {
           </div>
         </header>
 
-        {/* Corps des onglets (Scrollable, avec padding-bottom renforcé sur mobile pour la Bottom Nav) */}
-        <div className="flex-1 overflow-y-auto p-3.5 sm:p-6 pb-24 md:pb-6 space-y-5">
+        {/* Corps des onglets (Scrollable, padding renforcé sur mobile pour la Bottom Nav) */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 pb-24 md:pb-8 space-y-6">
 
           {/* ========================================================================= */}
           {/* ONGLET 1 : RÉSERVATIONS & PLANNING                                        */}
@@ -979,18 +1020,18 @@ export default function AdminPortal({ onClose }) {
               {/* Barre de contrôle : Recherche et Filtres */}
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                 <div className="relative flex-1 max-w-md">
-                  <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input 
                     type="text" 
-                    placeholder="Filtrer par nom, téléphone, quartier, service..."
+                    placeholder="Rechercher par nom, téléphone, quartier, formule..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full h-10 pl-10 pr-3.5 rounded-xl bg-[#0E131F] border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors font-medium"
+                    className="w-full h-11 pl-10 pr-3.5 rounded-xl bg-white border border-slate-200 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#0D5C3A] focus:ring-2 focus:ring-[#0D5C3A]/10 transition-all font-medium shadow-xs"
                   />
                 </div>
 
                 {/* Filtres par statut (Défilement horizontal doux sur mobile) */}
-                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar border border-slate-800/80 bg-[#0E131F] p-1 rounded-xl text-xs font-['Outfit'] font-semibold shrink-0">
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar border border-slate-200 bg-white p-1 rounded-xl text-xs font-['Outfit'] font-bold shrink-0 shadow-xs">
                   {[
                     { id: 'all', label: 'Toutes' },
                     { id: 'en_attente', label: 'En attente' },
@@ -1002,10 +1043,10 @@ export default function AdminPortal({ onClose }) {
                       key={tab.id}
                       type="button"
                       onClick={() => setBookingFilter(tab.id)}
-                      className={`px-3 py-1.5 rounded-lg text-xs transition-colors cursor-pointer shrink-0 ${
+                      className={`px-3.5 py-1.5 rounded-lg text-xs transition-colors cursor-pointer shrink-0 ${
                         bookingFilter === tab.id
-                          ? 'bg-slate-800 text-white font-bold shadow-xs'
-                          : 'text-slate-400 hover:text-white'
+                          ? 'bg-[#0D5C3A] text-white font-bold shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                       }`}
                     >
                       {tab.label}
@@ -1017,45 +1058,45 @@ export default function AdminPortal({ onClose }) {
               {/* --- VUE MOBILE : CARTES MÉTIER TACTILES (< md) --- */}
               <div className="md:hidden space-y-3">
                 {filteredBookings.length === 0 ? (
-                  <div className="py-12 text-center text-slate-500 text-xs bg-[#0B0F19] rounded-2xl border border-slate-800/80 p-6">
+                  <div className="py-12 text-center text-slate-500 text-xs bg-white rounded-2xl border border-slate-200 p-6 shadow-xs">
                     Aucune réservation ne correspond à vos filtres.
                   </div>
                 ) : (
                   filteredBookings.map((b) => (
                     <div 
                       key={b.id}
-                      className="p-4 rounded-2xl bg-[#0B0F19] border border-slate-800/90 shadow-sm space-y-3"
+                      className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-sm space-y-3"
                     >
                       {/* Top Carte : Nom, Quartier et Prix */}
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <h4 className="font-['Outfit'] font-bold text-sm text-white">{b.client_name}</h4>
-                          <div className="flex items-center gap-1.5 text-xs text-slate-400 mt-0.5">
-                            <MapPin className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                            <span>{b.quarter || 'Dakar'}</span>
+                          <h4 className="font-['Outfit'] font-bold text-base text-slate-900">{b.client_name}</h4>
+                          <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
+                            <MapPin className="w-3.5 h-3.5 text-[#0D5C3A] shrink-0" />
+                            <span className="font-medium">{b.quarter || 'Dakar'}</span>
                           </div>
                         </div>
                         <div className="text-right">
-                          <span className="font-['Outfit'] font-extrabold text-base text-emerald-400 tabular-nums">
+                          <span className="font-['Outfit'] font-extrabold text-base text-[#0D5C3A] tabular-nums">
                             {formatPrice(b.estimated_price_fcfa)}
                           </span>
                         </div>
                       </div>
 
                       {/* Service & Détails */}
-                      <div className="p-2.5 rounded-xl bg-[#070A10] border border-slate-800/60 text-xs space-y-1">
-                        <div className="font-semibold text-slate-200">{b.service_type}</div>
+                      <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/60 text-xs space-y-1">
+                        <div className="font-bold text-slate-800">{b.service_type}</div>
                         {b.service_details && b.service_details !== b.service_type && (
-                          <div className="text-slate-400 text-[11px] leading-relaxed">{b.service_details}</div>
+                          <div className="text-slate-600 text-[11px] leading-relaxed">{b.service_details}</div>
                         )}
-                        <div className="flex items-center gap-1 text-[11px] text-slate-500 pt-1">
-                          <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                        <div className="flex items-center gap-1.5 text-[11px] text-slate-500 pt-1 font-medium">
+                          <Calendar className="w-3.5 h-3.5 text-[#0D5C3A]" />
                           <span>{b.intervention_date || 'Date à définir'} {b.intervention_time ? `• ${b.intervention_time}` : ''}</span>
                         </div>
                       </div>
 
                       {/* Statut sélecteur et Actions au toucher */}
-                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-800/60">
+                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100">
                         {/* Sélecteur de statut */}
                         <select
                           value={b.status}
@@ -1073,10 +1114,10 @@ export default function AdminPortal({ onClose }) {
                         <div className="flex items-center gap-1.5">
                           <a
                             href={`tel:${b.client_phone.replace(/\s+/g, '')}`}
-                            className="h-8 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5"
+                            className="h-8 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold font-['Outfit'] flex items-center gap-1.5"
                             title="Appeler directement"
                           >
-                            <Phone className="w-3.5 h-3.5 text-emerald-400" />
+                            <Phone className="w-3.5 h-3.5 text-[#0D5C3A]" />
                             <span>Appel</span>
                           </a>
 
@@ -1084,17 +1125,17 @@ export default function AdminPortal({ onClose }) {
                             href={`https://wa.me/${b.client_phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Bonjour ${b.client_name}, nous confirmons votre intervention TAARU SET pour ${b.service_type} à ${b.quarter}.`)}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="h-8 px-3 rounded-xl bg-emerald-950/80 text-emerald-300 border border-emerald-800/80 text-xs font-semibold flex items-center gap-1.5"
+                            className="h-8 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#0D5C3A] border border-emerald-200 text-xs font-bold font-['Outfit'] flex items-center gap-1.5"
                             title="Ouvrir WhatsApp"
                           >
-                            <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
+                            <MessageSquare className="w-3.5 h-3.5" />
                             <span>WhatsApp</span>
                           </a>
 
                           <button
                             type="button"
                             onClick={() => handleDeleteBooking(b.id)}
-                            className="h-8 w-8 rounded-xl bg-slate-800 text-slate-400 hover:text-rose-400 flex items-center justify-center cursor-pointer"
+                            className="h-8 w-8 rounded-xl bg-slate-100 text-slate-400 hover:text-rose-600 flex items-center justify-center cursor-pointer"
                             title="Supprimer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -1108,20 +1149,20 @@ export default function AdminPortal({ onClose }) {
               </div>
 
               {/* --- VUE DESKTOP : TABLE SPATIEUSE HAUTE DENSITÉ (>= md) --- */}
-              <div className="hidden md:block border border-slate-800/80 rounded-2xl bg-[#0B0F19] overflow-hidden shadow-sm">
+              <div className="hidden md:block border border-slate-200/90 rounded-2xl bg-white overflow-hidden shadow-xs">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-[#0E131F] text-slate-400 text-xs font-['Outfit'] font-bold uppercase tracking-wider border-b border-slate-800/80">
+                    <thead className="bg-slate-50 text-slate-600 text-xs font-['Outfit'] font-bold uppercase tracking-wider border-b border-slate-200">
                       <tr>
-                        <th className="py-3 px-4 font-bold">Client</th>
-                        <th className="py-3 px-4 font-bold">Prestation</th>
-                        <th className="py-3 px-4 font-bold">Quartier & Date</th>
-                        <th className="py-3 px-4 font-bold">Montant</th>
-                        <th className="py-3 px-4 font-bold">Statut</th>
-                        <th className="py-3 px-4 text-right font-bold">Actions directes</th>
+                        <th className="py-3.5 px-5">Client</th>
+                        <th className="py-3.5 px-5">Prestation demandée</th>
+                        <th className="py-3.5 px-5">Quartier & Date</th>
+                        <th className="py-3.5 px-5">Montant</th>
+                        <th className="py-3.5 px-5">Statut</th>
+                        <th className="py-3.5 px-5 text-right">Actions rapides</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800/60 font-sans">
+                    <tbody className="divide-y divide-slate-100 font-sans">
                       {filteredBookings.length === 0 ? (
                         <tr>
                           <td colSpan={6} className="py-14 text-center text-slate-500 text-xs">
@@ -1130,34 +1171,34 @@ export default function AdminPortal({ onClose }) {
                         </tr>
                       ) : (
                         filteredBookings.map((b) => (
-                          <tr key={b.id} className="hover:bg-slate-800/30 transition-colors">
+                          <tr key={b.id} className="hover:bg-emerald-50/30 transition-colors">
                             {/* Client */}
-                            <td className="py-3.5 px-4">
-                              <div className="font-['Outfit'] font-bold text-white text-sm">{b.client_name}</div>
-                              <div className="text-xs text-slate-400 font-medium tabular-nums">{b.client_phone}</div>
+                            <td className="py-4 px-5">
+                              <div className="font-['Outfit'] font-bold text-slate-900 text-sm">{b.client_name}</div>
+                              <div className="text-xs text-slate-500 font-medium tabular-nums mt-0.5">{b.client_phone}</div>
                             </td>
 
                             {/* Service */}
-                            <td className="py-3.5 px-4 max-w-xs">
-                              <div className="font-semibold text-slate-200 text-xs">{b.service_type}</div>
-                              <div className="text-[11px] text-slate-400 truncate">{b.service_details}</div>
+                            <td className="py-4 px-5 max-w-xs">
+                              <div className="font-bold text-slate-800 text-xs">{b.service_type}</div>
+                              <div className="text-[11px] text-slate-500 truncate mt-0.5">{b.service_details}</div>
                             </td>
 
                             {/* Quartier & Date */}
-                            <td className="py-3.5 px-4">
-                              <div className="text-slate-300 font-semibold text-xs">{b.quarter}</div>
-                              <div className="text-[11px] text-slate-400 font-medium">
+                            <td className="py-4 px-5">
+                              <div className="text-slate-800 font-semibold text-xs">{b.quarter}</div>
+                              <div className="text-[11px] text-slate-500 font-medium mt-0.5">
                                 {b.intervention_date || 'Date à fixer'} {b.intervention_time ? `• ${b.intervention_time}` : ''}
                               </div>
                             </td>
 
                             {/* Montant */}
-                            <td className="py-3.5 px-4 font-['Outfit'] font-extrabold text-emerald-400 text-sm tabular-nums">
+                            <td className="py-4 px-5 font-['Outfit'] font-extrabold text-[#0D5C3A] text-sm tabular-nums">
                               {formatPrice(b.estimated_price_fcfa)}
                             </td>
 
                             {/* Statut sélecteur */}
-                            <td className="py-3.5 px-4">
+                            <td className="py-4 px-5">
                               <select
                                 value={b.status}
                                 onChange={(e) => handleUpdateStatus(b.id, e.target.value)}
@@ -1172,14 +1213,14 @@ export default function AdminPortal({ onClose }) {
                             </td>
 
                             {/* Actions rapides */}
-                            <td className="py-3.5 px-4 text-right">
-                              <div className="flex items-center justify-end gap-2">
+                            <td className="py-4 px-5 text-right">
+                              <div className="flex items-center justify-end gap-2 font-['Outfit']">
                                 <a
                                   href={`tel:${b.client_phone.replace(/\s+/g, '')}`}
-                                  className="h-8 px-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                                  className="h-8 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition-colors"
                                   title="Appeler directement"
                                 >
-                                  <Phone className="w-3.5 h-3.5 text-emerald-400" />
+                                  <Phone className="w-3.5 h-3.5 text-[#0D5C3A]" />
                                   <span>Appel</span>
                                 </a>
 
@@ -1187,7 +1228,7 @@ export default function AdminPortal({ onClose }) {
                                   href={`https://wa.me/${b.client_phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Bonjour ${b.client_name}, nous confirmons votre intervention TAARU SET pour ${b.service_type} à ${b.quarter}.`)}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="h-8 px-2.5 rounded-lg bg-emerald-950/70 hover:bg-emerald-900/80 text-emerald-300 border border-emerald-800/70 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                                  className="h-8 px-2.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-[#0D5C3A] border border-emerald-200 text-xs font-bold flex items-center gap-1.5 transition-colors"
                                   title="Ouvrir WhatsApp"
                                 >
                                   <MessageSquare className="w-3.5 h-3.5" />
@@ -1197,7 +1238,7 @@ export default function AdminPortal({ onClose }) {
                                 <button
                                   type="button"
                                   onClick={() => handleDeleteBooking(b.id)}
-                                  className="h-8 w-8 rounded-lg bg-slate-800/80 hover:bg-rose-950/50 text-slate-400 hover:text-rose-300 flex items-center justify-center transition-colors cursor-pointer"
+                                  className="h-8 w-8 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center transition-colors cursor-pointer"
                                   title="Supprimer la réservation"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
@@ -1223,32 +1264,32 @@ export default function AdminPortal({ onClose }) {
               {/* VUE MOBILE : Cartes clients (< md) */}
               <div className="md:hidden space-y-3">
                 {clients.length === 0 ? (
-                  <div className="py-12 text-center text-slate-500 text-xs bg-[#0B0F19] rounded-2xl border border-slate-800 p-6">
+                  <div className="py-12 text-center text-slate-500 text-xs bg-white rounded-2xl border border-slate-200 p-6 shadow-xs">
                     Aucun client répertorié pour le moment.
                   </div>
                 ) : (
                   clients.map(c => (
-                    <div key={c.id} className="p-4 rounded-2xl bg-[#0B0F19] border border-slate-800/90 space-y-2.5">
+                    <div key={c.id} className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2.5">
                       <div className="flex items-start justify-between">
                         <div>
-                          <h4 className="font-['Outfit'] font-bold text-sm text-white">{c.full_name}</h4>
-                          <div className="text-xs text-slate-400 font-medium tabular-nums">{c.phone}</div>
-                          <div className="text-[11px] text-slate-500 mt-0.5">{c.quarter || 'Dakar'}</div>
+                          <h4 className="font-['Outfit'] font-bold text-base text-slate-900">{c.full_name}</h4>
+                          <div className="text-xs text-slate-500 font-medium tabular-nums">{c.phone}</div>
+                          <div className="text-[11px] text-slate-400 mt-0.5">{c.quarter || 'Dakar'}</div>
                         </div>
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-['Outfit'] font-bold ${
-                          c.loyalty_status === 'Client VIP' ? 'bg-amber-950/60 text-amber-300 border border-amber-800/60' :
-                          c.loyalty_status === 'Client Régulier' ? 'bg-blue-950/60 text-blue-300 border border-blue-800/60' :
-                          'bg-slate-800 text-slate-300'
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-['Outfit'] font-bold ${
+                          c.loyalty_status === 'Client VIP' ? 'bg-amber-50 text-amber-800 border border-amber-200' :
+                          c.loyalty_status === 'Client Régulier' ? 'bg-blue-50 text-blue-800 border border-blue-200' :
+                          'bg-slate-100 text-slate-700'
                         }`}>
                           {c.loyalty_status}
                         </span>
                       </div>
 
-                      <div className="flex items-center justify-between pt-2 border-t border-slate-800/60 text-xs">
-                        <div className="text-slate-400">
+                      <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+                        <div className="text-slate-500 font-medium">
                           <span>{c.total_orders} commande{c.total_orders > 1 ? 's' : ''}</span>
                         </div>
-                        <div className="font-['Outfit'] font-extrabold text-emerald-400 text-sm tabular-nums">
+                        <div className="font-['Outfit'] font-extrabold text-[#0D5C3A] text-base tabular-nums">
                           {formatPrice(c.total_spent_fcfa)}
                         </div>
                       </div>
@@ -1258,20 +1299,20 @@ export default function AdminPortal({ onClose }) {
               </div>
 
               {/* VUE DESKTOP : Table clients (>= md) */}
-              <div className="hidden md:block border border-slate-800/80 rounded-2xl bg-[#0B0F19] overflow-hidden shadow-sm">
+              <div className="hidden md:block border border-slate-200/90 rounded-2xl bg-white overflow-hidden shadow-xs">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-[#0E131F] text-slate-400 text-xs font-['Outfit'] font-bold uppercase tracking-wider border-b border-slate-800/80">
+                  <thead className="bg-slate-50 text-slate-600 text-xs font-['Outfit'] font-bold uppercase tracking-wider border-b border-slate-200">
                     <tr>
-                      <th className="py-3 px-4">Client</th>
-                      <th className="py-3 px-4">Téléphone</th>
-                      <th className="py-3 px-4">Quartier</th>
-                      <th className="py-3 px-4">Commandes</th>
-                      <th className="py-3 px-4">Total Dépensé</th>
-                      <th className="py-3 px-4">Statut Fidélité</th>
-                      <th className="py-3 px-4">Dernière commande</th>
+                      <th className="py-3.5 px-5">Client</th>
+                      <th className="py-3.5 px-5">Téléphone</th>
+                      <th className="py-3.5 px-5">Quartier</th>
+                      <th className="py-3.5 px-5">Commandes</th>
+                      <th className="py-3.5 px-5">Total Dépensé</th>
+                      <th className="py-3.5 px-5">Statut Fidélité</th>
+                      <th className="py-3.5 px-5">Dernière commande</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/60 font-sans">
+                  <tbody className="divide-y divide-slate-100 font-sans">
                     {clients.length === 0 ? (
                       <tr>
                         <td colSpan={7} className="py-14 text-center text-slate-500 text-xs">
@@ -1280,24 +1321,24 @@ export default function AdminPortal({ onClose }) {
                       </tr>
                     ) : (
                       clients.map((c) => (
-                        <tr key={c.id} className="hover:bg-slate-800/30 transition-colors">
-                          <td className="py-3.5 px-4 font-['Outfit'] font-bold text-white text-sm">{c.full_name}</td>
-                          <td className="py-3.5 px-4 text-slate-300 text-xs tabular-nums font-medium">{c.phone}</td>
-                          <td className="py-3.5 px-4 text-slate-400 text-xs">{c.quarter || 'Dakar'}</td>
-                          <td className="py-3.5 px-4 text-slate-300 font-bold font-['Outfit']">{c.total_orders}</td>
-                          <td className="py-3.5 px-4 font-['Outfit'] font-extrabold text-emerald-400 text-sm tabular-nums">
+                        <tr key={c.id} className="hover:bg-emerald-50/30 transition-colors">
+                          <td className="py-4 px-5 font-['Outfit'] font-bold text-slate-900 text-sm">{c.full_name}</td>
+                          <td className="py-4 px-5 text-slate-600 text-xs tabular-nums font-medium">{c.phone}</td>
+                          <td className="py-4 px-5 text-slate-500 text-xs font-medium">{c.quarter || 'Dakar'}</td>
+                          <td className="py-4 px-5 text-slate-800 font-bold font-['Outfit'] text-sm">{c.total_orders}</td>
+                          <td className="py-4 px-5 font-['Outfit'] font-extrabold text-[#0D5C3A] text-sm tabular-nums">
                             {formatPrice(c.total_spent_fcfa)}
                           </td>
-                          <td className="py-3.5 px-4">
+                          <td className="py-4 px-5">
                             <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-['Outfit'] font-bold ${
-                              c.loyalty_status === 'Client VIP' ? 'bg-amber-950/60 text-amber-300 border border-amber-800/60' :
-                              c.loyalty_status === 'Client Régulier' ? 'bg-blue-950/60 text-blue-300 border border-blue-800/60' :
-                              'bg-slate-800 text-slate-300 border border-slate-700'
+                              c.loyalty_status === 'Client VIP' ? 'bg-amber-50 text-amber-800 border border-amber-200' :
+                              c.loyalty_status === 'Client Régulier' ? 'bg-blue-50 text-blue-800 border border-blue-200' :
+                              'bg-slate-100 text-slate-700 border border-slate-200'
                             }`}>
                               {c.loyalty_status}
                             </span>
                           </td>
-                          <td className="py-3.5 px-4 text-slate-400 text-xs font-medium tabular-nums">
+                          <td className="py-4 px-5 text-slate-500 text-xs font-medium tabular-nums">
                             {c.last_order_at ? new Date(c.last_order_at).toLocaleDateString('fr-FR') : '-'}
                           </td>
                         </tr>
@@ -1313,57 +1354,59 @@ export default function AdminPortal({ onClose }) {
           {/* ONGLET 3 : STATISTIQUES & BILAN COMPLET                                   */}
           {/* ========================================================================= */}
           {activeTab === 'stats' && (
-            <div className="space-y-5">
+            <div className="space-y-6">
               
               {/* Cartes KPI Principales (2 cols sur mobile, 4 sur desktop) */}
-              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                <div className="p-4 rounded-2xl bg-[#0B0F19] border border-slate-800/90 shadow-sm">
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-5">
+                <div className="p-5 rounded-2xl bg-white border border-slate-200/90 shadow-sm">
                   <div className="text-[11px] font-['Outfit'] font-bold uppercase tracking-wider text-slate-400">Chiffre d'Affaires</div>
-                  <div className="text-lg sm:text-2xl font-['Outfit'] font-extrabold text-emerald-400 mt-1.5 tabular-nums">
+                  <div className="text-xl sm:text-2xl font-['Outfit'] font-extrabold text-[#0D5C3A] mt-2 tabular-nums">
                     {formatPrice(stats.totalRevenue)}
                   </div>
-                  <div className="text-[10px] sm:text-[11px] text-slate-500 mt-1">Prestations engagées ou finalisées</div>
+                  <div className="text-[11px] text-slate-500 mt-1 font-medium">Prestations engagées ou finalisées</div>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-[#0B0F19] border border-slate-800/90 shadow-sm">
+                <div className="p-5 rounded-2xl bg-white border border-slate-200/90 shadow-sm">
                   <div className="text-[11px] font-['Outfit'] font-bold uppercase tracking-wider text-slate-400">Total Interventions</div>
-                  <div className="text-lg sm:text-2xl font-['Outfit'] font-extrabold text-white mt-1.5 tabular-nums">
+                  <div className="text-xl sm:text-2xl font-['Outfit'] font-extrabold text-slate-900 mt-2 tabular-nums">
                     {stats.totalBookings}
                   </div>
-                  <div className="text-[10px] sm:text-[11px] text-slate-500 mt-1">Sur l'ensemble des formules</div>
+                  <div className="text-[11px] text-slate-500 mt-1 font-medium">Sur l'ensemble des formules</div>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-[#0B0F19] border border-slate-800/90 shadow-sm">
+                <div className="p-5 rounded-2xl bg-white border border-slate-200/90 shadow-sm">
                   <div className="text-[11px] font-['Outfit'] font-bold uppercase tracking-wider text-slate-400">Panier Moyen</div>
-                  <div className="text-lg sm:text-2xl font-['Outfit'] font-extrabold text-blue-400 mt-1.5 tabular-nums">
+                  <div className="text-xl sm:text-2xl font-['Outfit'] font-extrabold text-blue-700 mt-2 tabular-nums">
                     {formatPrice(stats.avgBasket)}
                   </div>
-                  <div className="text-[10px] sm:text-[11px] text-slate-500 mt-1">Moyenne par client à Dakar</div>
+                  <div className="text-[11px] text-slate-500 mt-1 font-medium">Moyenne par client à Dakar</div>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-[#0B0F19] border border-slate-800/90 shadow-sm">
+                <div className="p-5 rounded-2xl bg-white border border-slate-200/90 shadow-sm">
                   <div className="text-[11px] font-['Outfit'] font-bold uppercase tracking-wider text-slate-400">Clients Enregistrés</div>
-                  <div className="text-lg sm:text-2xl font-['Outfit'] font-extrabold text-purple-400 mt-1.5 tabular-nums">
+                  <div className="text-xl sm:text-2xl font-['Outfit'] font-extrabold text-purple-700 mt-2 tabular-nums">
                     {clients.length}
                   </div>
-                  <div className="text-[10px] sm:text-[11px] text-slate-500 mt-1">Contacts qualifiés répertoriés</div>
+                  <div className="text-[11px] text-slate-500 mt-1 font-medium">Contacts qualifiés répertoriés</div>
                 </div>
               </div>
 
               {/* Grille Analytique Double Colonne */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
                 
                 {/* 1. Répartition du Chiffre d'Affaires par Métier */}
-                <div className="p-5 rounded-2xl bg-[#0B0F19] border border-slate-800/90 space-y-4 shadow-sm">
+                <div className="p-6 rounded-2xl bg-white border border-slate-200/90 space-y-4 shadow-sm">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="font-['Outfit'] font-bold text-xs uppercase tracking-wider text-slate-200">Volume par prestation</h4>
-                      <p className="text-[11px] text-slate-400">Part de chiffre d'affaires générée par formule</p>
+                      <h4 className="font-['Outfit'] font-bold text-sm uppercase tracking-wider text-slate-900">Volume par prestation</h4>
+                      <p className="text-xs text-slate-500 mt-0.5">Part de chiffre d'affaires générée par formule</p>
                     </div>
-                    <Layers className="w-4 h-4 text-emerald-400" />
+                    <div className="w-8 h-8 rounded-xl bg-emerald-50 text-[#0D5C3A] flex items-center justify-center">
+                      <Layers className="w-4 h-4" />
+                    </div>
                   </div>
 
-                  <div className="space-y-3.5 pt-2">
+                  <div className="space-y-4 pt-2">
                     {stats.serviceDistribution.length === 0 ? (
                       <div className="py-8 text-center text-slate-500 text-xs">
                         Données en cours de synchronisation.
@@ -1372,14 +1415,14 @@ export default function AdminPortal({ onClose }) {
                       stats.serviceDistribution.map((item, idx) => (
                         <div key={idx} className="space-y-1.5">
                           <div className="flex items-center justify-between text-xs">
-                            <span className="font-semibold text-slate-200">{item.name}</span>
-                            <span className="font-['Outfit'] font-bold text-slate-300 tabular-nums">
+                            <span className="font-bold text-slate-800">{item.name}</span>
+                            <span className="font-['Outfit'] font-bold text-[#0D5C3A] tabular-nums">
                               {formatPrice(item.amount)} ({item.percentage}%)
                             </span>
                           </div>
-                          <div className="w-full h-2.5 rounded-full bg-slate-800 overflow-hidden">
+                          <div className="w-full h-2.5 rounded-full bg-slate-100 overflow-hidden">
                             <div 
-                              className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-full transition-all duration-500"
+                              className="h-full bg-gradient-to-r from-[#0D5C3A] to-[#16A34A] rounded-full transition-all duration-500"
                               style={{ width: `${Math.max(item.percentage, 4)}%` }}
                             ></div>
                           </div>
@@ -1390,13 +1433,15 @@ export default function AdminPortal({ onClose }) {
                 </div>
 
                 {/* 2. Top Quartiers Stratégiques à Dakar */}
-                <div className="p-5 rounded-2xl bg-[#0B0F19] border border-slate-800/90 space-y-4 shadow-sm">
+                <div className="p-6 rounded-2xl bg-white border border-slate-200/90 space-y-4 shadow-sm">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="font-['Outfit'] font-bold text-xs uppercase tracking-wider text-slate-200">Concentration géographique</h4>
-                      <p className="text-[11px] text-slate-400">Zones les plus demandeuses pour vos équipes terrain</p>
+                      <h4 className="font-['Outfit'] font-bold text-sm uppercase tracking-wider text-slate-900">Concentration géographique</h4>
+                      <p className="text-xs text-slate-500 mt-0.5">Quartiers de Dakar avec la plus forte demande</p>
                     </div>
-                    <MapPin className="w-4 h-4 text-blue-400" />
+                    <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center">
+                      <MapPin className="w-4 h-4" />
+                    </div>
                   </div>
 
                   <div className="space-y-2.5 pt-2">
@@ -1406,14 +1451,14 @@ export default function AdminPortal({ onClose }) {
                       </div>
                     ) : (
                       stats.topQuarters.map((q, idx) => (
-                        <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-[#0E131F] border border-slate-800">
+                        <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200/70">
                           <div className="flex items-center gap-2.5">
-                            <span className="w-6 h-6 rounded-lg bg-slate-800 font-['Outfit'] text-xs text-slate-300 flex items-center justify-center font-bold">
+                            <span className="w-6 h-6 rounded-lg bg-white border border-slate-200 font-['Outfit'] text-xs text-slate-700 flex items-center justify-center font-bold shadow-xs">
                               {idx + 1}
                             </span>
-                            <span className="text-xs font-semibold text-slate-200">{q.name}</span>
+                            <span className="text-xs font-bold text-slate-800">{q.name}</span>
                           </div>
-                          <span className="text-xs font-['Outfit'] font-bold text-emerald-400 tabular-nums">
+                          <span className="text-xs font-['Outfit'] font-bold text-[#0D5C3A] tabular-nums">
                             {q.count} intervention{q.count > 1 ? 's' : ''}
                           </span>
                         </div>
@@ -1425,35 +1470,37 @@ export default function AdminPortal({ onClose }) {
               </div>
 
               {/* 3. Pipeline des Interventions (Entonnoir d'état) */}
-              <div className="p-5 rounded-2xl bg-[#0B0F19] border border-slate-800/90 shadow-sm">
+              <div className="p-6 rounded-2xl bg-white border border-slate-200/90 shadow-sm">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <h4 className="font-['Outfit'] font-bold text-xs uppercase tracking-wider text-slate-200">État du flux opérationnel</h4>
-                    <p className="text-[11px] text-slate-400">Suivi en temps réel de l'exécution terrain</p>
+                    <h4 className="font-['Outfit'] font-bold text-sm uppercase tracking-wider text-slate-900">État du flux opérationnel</h4>
+                    <p className="text-xs text-slate-500 mt-0.5">Suivi en direct de l'exécution sur le terrain</p>
                   </div>
-                  <Activity className="w-4 h-4 text-purple-400" />
+                  <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center">
+                    <Activity className="w-4 h-4" />
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 sm:gap-3">
-                  <div className="p-3.5 rounded-xl bg-[#0E131F] border border-slate-800 text-center">
-                    <div className="text-[10px] font-['Outfit'] font-bold text-amber-400 uppercase">En attente</div>
-                    <div className="text-xl font-['Outfit'] font-black text-white mt-1 tabular-nums">{stats.statusCounts.en_attente}</div>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                  <div className="p-4 rounded-xl bg-amber-50/60 border border-amber-200/80 text-center">
+                    <div className="text-[11px] font-['Outfit'] font-bold text-amber-800 uppercase">En attente</div>
+                    <div className="text-2xl font-['Outfit'] font-extrabold text-amber-900 mt-1 tabular-nums">{stats.statusCounts.en_attente}</div>
                   </div>
-                  <div className="p-3.5 rounded-xl bg-[#0E131F] border border-slate-800 text-center">
-                    <div className="text-[10px] font-['Outfit'] font-bold text-blue-400 uppercase">Confirmées</div>
-                    <div className="text-xl font-['Outfit'] font-black text-white mt-1 tabular-nums">{stats.statusCounts.confirmee}</div>
+                  <div className="p-4 rounded-xl bg-blue-50/60 border border-blue-200/80 text-center">
+                    <div className="text-[11px] font-['Outfit'] font-bold text-blue-800 uppercase">Confirmées</div>
+                    <div className="text-2xl font-['Outfit'] font-extrabold text-blue-900 mt-1 tabular-nums">{stats.statusCounts.confirmee}</div>
                   </div>
-                  <div className="p-3.5 rounded-xl bg-[#0E131F] border border-slate-800 text-center">
-                    <div className="text-[10px] font-['Outfit'] font-bold text-purple-400 uppercase">En cours</div>
-                    <div className="text-xl font-['Outfit'] font-black text-white mt-1 tabular-nums">{stats.statusCounts.en_cours}</div>
+                  <div className="p-4 rounded-xl bg-purple-50/60 border border-purple-200/80 text-center">
+                    <div className="text-[11px] font-['Outfit'] font-bold text-purple-800 uppercase">En cours</div>
+                    <div className="text-2xl font-['Outfit'] font-extrabold text-purple-900 mt-1 tabular-nums">{stats.statusCounts.en_cours}</div>
                   </div>
-                  <div className="p-3.5 rounded-xl bg-[#0E131F] border border-slate-800 text-center">
-                    <div className="text-[10px] font-['Outfit'] font-bold text-emerald-400 uppercase">Terminées</div>
-                    <div className="text-xl font-['Outfit'] font-black text-white mt-1 tabular-nums">{stats.statusCounts.terminee}</div>
+                  <div className="p-4 rounded-xl bg-emerald-50/60 border border-emerald-200/80 text-center">
+                    <div className="text-[11px] font-['Outfit'] font-bold text-[#0D5C3A] uppercase">Terminées</div>
+                    <div className="text-2xl font-['Outfit'] font-extrabold text-[#0D5C3A] mt-1 tabular-nums">{stats.statusCounts.terminee}</div>
                   </div>
-                  <div className="p-3.5 rounded-xl bg-[#0E131F] border border-slate-800 text-center">
-                    <div className="text-[10px] font-['Outfit'] font-bold text-slate-400 uppercase">Annulées</div>
-                    <div className="text-xl font-['Outfit'] font-black text-slate-400 mt-1 tabular-nums">{stats.statusCounts.annulee}</div>
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                    <div className="text-[11px] font-['Outfit'] font-bold text-slate-500 uppercase">Annulées</div>
+                    <div className="text-2xl font-['Outfit'] font-extrabold text-slate-700 mt-1 tabular-nums">{stats.statusCounts.annulee}</div>
                   </div>
                 </div>
               </div>
@@ -1462,114 +1509,179 @@ export default function AdminPortal({ onClose }) {
           )}
 
           {/* ========================================================================= */}
-          {/* ONGLET 4 : GESTION ÉQUIPE & DROITS                                        */}
+          {/* ONGLET 4 : GESTION ÉQUIPE UNIVERSELLE (Super Admin)                        */}
           {/* ========================================================================= */}
           {activeTab === 'team' && currentMember?.role === 'super_admin' && (
-            <div className="space-y-5">
+            <div className="space-y-6">
               
-              {/* Formulaire d'invitation réservé au Super Admin */}
-              <div className="p-5 rounded-2xl bg-[#0B0F19] border border-slate-800/90 space-y-4 shadow-sm">
+              {/* Formulaire d'ajout universel de collaborateur */}
+              <div className="p-6 rounded-2xl bg-white border border-slate-200/90 space-y-4 shadow-sm">
                 <div>
-                  <h4 className="font-['Outfit'] font-bold text-xs uppercase tracking-wider text-slate-200">Accréditer un collaborateur</h4>
-                  <p className="text-[11px] text-slate-400">
-                    Seuls les emails inscrits ici sont autorisés par le noyau PostgreSQL à créer ou réinitialiser un mot de passe.
+                  <h4 className="font-['Outfit'] font-bold text-base text-slate-900">Accréditer un nouveau collaborateur</h4>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Ajoutez n'importe quel membre de votre équipe. Son adresse email sera automatiquement autorisée à se connecter.
                   </p>
                 </div>
 
                 {teamMsg && (
-                  <div className="p-3.5 rounded-xl bg-[#0E131F] border border-slate-700 text-xs text-emerald-300 font-semibold font-['Outfit']">
-                    {teamMsg}
+                  <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 font-bold font-['Outfit'] flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-[#16A34A] shrink-0" />
+                    <span>{teamMsg}</span>
                   </div>
                 )}
 
-                <form onSubmit={handleAddTeamMember} className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <form onSubmit={handleAddTeamMember} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
                   <div>
-                    <label className="block text-xs font-['Outfit'] font-bold text-slate-300 mb-1">Nom complet</label>
+                    <label className="block text-xs font-['Outfit'] font-bold text-slate-700 mb-1">Nom complet</label>
                     <input 
                       type="text" 
                       required
-                      placeholder="Mouhamadou / Djiby"
+                      placeholder="Ex: Awa Ndiaye"
                       value={newMemberName}
                       onChange={(e) => setNewMemberName(e.target.value)}
-                      className="w-full h-10 px-3 rounded-xl bg-[#0E131F] border border-slate-800 text-xs text-white focus:outline-none focus:border-emerald-500 font-medium"
+                      className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:outline-none focus:bg-white focus:border-[#0D5C3A] font-medium"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-['Outfit'] font-bold text-slate-300 mb-1">Adresse email officielle</label>
+                    <label className="block text-xs font-['Outfit'] font-bold text-slate-700 mb-1">Adresse email officielle</label>
                     <input 
                       type="email" 
                       required
-                      placeholder="nom@collaborateur.sn"
+                      placeholder="nom@taaruset.sn ou gmail"
                       value={newMemberEmail}
                       onChange={(e) => setNewMemberEmail(e.target.value)}
-                      className="w-full h-10 px-3 rounded-xl bg-[#0E131F] border border-slate-800 text-xs text-white focus:outline-none focus:border-emerald-500 font-medium"
+                      className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:outline-none focus:bg-white focus:border-[#0D5C3A] font-medium"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-['Outfit'] font-bold text-slate-300 mb-1">Attribution du rôle</label>
+                    <label className="block text-xs font-['Outfit'] font-bold text-slate-700 mb-1">Téléphone WhatsApp</label>
+                    <input 
+                      type="text" 
+                      placeholder="+221 77 ..."
+                      value={newMemberPhone}
+                      onChange={(e) => setNewMemberPhone(e.target.value)}
+                      className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:outline-none focus:bg-white focus:border-[#0D5C3A] font-medium tabular-nums"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-['Outfit'] font-bold text-slate-700 mb-1">Rôle d'accès</label>
                     <select
                       value={newMemberRole}
                       onChange={(e) => setNewMemberRole(e.target.value)}
-                      className="w-full h-10 px-3 rounded-xl bg-[#0E131F] border border-slate-800 text-xs text-white focus:outline-none focus:border-emerald-500 font-semibold"
+                      className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:outline-none focus:bg-white focus:border-[#0D5C3A] font-bold font-['Outfit']"
                     >
-                      <option value="operations">Co-fondateur • Opérations (Djiby)</option>
-                      <option value="strategy">Co-fondateur • Stratégie (Mouhamadou)</option>
-                      <option value="super_admin">Super-Admin / Direction (Mamadou)</option>
+                      <option value="admin">Responsable Opérations / Superviseur</option>
+                      <option value="agent">Chef d'Équipe Terrain / Opérateur</option>
+                      <option value="sales">Chargé(e) Clientèle / Commercial</option>
+                      <option value="super_admin">Super-Admin / Direction</option>
                     </select>
                   </div>
 
                   <div className="flex items-end">
                     <button
                       type="submit"
-                      className="w-full h-10 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-['Outfit'] font-bold text-xs transition-colors cursor-pointer shadow-md shadow-emerald-950/60"
+                      className="w-full h-10 rounded-xl bg-[#0D5C3A] hover:bg-[#0A482E] text-white font-['Outfit'] font-bold text-xs transition-colors cursor-pointer shadow-md shadow-[#0D5C3A]/20 flex items-center justify-center gap-1.5"
                     >
-                      Accréditer l'accès
+                      <UserPlus className="w-4 h-4" />
+                      <span>Accréditer le membre</span>
                     </button>
                   </div>
                 </form>
               </div>
 
-              {/* Table des collaborateurs */}
-              <div className="border border-slate-800/80 rounded-2xl bg-[#0B0F19] overflow-hidden shadow-sm">
+              {/* Table des collaborateurs (Thème clair avec suppression et gestion de statut) */}
+              <div className="border border-slate-200/90 rounded-2xl bg-white overflow-hidden shadow-xs">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-[#0E131F] text-slate-400 text-xs font-['Outfit'] font-bold uppercase tracking-wider border-b border-slate-800/80">
+                  <thead className="bg-slate-50 text-slate-600 text-xs font-['Outfit'] font-bold uppercase tracking-wider border-b border-slate-200">
                     <tr>
-                      <th className="py-3 px-4">Nom</th>
-                      <th className="py-3 px-4">Email</th>
-                      <th className="py-3 px-4">Rôle</th>
-                      <th className="py-3 px-4">Statut</th>
-                      <th className="py-3 px-4 text-right">Actions</th>
+                      <th className="py-3.5 px-5">Collaborateur</th>
+                      <th className="py-3.5 px-5">Email accrédité</th>
+                      <th className="py-3.5 px-5">Téléphone</th>
+                      <th className="py-3.5 px-5">Rôle d'accès</th>
+                      <th className="py-3.5 px-5">Statut</th>
+                      <th className="py-3.5 px-5 text-right">Gestion des droits</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/60 font-sans">
+                  <tbody className="divide-y divide-slate-100 font-sans">
                     {teamMembers.map((m) => (
-                      <tr key={m.id} className="hover:bg-slate-800/30 transition-colors">
-                        <td className="py-3.5 px-4 font-['Outfit'] font-bold text-white text-sm">{m.full_name}</td>
-                        <td className="py-3.5 px-4 text-slate-300 font-medium tabular-nums">{m.email}</td>
-                        <td className="py-3.5 px-4">
-                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-['Outfit'] font-bold bg-slate-800 text-slate-300 border border-slate-700">
-                            {m.role === 'super_admin' ? 'Super Admin' : m.role}
-                          </span>
+                      <tr key={m.id} className="hover:bg-emerald-50/30 transition-colors">
+                        <td className="py-4 px-5">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-emerald-100 text-[#0D5C3A] font-['Outfit'] font-black text-xs flex items-center justify-center shadow-xs">
+                              {m.full_name ? m.full_name.slice(0, 2).toUpperCase() : 'TS'}
+                            </div>
+                            <div>
+                              <div className="font-['Outfit'] font-bold text-slate-900 text-sm">{m.full_name}</div>
+                              {m.job_title && (
+                                <div className="text-[11px] text-slate-500 font-medium">{m.job_title}</div>
+                              )}
+                            </div>
+                          </div>
                         </td>
-                        <td className="py-3.5 px-4">
+
+                        <td className="py-4 px-5 text-slate-700 text-xs font-medium tabular-nums">{m.email}</td>
+                        
+                        <td className="py-4 px-5 text-slate-600 text-xs font-medium tabular-nums">
+                          {m.phone ? (
+                            <a 
+                              href={`https://wa.me/${m.phone.replace(/[^0-9]/g, '')}`} 
+                              target="_blank" 
+                              rel="noreferrer"
+                              className="text-[#0D5C3A] hover:underline font-bold"
+                            >
+                              {m.phone}
+                            </a>
+                          ) : (
+                            <span className="text-slate-400">-</span>
+                          )}
+                        </td>
+
+                        <td className="py-4 px-5">
                           <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-['Outfit'] font-bold ${
-                            m.is_active ? 'bg-emerald-950/60 text-emerald-300 border border-emerald-800/60' : 'bg-rose-950/60 text-rose-300 border border-rose-800/60'
+                            m.role === 'super_admin' ? 'bg-purple-50 text-purple-800 border border-purple-200' :
+                            m.role === 'admin' ? 'bg-blue-50 text-blue-800 border border-blue-200' :
+                            'bg-slate-100 text-slate-700 border border-slate-200'
                           }`}>
-                            {m.is_active ? 'Actif' : 'Désactivé'}
+                            {getRoleLabel(m.role)}
                           </span>
                         </td>
-                        <td className="py-3.5 px-4 text-right">
-                          <button
-                            type="button"
-                            onClick={() => handleToggleMemberActive(m.id, m.is_active)}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-['Outfit'] font-bold transition-colors cursor-pointer ${
-                              m.is_active ? 'bg-rose-950/30 text-rose-300 hover:bg-rose-900/40 border border-rose-800/40' : 'bg-emerald-950/30 text-emerald-300 hover:bg-emerald-900/40 border border-emerald-800/40'
-                            }`}
-                          >
-                            {m.is_active ? 'Suspendre' : 'Réactiver'}
-                          </button>
+
+                        <td className="py-4 px-5">
+                          <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-['Outfit'] font-bold ${
+                            m.is_active ? 'bg-emerald-50 text-[#0D5C3A] border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'
+                          }`}>
+                            {m.is_active ? 'Actif' : 'Suspendu'}
+                          </span>
+                        </td>
+
+                        <td className="py-4 px-5 text-right">
+                          <div className="flex items-center justify-end gap-2 font-['Outfit']">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleMemberActive(m.id, m.is_active)}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+                                m.is_active 
+                                  ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' 
+                                  : 'bg-emerald-50 text-[#0D5C3A] hover:bg-emerald-100 border border-emerald-200'
+                              }`}
+                            >
+                              {m.is_active ? 'Suspendre' : 'Réactiver'}
+                            </button>
+
+                            {m.email !== 'ssow2006@gmail.com' && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteTeamMember(m.id, m.email, m.full_name)}
+                                className="h-8 w-8 rounded-xl bg-slate-100 text-slate-400 hover:bg-rose-50 hover:text-rose-600 flex items-center justify-center transition-colors cursor-pointer"
+                                title="Révoquer et supprimer ce collaborateur"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -1585,19 +1697,19 @@ export default function AdminPortal({ onClose }) {
       </main>
 
       {/* ========================================================================= */}
-      {/* 4. BARRE DE NAVIGATION INFÉRIEURE MOBILE (Sticky Mobile Bottom Bar)        */}
+      {/* 4. BARRE DE NAVIGATION INFÉRIEURE MOBILE (Sticky Bottom Bar Thème Blanc)  */}
       {/* ========================================================================= */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 h-16 bg-[#0B0F19]/95 backdrop-blur-md border-t border-slate-800/90 flex items-center justify-around z-30 px-2 font-['Outfit']">
+      <nav className="md:hidden fixed bottom-0 inset-x-0 h-16 bg-white/95 backdrop-blur-md border-t border-slate-200 flex items-center justify-around z-30 px-2 font-['Outfit'] shadow-lg">
         <button
           type="button"
           onClick={() => setActiveTab('bookings')}
           className={`flex flex-col items-center justify-center gap-1 w-16 h-12 rounded-xl transition-colors ${
-            activeTab === 'bookings' ? 'text-emerald-400' : 'text-slate-400 hover:text-slate-200'
+            activeTab === 'bookings' ? 'text-[#0D5C3A]' : 'text-slate-400 hover:text-slate-600'
           }`}
         >
           <div className="relative">
             <Calendar className="w-5 h-5" />
-            <span className="absolute -top-1 -right-2 text-[9px] font-bold px-1 rounded-full bg-emerald-600 text-white">
+            <span className="absolute -top-1 -right-2 text-[9px] font-bold px-1 rounded-full bg-[#0D5C3A] text-white">
               {bookings.length}
             </span>
           </div>
@@ -1608,7 +1720,7 @@ export default function AdminPortal({ onClose }) {
           type="button"
           onClick={() => setActiveTab('clients')}
           className={`flex flex-col items-center justify-center gap-1 w-16 h-12 rounded-xl transition-colors ${
-            activeTab === 'clients' ? 'text-blue-400' : 'text-slate-400 hover:text-slate-200'
+            activeTab === 'clients' ? 'text-[#0D5C3A]' : 'text-slate-400 hover:text-slate-600'
           }`}
         >
           <Users className="w-5 h-5" />
@@ -1619,7 +1731,7 @@ export default function AdminPortal({ onClose }) {
           type="button"
           onClick={() => setActiveTab('stats')}
           className={`flex flex-col items-center justify-center gap-1 w-16 h-12 rounded-xl transition-colors ${
-            activeTab === 'stats' ? 'text-amber-400' : 'text-slate-400 hover:text-slate-200'
+            activeTab === 'stats' ? 'text-[#0D5C3A]' : 'text-slate-400 hover:text-slate-600'
           }`}
         >
           <BarChart3 className="w-5 h-5" />
@@ -1631,7 +1743,7 @@ export default function AdminPortal({ onClose }) {
             type="button"
             onClick={() => setActiveTab('team')}
             className={`flex flex-col items-center justify-center gap-1 w-16 h-12 rounded-xl transition-colors ${
-              activeTab === 'team' ? 'text-purple-400' : 'text-slate-400 hover:text-slate-200'
+              activeTab === 'team' ? 'text-[#0D5C3A]' : 'text-slate-400 hover:text-slate-600'
             }`}
           >
             <UserPlus className="w-5 h-5" />
@@ -1642,7 +1754,7 @@ export default function AdminPortal({ onClose }) {
         <button
           type="button"
           onClick={() => setIsMobileMenuOpen(true)}
-          className="flex flex-col items-center justify-center gap-1 w-16 h-12 rounded-xl text-slate-400 hover:text-white"
+          className="flex flex-col items-center justify-center gap-1 w-16 h-12 rounded-xl text-slate-400 hover:text-slate-700"
         >
           <Menu className="w-5 h-5" />
           <span className="text-[10px] font-bold">Menu</span>
@@ -1650,22 +1762,22 @@ export default function AdminPortal({ onClose }) {
       </nav>
 
       {/* ========================================================================= */}
-      {/* 5. MODALE D'AJOUT RÉSERVATION MANUELLE (TACTILE & RESPONSIVE)               */}
+      {/* 5. MODALE NOUVELLE COMMANDE MANUELLE (STYLE TAARU SET)                    */}
       {/* ========================================================================= */}
       {isManualModalOpen && (
-        <div className="fixed inset-0 z-60 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-[#0E131F] border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-emerald-600/30 text-emerald-400 flex items-center justify-center font-bold">
+        <div className="fixed inset-0 z-60 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white border border-slate-200 rounded-3xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-[#0D5C3A] flex items-center justify-center font-bold">
                   <Plus className="w-4 h-4" />
                 </div>
-                <h4 className="text-sm font-['Outfit'] font-bold text-white">Nouvelle commande manuelle</h4>
+                <h4 className="text-sm font-['Outfit'] font-bold text-slate-900">Nouvelle intervention manuelle</h4>
               </div>
               <button 
                 type="button" 
                 onClick={() => setIsManualModalOpen(false)} 
-                className="w-8 h-8 rounded-full bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center cursor-pointer"
+                className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800 flex items-center justify-center cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1673,35 +1785,35 @@ export default function AdminPortal({ onClose }) {
 
             <form onSubmit={handleCreateManualBooking} className="space-y-3.5 text-xs">
               <div>
-                <label className="block font-['Outfit'] font-bold text-slate-300 mb-1">Nom complet du client</label>
+                <label className="block font-['Outfit'] font-bold text-slate-700 mb-1">Nom complet du client</label>
                 <input 
                   type="text" 
                   required 
                   placeholder="Mamadou Diop"
                   value={manualName} 
                   onChange={e => setManualName(e.target.value)} 
-                  className="w-full h-10 px-3 rounded-xl bg-[#070A10] border border-slate-700/80 text-white font-medium focus:outline-none focus:border-emerald-500" 
+                  className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-medium focus:outline-none focus:bg-white focus:border-[#0D5C3A]" 
                 />
               </div>
 
               <div>
-                <label className="block font-['Outfit'] font-bold text-slate-300 mb-1">Téléphone WhatsApp</label>
+                <label className="block font-['Outfit'] font-bold text-slate-700 mb-1">Téléphone WhatsApp</label>
                 <input 
                   type="text" 
                   required 
                   placeholder="+221 77 123 45 67"
                   value={manualPhone} 
                   onChange={e => setManualPhone(e.target.value)} 
-                  className="w-full h-10 px-3 rounded-xl bg-[#070A10] border border-slate-700/80 text-white font-medium focus:outline-none focus:border-emerald-500 tabular-nums" 
+                  className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-medium focus:outline-none focus:bg-white focus:border-[#0D5C3A] tabular-nums" 
                 />
               </div>
 
               <div>
-                <label className="block font-['Outfit'] font-bold text-slate-300 mb-1">Formule / Prestation</label>
+                <label className="block font-['Outfit'] font-bold text-slate-700 mb-1">Formule / Prestation</label>
                 <select 
                   value={manualService} 
                   onChange={e => setManualService(e.target.value)} 
-                  className="w-full h-10 px-3 rounded-xl bg-[#070A10] border border-slate-700/80 text-white font-semibold focus:outline-none focus:border-emerald-500"
+                  className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-bold font-['Outfit'] focus:outline-none focus:bg-white focus:border-[#0D5C3A]"
                 >
                   <option value="Nettoyage Canapés & Salons Kärcher">Nettoyage Canapés & Salons Kärcher</option>
                   <option value="Lavage Auto Mobile Kärcher">Lavage Auto Mobile Kärcher</option>
@@ -1712,44 +1824,44 @@ export default function AdminPortal({ onClose }) {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-['Outfit'] font-bold text-slate-300 mb-1">Quartier à Dakar</label>
+                  <label className="block font-['Outfit'] font-bold text-slate-700 mb-1">Quartier à Dakar</label>
                   <input 
                     type="text" 
                     required 
                     placeholder="Almadies"
                     value={manualQuarter} 
                     onChange={e => setManualQuarter(e.target.value)} 
-                    className="w-full h-10 px-3 rounded-xl bg-[#070A10] border border-slate-700/80 text-white font-medium focus:outline-none focus:border-emerald-500" 
+                    className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-medium focus:outline-none focus:bg-white focus:border-[#0D5C3A]" 
                   />
                 </div>
                 <div>
-                  <label className="block font-['Outfit'] font-bold text-slate-300 mb-1">Montant estimé (FCFA)</label>
+                  <label className="block font-['Outfit'] font-bold text-slate-700 mb-1">Montant estimé (FCFA)</label>
                   <input 
                     type="number" 
                     required 
                     value={manualPrice} 
                     onChange={e => setManualPrice(e.target.value)} 
-                    className="w-full h-10 px-3 rounded-xl bg-[#070A10] border border-slate-700/80 text-emerald-400 font-['Outfit'] font-extrabold focus:outline-none focus:border-emerald-500 tabular-nums" 
+                    className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-200 text-[#0D5C3A] font-['Outfit'] font-extrabold focus:outline-none focus:bg-white focus:border-[#0D5C3A] tabular-nums" 
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block font-['Outfit'] font-bold text-slate-300 mb-1">Date & Créneau horaire souhaité</label>
+                <label className="block font-['Outfit'] font-bold text-slate-700 mb-1">Date & Créneau horaire souhaité</label>
                 <input 
                   type="text" 
                   value={manualDate} 
                   onChange={e => setManualDate(e.target.value)} 
                   placeholder="Demain matin (09h00)"
-                  className="w-full h-10 px-3 rounded-xl bg-[#070A10] border border-slate-700/80 text-white font-medium focus:outline-none focus:border-emerald-500" 
+                  className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-medium focus:outline-none focus:bg-white focus:border-[#0D5C3A]" 
                 />
               </div>
 
               <button 
                 type="submit" 
-                className="w-full h-11 mt-3 rounded-xl bg-gradient-to-r from-emerald-600 to-[#16A34A] hover:from-emerald-500 hover:to-emerald-400 text-white font-['Outfit'] font-bold text-sm transition-all cursor-pointer shadow-lg shadow-emerald-950/60"
+                className="w-full h-11 mt-3 rounded-xl bg-[#0D5C3A] hover:bg-[#0A482E] text-white font-['Outfit'] font-bold text-sm transition-all cursor-pointer shadow-md shadow-[#0D5C3A]/25"
               >
-                Enregistrer la réservation dans Supabase
+                Enregistrer dans la base de données
               </button>
             </form>
           </div>
