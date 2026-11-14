@@ -382,16 +382,16 @@ export default function AdminPortal({ onClose }) {
   const handleUpdateStatus = async (bookingId, newStatus) => {
     const target = bookings.find(b => b.id === bookingId);
 
-    // Verrouillage : si la commande est déjà terminée, interdiction de modifier sauf Super Admin
-    if (target?.status === 'terminee' && !isSuperAdmin) {
-      alert("Cette intervention est déjà définitivement clôturée et archivée. Seul un Super-Admin peut modifier son statut.");
+    // Verrouillage irrévocable : si la commande est déjà terminée, interdiction formelle de modifier son statut (même pour Super-Admin)
+    if (target?.status === 'terminee') {
+      alert("Cette intervention est définitivement terminée et archivée. Son statut est verrouillé de manière irrévocable.");
       return;
     }
 
     // Confirmation explicite obligatoire avant de clôturer une commande
     if (newStatus === 'terminee') {
       const confirmed = window.confirm(
-        "Êtes-vous certain de vouloir marquer cette intervention comme TERMINÉE ?\n\nUne fois terminée, la commande sera définitivement clôturée et archivée."
+        "Êtes-vous certain de vouloir marquer cette intervention comme TERMINÉE ?\n\nATTENTION : Une fois marquée comme terminée, la commande sera DÉFINITIVEMENT clôturée, verrouillée et archivée. Il sera impossible de revenir en arrière ou de modifier son statut."
       );
       if (!confirmed) return;
     }
@@ -642,9 +642,9 @@ export default function AdminPortal({ onClose }) {
     const targetSub = subscriptions.find(s => s.id === subId);
     if (!targetSub) return;
 
-    // Si l'abonnement est déjà clôturé / validé définitivement, verrouillage
-    if (targetSub.is_closed && !isSuperAdmin) {
-      alert("Cet abonnement a déjà été définitivement clôturé et validé (4/4 passages). Il ne peut plus être modifié.");
+    // Si l'abonnement est déjà clôturé / validé définitivement, verrouillage irrévocable
+    if (targetSub.is_closed || targetSub.status === 'complete') {
+      alert("Cet abonnement a déjà été définitivement clôturé et validé (4/4 passages). Les passages sont verrouillés et ne peuvent plus être modifiés.");
       return;
     }
 
@@ -812,35 +812,58 @@ export default function AdminPortal({ onClose }) {
       return;
     }
 
-    setTeamMembers(prev => prev.map(m => m.id === memberId ? { ...m, is_active: !currentStatus } : m));
+    const nextStatus = !currentStatus;
+    setTeamMembers(prev => prev.map(m => m.id === memberId ? { ...m, is_active: nextStatus } : m));
 
     if (!supabase) return;
     try {
-      await supabase
-        .from('taaru_team_members')
-        .update({ is_active: !currentStatus, updated_at: new Date().toISOString() })
-        .eq('id', memberId);
+      const { data, error } = await supabase.rpc('admin_toggle_member_active', {
+        p_email: memberEmail.trim().toLowerCase(),
+        p_active: nextStatus
+      });
+      if (error || (data && data.success === false)) {
+        console.error('Erreur RPC admin_toggle_member_active:', error || data?.error);
+        await supabase
+          .from('taaru_team_members')
+          .update({ is_active: nextStatus, updated_at: new Date().toISOString() })
+          .eq('id', memberId);
+      }
     } catch (e) {
       console.error(e);
+      try {
+        await supabase
+          .from('taaru_team_members')
+          .update({ is_active: nextStatus, updated_at: new Date().toISOString() })
+          .eq('id', memberId);
+      } catch (err) {}
     }
   };
 
-  // Suppression d'un collaborateur
+  // Suppression définitive d'un collaborateur (Base taaru_team_members + auth.users + destruction sessions)
   const handleDeleteTeamMember = async (memberId, memberEmail) => {
     if (!canManageTeam) return;
     if (memberEmail === 'ssow2006@gmail.com') {
       alert("Protection critique : Le compte Super-Admin principal ne peut jamais être supprimé.");
       return;
     }
-    if (!confirm(`Supprimer définitivement l'accréditation du collaborateur "${memberEmail}" ? Il ne pourra plus accéder au portail.`)) return;
+    if (!confirm(`Supprimer définitivement l'accréditation du collaborateur "${memberEmail}" ?\n\nATTENTION : Il sera totalement supprimé de la base de données et du registre de connexion (auth.users), et toutes ses sessions actives seront immédiatement révoquées. Il ne pourra plus jamais se connecter.`)) return;
 
     setTeamMembers(prev => prev.filter(m => m.id !== memberId));
 
     if (!supabase) return;
     try {
-      await supabase.from('taaru_team_members').delete().eq('id', memberId);
+      const { data, error } = await supabase.rpc('admin_delete_team_member', {
+        p_email: memberEmail.trim().toLowerCase()
+      });
+      if (error || (data && data.success === false)) {
+        console.error('Erreur RPC admin_delete_team_member:', error || data?.error);
+        await supabase.from('taaru_team_members').delete().eq('id', memberId);
+      }
     } catch (e) {
       console.error(e);
+      try {
+        await supabase.from('taaru_team_members').delete().eq('id', memberId);
+      } catch (err) {}
     }
   };
 
@@ -1927,17 +1950,8 @@ export default function AdminPortal({ onClose }) {
                           {b.status === 'terminee' ? (
                             <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 font-['Outfit'] font-bold text-xs border border-slate-300">
                               <CheckCircle2 className="w-3.5 h-3.5 text-[#16A34A]" />
-                              <span>Terminée & Clôturée</span>
-                              {isSuperAdmin && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleUpdateStatus(b.id, 'en_cours')}
-                                  className="ml-1 text-[10px] text-slate-400 hover:text-rose-600 underline cursor-pointer"
-                                  title="Super Admin: Réouvrir la commande"
-                                >
-                                  (Réouvrir)
-                                </button>
-                              )}
+                              <Lock className="w-3 h-3 text-slate-500" />
+                              <span>Terminée (Verrouillée)</span>
                             </div>
                           ) : (
                             <select
@@ -2059,17 +2073,8 @@ export default function AdminPortal({ onClose }) {
                                 {b.status === 'terminee' ? (
                                   <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 font-['Outfit'] font-bold text-xs border border-slate-300">
                                     <CheckCircle2 className="w-3.5 h-3.5 text-[#16A34A]" />
-                                    <span>Terminée & Clôturée</span>
-                                    {isSuperAdmin && (
-                                      <button
-                                        type="button"
-                                        onClick={() => handleUpdateStatus(b.id, 'en_cours')}
-                                        className="ml-1 text-[10px] text-slate-400 hover:text-rose-600 underline cursor-pointer"
-                                        title="Super Admin: Réouvrir la commande"
-                                      >
-                                        (Réouvrir)
-                                      </button>
-                                    )}
+                                    <Lock className="w-3 h-3 text-slate-500" />
+                                    <span>Terminée (Verrouillée)</span>
                                   </div>
                                 ) : (
                                   <select
@@ -2263,7 +2268,7 @@ export default function AdminPortal({ onClose }) {
                     {filteredSubscriptions.map((sub) => {
                       const completedPassages = [1, 2, 3, 4].filter(n => sub[`passage_${n}_status`] === 'effectue').length;
                       const isClosed = sub.is_closed || sub.status === 'complete';
-                      const isDisabled = isClosed && !isSuperAdmin;
+                      const isDisabled = isClosed;
 
                       return (
                         <div
@@ -2361,7 +2366,7 @@ export default function AdminPortal({ onClose }) {
                                     disabled={isDisabled}
                                     onClick={() => !isDisabled && handleTogglePassageStatus(sub.id, num, sub[`passage_${num}_status`])}
                                     className={`py-2 px-1 rounded-xl text-center text-xs font-['Outfit'] font-bold border transition-all flex flex-col items-center justify-center gap-0.5 ${
-                                      isDisabled ? 'cursor-not-allowed opacity-90' : 'cursor-pointer'
+                                      isDisabled ? 'cursor-not-allowed opacity-75 pointer-events-none select-none' : 'cursor-pointer'
                                     } ${
                                       isDone
                                         ? 'bg-emerald-50 border-emerald-300 text-[#0D5C3A] shadow-xs'
@@ -2443,7 +2448,7 @@ export default function AdminPortal({ onClose }) {
                         {filteredSubscriptions.map((sub) => {
                           const completedPassages = [1, 2, 3, 4].filter(n => sub[`passage_${n}_status`] === 'effectue').length;
                           const isClosed = sub.is_closed || sub.status === 'complete';
-                          const isDisabled = isClosed && !isSuperAdmin;
+                          const isDisabled = isClosed;
 
                           return (
                             <tr key={sub.id} className="hover:bg-emerald-50/20 transition-colors">
@@ -2512,7 +2517,7 @@ export default function AdminPortal({ onClose }) {
                                           disabled={isDisabled}
                                           onClick={() => !isDisabled && handleTogglePassageStatus(sub.id, num, sub[`passage_${num}_status`])}
                                           className={`h-8 px-2.5 rounded-lg text-xs font-['Outfit'] font-bold flex items-center gap-1 border transition-all ${
-                                            isDisabled ? 'cursor-not-allowed opacity-90' : 'cursor-pointer'
+                                            isDisabled ? 'cursor-not-allowed opacity-75 pointer-events-none select-none' : 'cursor-pointer'
                                           } ${
                                             isDone
                                               ? 'bg-emerald-50 hover:bg-emerald-100 border-emerald-300 text-[#0D5C3A] shadow-xs'
@@ -3485,7 +3490,7 @@ export default function AdminPortal({ onClose }) {
                 const sub = findSubscriptionForBooking(selectedBookingDetails);
                 const done = sub ? [1, 2, 3, 4].filter(n => sub[`passage_${n}_status`] === 'effectue').length : 0;
                 const isClosed = sub?.is_closed || sub?.status === 'complete';
-                const isDisabled = isClosed && !isSuperAdmin;
+                const isDisabled = isClosed;
 
                 return (
                   <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50 via-teal-50/40 to-white border border-emerald-300 space-y-3">
@@ -3527,7 +3532,7 @@ export default function AdminPortal({ onClose }) {
                                 disabled={isDisabled}
                                 onClick={() => !isDisabled && handleTogglePassageStatus(sub.id, num, sub[`passage_${num}_status`])}
                                 className={`p-2 rounded-xl text-center text-xs font-['Outfit'] font-bold border transition-all flex flex-col items-center justify-center gap-0.5 ${
-                                  isDisabled ? 'cursor-not-allowed opacity-90' : 'cursor-pointer'
+                                  isDisabled ? 'cursor-not-allowed opacity-75 pointer-events-none select-none' : 'cursor-pointer'
                                 } ${
                                   isDone
                                     ? 'bg-emerald-100 text-[#0D5C3A] border-emerald-300 shadow-xs'
@@ -3678,17 +3683,8 @@ export default function AdminPortal({ onClose }) {
                 {selectedBookingDetails.status === 'terminee' ? (
                   <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 font-['Outfit'] font-bold text-xs border border-slate-300">
                     <CheckCircle2 className="w-3.5 h-3.5 text-[#16A34A]" />
-                    <span>Terminée & Clôturée</span>
-                    {isSuperAdmin && (
-                      <button
-                        type="button"
-                        onClick={() => handleUpdateStatus(selectedBookingDetails.id, 'en_cours')}
-                        className="ml-1 text-[10px] text-slate-400 hover:text-rose-600 underline cursor-pointer"
-                        title="Super Admin: Réouvrir"
-                      >
-                        (Réouvrir)
-                      </button>
-                    )}
+                    <Lock className="w-3 h-3 text-slate-500" />
+                    <span>Terminée & Clôturée (Verrouillée)</span>
                   </div>
                 ) : (
                   <select
