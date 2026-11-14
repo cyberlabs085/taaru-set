@@ -1044,6 +1044,20 @@ export default function AdminPortal({ onClose }) {
     }
   };
 
+  // Extraction des initiales d'un collaborateur
+  const getInitials = (name) => {
+    if (!name) return 'TS';
+    const clean = name.replace(/\([^)]*\)/g, '').trim();
+    const parts = clean.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    if (parts.length === 1 && parts[0].length >= 2) {
+      return parts[0].slice(0, 2).toUpperCase();
+    }
+    return clean.slice(0, 2).toUpperCase() || 'TS';
+  };
+
   // Formatage monétaire FCFA
   const formatPrice = (val) => {
     if (!val && val !== 0) return '0 FCFA';
@@ -2142,19 +2156,37 @@ export default function AdminPortal({ onClose }) {
                           </div>
                         )}
 
-                        {/* BADGE DE TRAÇABILITÉ AUDITÉ */}
-                        <div className="flex items-center justify-between text-xs px-2.5 py-1.5 rounded-xl bg-[#F8FAF7] border border-slate-200/80">
-                          <div className="flex items-center gap-1.5">
-                            <UserCheck className="w-3.5 h-3.5 text-[#0D5C3A]" />
-                            <span className="text-slate-500 text-[11px]">Traité par :</span>
-                            <span className={`font-bold text-[11px] ${b.processed_by_name ? 'text-slate-900' : 'text-amber-700'}`}>
-                              {b.processed_by_name || (b.status === 'en_attente' ? 'En attente d\'attribution' : 'Acceptée')}
-                            </span>
+                        {/* BADGE DE TRAÇABILITÉ AUDITÉ (MOBILE PRO) */}
+                        <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className="w-7 h-7 rounded-xl bg-emerald-100 text-[#0D5C3A] font-['Outfit'] font-black text-xs flex items-center justify-center shrink-0 border border-emerald-200">
+                                {b.processed_by_name ? getInitials(b.processed_by_name) : 'TS'}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="text-[10px] text-slate-400 font-medium leading-none">Opérateur en charge</div>
+                                <div className={`font-['Outfit'] font-bold text-xs truncate mt-0.5 ${b.processed_by_name ? 'text-slate-900' : 'text-amber-700'}`}>
+                                  {b.processed_by_name || (b.status === 'en_attente' ? 'En attente d\'attribution' : 'Équipe TAARU SET')}
+                                </div>
+                              </div>
+                            </div>
+                            {b.processed_at && (
+                              <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap shrink-0">
+                                Le {new Date(b.processed_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
+                              </span>
+                            )}
                           </div>
-                          {b.processed_at && (
-                            <span className="text-[10px] text-slate-400 font-medium">
-                              {new Date(b.processed_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
-                            </span>
+
+                          {/* SI EN ATTENTE ET SANS OPÉRATEUR : BOUTON PLEINE LARGEUR VISIBLE */}
+                          {canTakeOver && (
+                            <button
+                              type="button"
+                              onClick={() => handleTakeOverBooking(b.id)}
+                              className="w-full h-8.5 rounded-xl bg-[#0D5C3A] hover:bg-[#0A482E] text-white text-xs font-['Outfit'] font-bold flex items-center justify-center gap-1.5 shadow-xs cursor-pointer transition-all active:scale-[0.98]"
+                            >
+                              <UserPlus className="w-3.5 h-3.5" />
+                              <span>Prendre en charge cette intervention</span>
+                            </button>
                           )}
                         </div>
 
@@ -2210,8 +2242,9 @@ export default function AdminPortal({ onClose }) {
                           </button>
                         </div>
 
-                        {/* Statut sélecteur et Bouton Prendre en charge STRICTEMENT CONDITIONNÉ */}
+                        {/* Statut sélecteur mobile */}
                         <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100">
+                          <span className="text-xs font-['Outfit'] font-bold text-slate-600">Statut actuel :</span>
                           {b.status === 'terminee' ? (
                             <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 font-['Outfit'] font-bold text-xs border border-slate-300">
                               <CheckCircle2 className="w-3.5 h-3.5 text-[#16A34A]" />
@@ -2231,18 +2264,6 @@ export default function AdminPortal({ onClose }) {
                               <option value="annulee">Annulée</option>
                             </select>
                           )}
-
-                          {/* AFFICHÉ UNIQUEMENT SI EN ATTENTE ET PAS ENCORE ATTRIBUÉ */}
-                          {canTakeOver && (
-                            <button
-                              type="button"
-                              onClick={() => handleTakeOverBooking(b.id)}
-                              className="h-8 px-3 rounded-xl bg-[#0D5C3A] hover:bg-[#0A482E] text-white text-xs font-['Outfit'] font-bold flex items-center gap-1 shadow-xs cursor-pointer transition-all"
-                            >
-                              <UserCheck className="w-3.5 h-3.5" />
-                              <span>Prendre en charge</span>
-                            </button>
-                          )}
                         </div>
 
                       </div>
@@ -2256,14 +2277,14 @@ export default function AdminPortal({ onClose }) {
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-50 text-slate-600 text-xs font-['Outfit'] font-bold uppercase tracking-wider border-b border-slate-200">
-                      <tr>
-                        <th className="py-3.5 px-5">Client & Contact</th>
-                        <th className="py-3.5 px-5">Prestation & Détails</th>
-                        <th className="py-3.5 px-5">Quartier & Date</th>
-                        <th className="py-3.5 px-5">Montant</th>
-                        <th className="py-3.5 px-5">Statut</th>
-                        <th className="py-3.5 px-5">Opérateur / Traité par</th>
-                        <th className="py-3.5 px-5 text-right">Actions rapides</th>
+                      <tr className="whitespace-nowrap">
+                        <th className="py-3.5 px-5 min-w-[170px]">Client & Contact</th>
+                        <th className="py-3.5 px-5 min-w-[210px]">Prestation & Détails</th>
+                        <th className="py-3.5 px-5 min-w-[160px]">Quartier & Date</th>
+                        <th className="py-3.5 px-5 min-w-[110px]">Montant</th>
+                        <th className="py-3.5 px-5 min-w-[150px]">Statut</th>
+                        <th className="py-3.5 px-5 min-w-[210px]">Opérateur / Traité par</th>
+                        <th className="py-3.5 px-5 min-w-[260px] text-right">Actions rapides</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-sans">
@@ -2279,10 +2300,10 @@ export default function AdminPortal({ onClose }) {
 
                           return (
                             <tr key={b.id} className="hover:bg-emerald-50/30 transition-colors">
-                              <td className="py-4 px-5">
-                                <div className="font-['Outfit'] font-bold text-slate-900 text-sm">{b.client_name}</div>
+                              <td className="py-4 px-5 min-w-[170px]">
+                                <div className="font-['Outfit'] font-bold text-slate-900 text-sm whitespace-nowrap">{b.client_name}</div>
                                 <div className="flex items-center gap-2 mt-1">
-                                  <span className="text-slate-600 text-xs font-medium tabular-nums">{b.client_phone}</span>
+                                  <span className="text-slate-600 text-xs font-medium tabular-nums whitespace-nowrap">{b.client_phone}</span>
                                   <button
                                     type="button"
                                     onClick={() => handleCopyPhone(b.client_phone, b.id)}
@@ -2298,12 +2319,12 @@ export default function AdminPortal({ onClose }) {
                                 </div>
                               </td>
 
-                              <td className="py-4 px-5 max-w-xs">
+                              <td className="py-4 px-5 min-w-[210px] max-w-xs">
                                 <div className="font-bold text-slate-800 text-xs">{b.service_type}</div>
                                 <div className="text-[11px] text-slate-500 truncate mt-0.5">{b.service_details}</div>
                                 {isAbonnementBooking(b) && (
                                   <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-[#0D5C3A] border border-emerald-300 text-[10px] font-['Outfit'] font-extrabold">
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-[#0D5C3A] border border-emerald-300 text-[10px] font-['Outfit'] font-extrabold whitespace-nowrap">
                                       <Repeat className="w-2.5 h-2.5 text-[#16A34A]" />
                                       <span>Abonnement 4 Passages</span>
                                     </span>
@@ -2312,7 +2333,7 @@ export default function AdminPortal({ onClose }) {
                                       if (sub) {
                                         const done = [1, 2, 3, 4].filter(n => sub[`passage_${n}_status`] === 'effectue').length;
                                         return (
-                                          <span className="text-[10px] font-bold text-[#0D5C3A] bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded">
+                                          <span className="text-[10px] font-bold text-[#0D5C3A] bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded whitespace-nowrap">
                                             {done}/4 validés
                                           </span>
                                         );
@@ -2323,18 +2344,18 @@ export default function AdminPortal({ onClose }) {
                                 )}
                               </td>
 
-                              <td className="py-4 px-5">
+                              <td className="py-4 px-5 min-w-[160px] whitespace-nowrap">
                                 <div className="text-slate-800 font-semibold text-xs">{b.quarter}</div>
                                 <div className="text-[11px] text-slate-500 font-medium mt-0.5">
                                   {b.intervention_date || 'Date à fixer'} {b.intervention_time ? `• ${b.intervention_time}` : ''}
                                 </div>
                               </td>
 
-                              <td className="py-4 px-5 font-['Outfit'] font-extrabold text-[#0D5C3A] text-sm tabular-nums">
+                              <td className="py-4 px-5 min-w-[110px] whitespace-nowrap font-['Outfit'] font-extrabold text-[#0D5C3A] text-sm tabular-nums">
                                 {formatPrice(b.estimated_price_fcfa)}
                               </td>
 
-                              <td className="py-4 px-5">
+                              <td className="py-4 px-5 min-w-[150px] whitespace-nowrap">
                                 {b.status === 'terminee' ? (
                                   <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 font-['Outfit'] font-bold text-xs border border-slate-300">
                                     <CheckCircle2 className="w-3.5 h-3.5 text-[#16A34A]" />
@@ -2356,36 +2377,46 @@ export default function AdminPortal({ onClose }) {
                                 )}
                               </td>
 
-                              {/* OPÉRATEUR & TRAÇABILITÉ AUDITÉE */}
-                              <td className="py-4 px-5">
+                              {/* OPÉRATEUR & TRAÇABILITÉ AUDITÉE (DESKTOP PRO) */}
+                              <td className="py-4 px-5 min-w-[210px] whitespace-nowrap">
                                 {b.processed_by_name ? (
-                                  <div>
-                                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-50 text-[#0D5C3A] border border-emerald-200 text-[11px] font-bold font-['Outfit']">
-                                      <CheckCircle2 className="w-3 h-3 text-[#16A34A]" />
-                                      <span>{b.processed_by_name}</span>
+                                  <div className="flex items-center gap-2.5">
+                                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-100 to-teal-50 border border-emerald-300/80 text-[#0D5C3A] font-['Outfit'] font-black text-xs flex items-center justify-center shrink-0 shadow-2xs">
+                                      {getInitials(b.processed_by_name)}
                                     </div>
-                                    {b.processed_at && (
-                                      <div className="text-[10px] text-slate-400 mt-0.5 font-medium">
-                                        Le {new Date(b.processed_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })} à {new Date(b.processed_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="font-['Outfit'] font-bold text-slate-900 text-xs truncate max-w-[150px] leading-snug" title={b.processed_by_name}>
+                                          {b.processed_by_name}
+                                        </span>
+                                        <CheckCircle2 className="w-3.5 h-3.5 text-[#16A34A] shrink-0" />
                                       </div>
-                                    )}
+                                      {b.processed_at && (
+                                        <div className="text-[10px] text-slate-400 font-medium mt-0.5 flex items-center gap-1">
+                                          <span>Le {new Date(b.processed_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}</span>
+                                          <span>à {new Date(b.processed_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
                                 ) : canTakeOver ? (
                                   <button
                                     type="button"
                                     onClick={() => handleTakeOverBooking(b.id)}
-                                    className="text-[11px] font-['Outfit'] font-bold text-slate-600 hover:text-white bg-slate-50 hover:bg-[#0D5C3A] flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-slate-200 hover:border-[#0D5C3A] cursor-pointer transition-colors shadow-xs"
-                                    title="Accepter et prendre en charge"
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-[#0D5C3A] text-[#0D5C3A] hover:text-white border border-emerald-300 hover:border-[#0D5C3A] font-['Outfit'] font-bold text-xs shadow-xs hover:shadow-md transition-all cursor-pointer whitespace-nowrap group"
+                                    title="Accepter et prendre en charge cette réservation"
                                   >
-                                    <UserPlus className="w-3.5 h-3.5 text-[#16A34A]" />
+                                    <UserPlus className="w-3.5 h-3.5 text-[#16A34A] group-hover:text-white transition-colors" />
                                     <span>Prendre en charge</span>
                                   </button>
                                 ) : (
-                                  <span className="text-[11px] text-slate-400 italic font-medium">Non assigné</span>
+                                  <span className="inline-flex items-center gap-1 text-[11px] text-slate-400 font-medium px-2 py-0.5 rounded-md bg-slate-50 border border-slate-100">
+                                    Non assigné
+                                  </span>
                                 )}
                               </td>
 
-                              <td className="py-4 px-5 text-right">
+                              <td className="py-4 px-5 text-right min-w-[260px] whitespace-nowrap">
                                 <div className="flex items-center justify-end gap-1.5 font-['Outfit']">
                                   {isAbonnementBooking(b) && (
                                     <button
