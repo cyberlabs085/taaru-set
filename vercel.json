@@ -1,5 +1,0 @@
-{
-  "framework": null,
-  "buildCommand": "echo 'Static deployment ready'",
-  "outputDirectory": "."
-}
