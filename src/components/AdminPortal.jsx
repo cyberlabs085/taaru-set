@@ -10,7 +10,7 @@ import {
   Menu, ChevronRight, Building2, Car, Briefcase, 
   UserCheck, UserX, ChevronDown, CheckCircle, ShieldCheck, 
   Eye, EyeOff, Copy, FileText, Info, Repeat, CalendarCheck,
-  CheckCircle as CheckIcon, Circle, UserCog
+  CheckCircle as CheckIcon, Circle, UserCog, Mail
 } from 'lucide-react';
 
 export default function AdminPortal({ onClose }) {
@@ -85,11 +85,31 @@ export default function AdminPortal({ onClose }) {
   const [subP4Date, setSubP4Date] = useState('');
   const [subNotes, setSubNotes] = useState('');
 
-  // --- FORMULAIRE D'AJOUT COLLABORATEUR FLEXIBLE (Super Admin) ---
+  // --- GÉNÉRATEUR CRYPTOGRAPHIQUE HAUTE SÉCURITÉ ---
+  const generateStrongPassword = () => {
+    const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+    const lower = 'abcdefghjkmnpqrstuvwxyz';
+    const nums = '23456789';
+    const symbols = '!@#$%^&*()_+';
+    let res = [
+      upper[Math.floor(Math.random() * upper.length)],
+      lower[Math.floor(Math.random() * lower.length)],
+      nums[Math.floor(Math.random() * nums.length)],
+      symbols[Math.floor(Math.random() * symbols.length)]
+    ];
+    const all = upper + lower + nums + symbols;
+    for (let i = 0; i < 8; i++) {
+      res.push(all[Math.floor(Math.random() * all.length)]);
+    }
+    return res.sort(() => Math.random() - 0.5).join('');
+  };
+
+  // --- FORMULAIRE D'AJOUT COLLABORATEUR (Super Admin) ---
   const [newMemberEmail, setNewMemberEmail] = useState('');
   const [newMemberName, setNewMemberName] = useState('');
   const [newMemberPhone, setNewMemberPhone] = useState('');
-  const [newMemberPassword, setNewMemberPassword] = useState('Taaru2026!');
+  const [provisionMode, setProvisionMode] = useState('invite'); // 'invite' (Zéro-Connaissance / Recommandé) | 'manual'
+  const [newMemberPassword, setNewMemberPassword] = useState('');
   const [showNewMemberPassword, setShowNewMemberPassword] = useState(false);
   const [newMemberJobTitle, setNewMemberJobTitle] = useState('');
   const [newMemberRole, setNewMemberRole] = useState('agent');
@@ -98,6 +118,24 @@ export default function AdminPortal({ onClose }) {
   const [editingPasswordMember, setEditingPasswordMember] = useState(null);
   const [newPasswordInput, setNewPasswordInput] = useState('');
   const [passwordResetSuccessMsg, setPasswordResetSuccessMsg] = useState('');
+
+  // --- CHANGEMENT DE MOT DE PASSE AUTONOME (Mon Profil Connecté) ---
+  const [isSelfPasswordModalOpen, setIsSelfPasswordModalOpen] = useState(false);
+  const [selfNewPassword, setSelfNewPassword] = useState('');
+  const [selfNewPasswordConfirm, setSelfNewPasswordConfirm] = useState('');
+  const [showSelfPassword, setShowSelfPassword] = useState(false);
+  const [selfPasswordMsg, setSelfPasswordMsg] = useState('');
+  const [selfPasswordError, setSelfPasswordError] = useState('');
+  const [selfPasswordLoading, setSelfPasswordLoading] = useState(false);
+
+  // --- RÉCUPÉRATION / DÉFINITION PERSONNELLE DE MOT DE PASSE (PASSWORD RECOVERY) ---
+  const [isRecoveryMode, setIsRecoveryMode] = useState(false);
+  const [recoveryPassword, setRecoveryPassword] = useState('');
+  const [recoveryPasswordConfirm, setRecoveryPasswordConfirm] = useState('');
+  const [showRecoveryPassword, setShowRecoveryPassword] = useState(false);
+  const [recoveryError, setRecoveryError] = useState('');
+  const [recoverySuccess, setRecoverySuccess] = useState('');
+  const [recoveryLoading, setRecoveryLoading] = useState(false);
 
   // --- PERMISSIONS DÉRIVÉES DU RÔLE DE L'UTILISATEUR CONNECTÉ ---
   const userRole = currentMember?.role || 'agent';
@@ -127,6 +165,11 @@ export default function AdminPortal({ onClose }) {
       return;
     }
 
+    // Détection immédiate si l'utilisateur arrive via un lien de réinitialisation/invitation
+    if (window.location.hash.includes('type=recovery') || window.location.search.includes('type=recovery')) {
+      setIsRecoveryMode(true);
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session) {
@@ -136,8 +179,11 @@ export default function AdminPortal({ onClose }) {
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsRecoveryMode(true);
+      }
       if (session) {
         checkAndLoadTeamMember(session.user);
       } else {
@@ -337,7 +383,7 @@ export default function AdminPortal({ onClose }) {
           redirectTo: window.location.origin + '/?admin'
         });
         if (error) throw error;
-        setAuthSuccessMsg(`Un lien d'activation sécurisé a été expédié à ${cleanEmail}. Consultez vos emails pour définir votre mot de passe.`);
+        setAuthSuccessMsg(`✓ Un lien officiel et sécurisé a été expédié à "${cleanEmail}". Ouvrez votre boîte de réception et cliquez sur le lien pour définir votre mot de passe confidentiel.`);
         setIsResetMode(false);
         return;
       }
@@ -370,6 +416,105 @@ export default function AdminPortal({ onClose }) {
     await supabase.auth.signOut();
     setSession(null);
     setCurrentMember(null);
+  };
+
+  // Définition du mot de passe personnel suite au clic sur le lien d'invitation/récupération
+  const handleUpdateRecoveryPassword = async (e) => {
+    e.preventDefault();
+    setRecoveryError('');
+    setRecoverySuccess('');
+
+    if (recoveryPassword.length < 8) {
+      setRecoveryError('Le mot de passe doit comporter au moins 8 caractères.');
+      return;
+    }
+    if (recoveryPassword !== recoveryPasswordConfirm) {
+      setRecoveryError('Les deux mots de passe ne correspondent pas.');
+      return;
+    }
+
+    setRecoveryLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: recoveryPassword
+      });
+      if (error) throw error;
+
+      if (session?.user?.email) {
+        await supabase.rpc('admin_reset_member_password', {
+          p_email: session.user.email,
+          p_new_password: recoveryPassword
+        });
+      }
+
+      setRecoverySuccess('✓ Votre mot de passe personnel a été enregistré avec succès ! Connexion à votre espace en cours...');
+      setTimeout(() => {
+        setIsRecoveryMode(false);
+        window.location.hash = '';
+      }, 1500);
+    } catch (err) {
+      setRecoveryError(err.message || 'Erreur lors de l\'enregistrement du mot de passe.');
+    } finally {
+      setRecoveryLoading(false);
+    }
+  };
+
+  // Modification autonome de mot de passe par le collaborateur connecté
+  const handleUpdateSelfPassword = async (e) => {
+    e.preventDefault();
+    setSelfPasswordError('');
+    setSelfPasswordMsg('');
+
+    if (selfNewPassword.length < 8) {
+      setSelfPasswordError('Le mot de passe doit comporter au moins 8 caractères.');
+      return;
+    }
+    if (selfNewPassword !== selfNewPasswordConfirm) {
+      setSelfPasswordError('Les deux mots de passe ne sont pas identiques.');
+      return;
+    }
+
+    setSelfPasswordLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: selfNewPassword
+      });
+      if (error) throw error;
+
+      if (session?.user?.email) {
+        await supabase.rpc('admin_reset_member_password', {
+          p_email: session.user.email,
+          p_new_password: selfNewPassword
+        });
+      }
+
+      setSelfPasswordMsg('✓ Votre mot de passe a été mis à jour avec succès !');
+      setTimeout(() => {
+        setIsSelfPasswordModalOpen(false);
+        setSelfNewPassword('');
+        setSelfNewPasswordConfirm('');
+        setSelfPasswordMsg('');
+      }, 1500);
+    } catch (err) {
+      setSelfPasswordError(err.message || 'Erreur lors de la mise à jour du mot de passe.');
+    } finally {
+      setSelfPasswordLoading(false);
+    }
+  };
+
+  // Envoi d'une invitation par email pour définir son mot de passe en privé
+  const handleSendResetEmail = async (email) => {
+    if (!supabase) return;
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+        redirectTo: window.location.origin + '/?admin'
+      });
+      if (error) throw error;
+      setPasswordResetSuccessMsg(`✓ Un lien officiel et confidentiel a été expédié à "${email}". Le collaborateur peut cliquer dessus pour définir son mot de passe personnel.`);
+      setEditingPasswordMember(null);
+    } catch (e) {
+      alert(`Erreur : ${e.message}`);
+    }
   };
 
   // ---------------------------------------------------------------------------
@@ -731,22 +876,26 @@ export default function AdminPortal({ onClose }) {
       const cleanEmail = newMemberEmail.trim().toLowerCase();
       const cleanName = newMemberName.trim();
       const cleanPhone = newMemberPhone.trim();
-      const cleanPassword = newMemberPassword.trim();
       const cleanJob = newMemberJobTitle.trim() || (
         newMemberRole === 'super_admin' ? 'Direction Générale (Super Admin)' :
         newMemberRole === 'admin' ? 'Responsable Opérations' :
         newMemberRole === 'sales' ? 'Chargé(e) Clientèle & Commercial' : 'Chef d\'Équipe Terrain'
       );
 
-      if (cleanPassword.length < 6) {
+      // Si mode invitation (Zéro-Connaissance / Confidentiel) : mot de passe aléatoire cryptographique fort
+      const effectivePassword = provisionMode === 'invite'
+        ? generateStrongPassword()
+        : (newMemberPassword.trim() || generateStrongPassword());
+
+      if (effectivePassword.length < 6) {
         setTeamMsg('⛔ Le mot de passe de connexion doit comporter au moins 6 caractères.');
         return;
       }
 
-      // Provisionnement complet via RPC PostgreSQL sécurisé
+      // 1. Provisionnement complet dans PostgreSQL via RPC sécurisé
       const { data, error } = await supabase.rpc('admin_provision_team_member', {
         p_email: cleanEmail,
-        p_password: cleanPassword,
+        p_password: effectivePassword,
         p_full_name: cleanName,
         p_phone: cleanPhone,
         p_role: newMemberRole,
@@ -755,23 +904,43 @@ export default function AdminPortal({ onClose }) {
 
       if (error || (data && data.success === false)) {
         setTeamMsg(`Erreur : ${error?.message || data?.error}`);
-      } else {
-        setCreatedMemberSuccess({
-          name: cleanName,
-          email: cleanEmail,
-          password: cleanPassword,
-          phone: cleanPhone,
-          role: newMemberRole
-        });
-        setTeamMsg(`Collaborateur "${cleanName}" accrédité avec succès. Son compte de connexion est immédiatement actif !`);
-        setNewMemberEmail('');
-        setNewMemberName('');
-        setNewMemberPhone('');
-        setNewMemberJobTitle('');
-        setNewMemberRole('agent');
-        setNewMemberPassword('Taaru2026!');
-        loadAllData();
+        return;
       }
+
+      // 2. Si mode invitation par email (Zéro-Connaissance) :
+      // On déclenche l'envoi du lien officiel par email pour que le membre définisse son mot de passe confidentiel
+      if (provisionMode === 'invite') {
+        try {
+          await supabase.auth.resetPasswordForEmail(cleanEmail, {
+            redirectTo: window.location.origin + '/?admin'
+          });
+        } catch (mailErr) {
+          console.warn("Notification email d'invitation :", mailErr);
+        }
+      }
+
+      setCreatedMemberSuccess({
+        name: cleanName,
+        email: cleanEmail,
+        password: provisionMode === 'invite' ? null : effectivePassword,
+        phone: cleanPhone,
+        role: newMemberRole,
+        mode: provisionMode
+      });
+
+      setTeamMsg(
+        provisionMode === 'invite'
+          ? `✓ "${cleanName}" a été accrédité avec succès ! Une invitation officielle a été envoyée par email à "${cleanEmail}" pour lui permettre de créer son propre mot de passe confidentiel.`
+          : `✓ Collaborateur "${cleanName}" accrédité avec succès avec son mot de passe temporaire.`
+      );
+
+      setNewMemberEmail('');
+      setNewMemberName('');
+      setNewMemberPhone('');
+      setNewMemberJobTitle('');
+      setNewMemberRole('agent');
+      setNewMemberPassword('');
+      loadAllData();
     } catch (err) {
       setTeamMsg(`Erreur inattendue : ${err.message}`);
     }
@@ -1168,7 +1337,7 @@ export default function AdminPortal({ onClose }) {
   // ---------------------------------------------------------------------------
   // ÉCRAN DE CONNEXION ZERO-TRUST
   // ---------------------------------------------------------------------------
-  if (!session || authLoading) {
+  if (!session || authLoading || isRecoveryMode) {
     return (
       <div className="fixed inset-0 z-50 bg-[#F8FAF7] flex items-center justify-center p-4 overflow-y-auto">
         <div className="w-full max-w-md bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 shadow-[0_20px_60px_-15px_rgba(13,92,58,0.12)] space-y-6">
@@ -1183,110 +1352,179 @@ export default function AdminPortal({ onClose }) {
                 <span>Portail Collaborateurs & Direction</span>
               </div>
               <h2 className="text-xl sm:text-2xl font-['Outfit'] font-black text-slate-900 tracking-tight">
-                TAARU SET • Dakar
+                {isRecoveryMode ? "Définir votre Mot de Passe" : isResetMode ? "Activation & Réinitialisation" : "TAARU SET • Dakar"}
               </h2>
               <p className="text-xs text-slate-500 mt-1">
-                Authentification chiffrée & contrôle d'accès sur liste blanche
+                {isRecoveryMode 
+                  ? "Créez votre propre mot de passe personnel confidentiel"
+                  : isResetMode 
+                  ? "Lien sécurisé pour première connexion ou mot de passe oublié"
+                  : "Authentification chiffrée & contrôle d'accès sur liste blanche"}
               </p>
             </div>
           </div>
 
-          {authError && (
-            <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-800 flex items-start gap-2.5 font-medium leading-relaxed">
-              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-              <span>{authError}</span>
-            </div>
-          )}
+          {/* MODE DÉFINITION DE MOT DE PASSE PERSONNEL (RECOVERY) */}
+          {isRecoveryMode ? (
+            <div className="space-y-4">
+              {recoverySuccess && (
+                <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex items-start gap-2.5 font-bold leading-relaxed">
+                  <CheckCircle className="w-4 h-4 text-[#16A34A] shrink-0 mt-0.5" />
+                  <span>{recoverySuccess}</span>
+                </div>
+              )}
 
-          {authSuccessMsg && (
-            <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex items-start gap-2.5 font-medium leading-relaxed">
-              <CheckCircle className="w-4 h-4 text-[#16A34A] shrink-0 mt-0.5" />
-              <span>{authSuccessMsg}</span>
-            </div>
-          )}
+              {recoveryError && (
+                <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-800 flex items-start gap-2.5 font-medium leading-relaxed">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  <span>{recoveryError}</span>
+                </div>
+              )}
 
-          {lockoutTimer > 0 && (
-            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-center justify-between font-['Outfit'] font-bold">
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-amber-600 animate-spin" />
-                <span>Verrouillage anti-brute force</span>
-              </div>
-              <span className="tabular-nums font-black text-amber-700">{lockoutTimer}s</span>
-            </div>
-          )}
-
-          <div className="p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-200 text-xs text-slate-700 space-y-1 font-['Outfit']">
-            <div className="font-bold text-[#0D5C3A] flex items-center gap-1.5">
-              <ShieldCheck className="w-4 h-4 text-[#16A34A]" />
-              <span>Accès Collaborateurs Accrédités :</span>
-            </div>
-            <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
-              Connectez-vous avec votre adresse email et le mot de passe attribué par l'administrateur (mot de passe initial : <strong className="text-slate-900">Taaru2026!</strong>).
-            </p>
-          </div>
-
-          <form onSubmit={handleAuthSubmit} className="space-y-4">
-            <div>
-              <label className="block text-xs font-['Outfit'] font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
-                Email professionnel accrédité
-              </label>
-              <input
-                type="email"
-                required
-                disabled={lockoutTimer > 0}
-                placeholder="Ex: direction@taaruset.sn ou gmail"
-                value={authEmail}
-                onChange={(e) => setAuthEmail(e.target.value)}
-                className="w-full h-12 px-4 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-sm focus:outline-none focus:bg-white focus:border-[#0D5C3A] transition-all font-medium disabled:opacity-50"
-              />
-            </div>
-
-            {!isResetMode && (
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-['Outfit'] font-bold text-slate-700 uppercase tracking-wider">
-                    Mot de passe sécurisé
+              <form onSubmit={handleUpdateRecoveryPassword} className="space-y-4 font-['Outfit']">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
+                    Nouveau mot de passe secret
                   </label>
+                  <div className="relative">
+                    <input
+                      type={showRecoveryPassword ? "text" : "password"}
+                      required
+                      minLength={8}
+                      placeholder="Min. 8 caractères"
+                      value={recoveryPassword}
+                      onChange={(e) => setRecoveryPassword(e.target.value)}
+                      className="w-full h-12 pl-4 pr-10 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-sm focus:outline-none focus:bg-white focus:border-[#0D5C3A] font-bold"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowRecoveryPassword(!showRecoveryPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      {showRecoveryPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
+                    Confirmer le mot de passe
+                  </label>
+                  <input
+                    type={showRecoveryPassword ? "text" : "password"}
+                    required
+                    minLength={8}
+                    placeholder="Retapez votre mot de passe"
+                    value={recoveryPasswordConfirm}
+                    onChange={(e) => setRecoveryPasswordConfirm(e.target.value)}
+                    className="w-full h-12 px-4 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-sm focus:outline-none focus:bg-white focus:border-[#0D5C3A] font-bold"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={recoveryLoading || !recoveryPassword || recoveryPassword.length < 8}
+                  className="w-full h-12 rounded-xl bg-[#0D5C3A] hover:bg-[#0A482E] text-white font-bold text-sm tracking-wide transition-all shadow-lg shadow-[#0D5C3A]/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {recoveryLoading ? (
+                    <RefreshCw className="w-4 h-4 animate-spin text-emerald-200" />
+                  ) : (
+                    <Check className="w-4 h-4 text-emerald-300" />
+                  )}
+                  <span>Enregistrer & Accéder à mon Espace</span>
+                </button>
+              </form>
+            </div>
+          ) : (
+            <>
+              {authError && (
+                <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-800 flex items-start gap-2.5 font-medium leading-relaxed">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  <span>{authError}</span>
+                </div>
+              )}
+
+              {authSuccessMsg && (
+                <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex items-start gap-2.5 font-medium leading-relaxed">
+                  <CheckCircle className="w-4 h-4 text-[#16A34A] shrink-0 mt-0.5" />
+                  <span>{authSuccessMsg}</span>
+                </div>
+              )}
+
+              {lockoutTimer > 0 && (
+                <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-center justify-between font-['Outfit'] font-bold">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-amber-600 animate-spin" />
+                    <span>Verrouillage anti-brute force</span>
+                  </div>
+                  <span className="tabular-nums font-black text-amber-700">{lockoutTimer}s</span>
+                </div>
+              )}
+
+              <form onSubmit={handleAuthSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-['Outfit'] font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
+                    Email professionnel accrédité
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    disabled={lockoutTimer > 0}
+                    placeholder="Ex: direction@taaruset.sn ou gmail"
+                    value={authEmail}
+                    onChange={(e) => setAuthEmail(e.target.value)}
+                    className="w-full h-12 px-4 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-sm focus:outline-none focus:bg-white focus:border-[#0D5C3A] transition-all font-medium disabled:opacity-50"
+                  />
+                </div>
+
+                {!isResetMode && (
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-xs font-['Outfit'] font-bold text-slate-700 uppercase tracking-wider">
+                        Mot de passe sécurisé
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => { setIsResetMode(true); setAuthError(''); setAuthSuccessMsg(''); }}
+                        className="text-xs text-[#0D5C3A] hover:underline font-bold cursor-pointer"
+                      >
+                        1ère connexion ou mot de passe oublié ?
+                      </button>
+                    </div>
+                    <input
+                      type="password"
+                      required
+                      disabled={lockoutTimer > 0}
+                      placeholder="••••••••••••"
+                      value={authPassword}
+                      onChange={(e) => setAuthPassword(e.target.value)}
+                      className="w-full h-12 px-4 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-sm focus:outline-none focus:bg-white focus:border-[#0D5C3A] transition-all font-medium disabled:opacity-50"
+                    />
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={lockoutTimer > 0}
+                  className="w-full h-12 rounded-xl bg-[#0D5C3A] hover:bg-[#0A482E] text-white font-['Outfit'] font-bold text-sm tracking-wide transition-all shadow-lg shadow-[#0D5C3A]/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Lock className="w-4 h-4 text-emerald-300" />
+                  <span>{isResetMode ? "Envoyer le lien d'activation sécurisé" : "Déverrouiller l'Espace Sécurisé"}</span>
+                </button>
+              </form>
+
+              {isResetMode && (
+                <div className="text-center pt-1">
                   <button
                     type="button"
-                    onClick={() => { setIsResetMode(true); setAuthError(''); setAuthSuccessMsg(''); }}
-                    className="text-xs text-[#0D5C3A] hover:underline font-bold"
+                    onClick={() => { setIsResetMode(false); setAuthError(''); }}
+                    className="text-xs text-slate-500 hover:text-slate-800 font-bold font-['Outfit'] cursor-pointer"
                   >
-                    Mot de passe oublié ?
+                    ← Retour à la connexion classique
                   </button>
                 </div>
-                <input
-                  type="password"
-                  required
-                  disabled={lockoutTimer > 0}
-                  placeholder="••••••••••••"
-                  value={authPassword}
-                  onChange={(e) => setAuthPassword(e.target.value)}
-                  className="w-full h-12 px-4 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-sm focus:outline-none focus:bg-white focus:border-[#0D5C3A] transition-all font-medium disabled:opacity-50"
-                />
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={lockoutTimer > 0}
-              className="w-full h-12 rounded-xl bg-[#0D5C3A] hover:bg-[#0A482E] text-white font-['Outfit'] font-bold text-sm tracking-wide transition-all shadow-lg shadow-[#0D5C3A]/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Lock className="w-4 h-4 text-emerald-300" />
-              <span>{isResetMode ? "Envoyer le lien de réinitialisation" : "Déverrouiller l'Espace Sécurisé"}</span>
-            </button>
-          </form>
-
-          {isResetMode && (
-            <div className="text-center">
-              <button
-                type="button"
-                onClick={() => { setIsResetMode(false); setAuthError(''); }}
-                className="text-xs text-slate-500 hover:text-slate-800 font-bold font-['Outfit']"
-              >
-                ← Retour à la connexion classique
-              </button>
-            </div>
+              )}
+            </>
           )}
 
           <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
@@ -1359,6 +1597,16 @@ export default function AdminPortal({ onClose }) {
           <div className="w-8 h-8 rounded-xl bg-emerald-100 text-[#0D5C3A] font-['Outfit'] font-black text-xs flex items-center justify-center border border-emerald-200 shadow-xs">
             {currentMember?.full_name ? currentMember.full_name.slice(0, 2).toUpperCase() : 'TS'}
           </div>
+
+          <button
+            type="button"
+            onClick={() => { setIsSelfPasswordModalOpen(true); setSelfPasswordMsg(''); setSelfPasswordError(''); }}
+            className="h-9 px-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#0D5C3A] text-xs font-['Outfit'] font-bold flex items-center gap-1.5 transition-colors cursor-pointer border border-emerald-200"
+            title="Modifier mon mot de passe"
+          >
+            <KeyRound className="w-3.5 h-3.5 text-[#16A34A]" />
+            <span className="hidden sm:inline">Mon Mot de Passe</span>
+          </button>
 
           <button
             type="button"
@@ -1649,6 +1897,15 @@ export default function AdminPortal({ onClose }) {
                 >
                   <ExternalLink className="w-4 h-4 text-slate-500" />
                   <span>Voir le site vitrine</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setIsMobileMenuOpen(false); setIsSelfPasswordModalOpen(true); setSelfPasswordMsg(''); setSelfPasswordError(''); }}
+                  className="w-full h-10 px-4 rounded-xl bg-emerald-50 text-[#0D5C3A] flex items-center justify-center gap-2 text-xs font-bold font-['Outfit'] border border-emerald-200 mb-2"
+                >
+                  <KeyRound className="w-4 h-4 text-[#16A34A]" />
+                  <span>Modifier mon mot de passe</span>
                 </button>
 
                 <button
@@ -2932,6 +3189,66 @@ export default function AdminPortal({ onClose }) {
                     </div>
                   </div>
 
+                  {/* SÉLECTEUR DE MÉTHODE D'ACCRÉDITATION */}
+                  <div className="pt-2 border-t border-slate-100">
+                    <label className="block text-xs font-['Outfit'] font-bold text-slate-700 mb-2">
+                      Mode d'attribution du mot de passe
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => setProvisionMode('invite')}
+                        className={`p-3 rounded-2xl text-left border transition-all cursor-pointer flex items-start gap-2.5 ${
+                          provisionMode === 'invite'
+                            ? 'bg-emerald-50/80 border-[#0D5C3A] ring-1 ring-[#0D5C3A]/30 text-slate-900'
+                            : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-600'
+                        }`}
+                      >
+                        <div className={`w-4 h-4 rounded-full mt-0.5 border flex items-center justify-center shrink-0 ${
+                          provisionMode === 'invite' ? 'border-[#0D5C3A] bg-[#0D5C3A]' : 'border-slate-300 bg-white'
+                        }`}>
+                          {provisionMode === 'invite' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                        </div>
+                        <div>
+                          <div className="font-['Outfit'] font-bold text-xs text-slate-900 flex items-center gap-1.5">
+                            <span>Invitation Privée par Email</span>
+                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-100 text-[#0D5C3A] font-extrabold uppercase">Zéro Connaissance</span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                            Le membre reçoit un email privé et choisit lui-même son propre mot de passe secret. Idéal pour Mamadou ou la direction (l'admin ne connaît jamais son mot de passe).
+                          </p>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProvisionMode('manual');
+                          if (!newMemberPassword) setNewMemberPassword(generateStrongPassword());
+                        }}
+                        className={`p-3 rounded-2xl text-left border transition-all cursor-pointer flex items-start gap-2.5 ${
+                          provisionMode === 'manual'
+                            ? 'bg-emerald-50/80 border-[#0D5C3A] ring-1 ring-[#0D5C3A]/30 text-slate-900'
+                            : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-600'
+                        }`}
+                      >
+                        <div className={`w-4 h-4 rounded-full mt-0.5 border flex items-center justify-center shrink-0 ${
+                          provisionMode === 'manual' ? 'border-[#0D5C3A] bg-[#0D5C3A]' : 'border-slate-300 bg-white'
+                        }`}>
+                          {provisionMode === 'manual' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                        </div>
+                        <div>
+                          <div className="font-['Outfit'] font-bold text-xs text-slate-900">
+                            Mot de passe temporaire fort (WhatsApp)
+                          </div>
+                          <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                            Générer un mot de passe temporaire robuste (12 car. chiffrés) à transmettre par WhatsApp. Le membre pourra le modifier dès sa première connexion.
+                          </p>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 pt-1">
                     <div>
                       <label className="block text-xs font-['Outfit'] font-bold text-slate-700 mb-1">Rôle & Droits accordés</label>
@@ -2947,36 +3264,46 @@ export default function AdminPortal({ onClose }) {
                       </select>
                     </div>
 
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="text-xs font-['Outfit'] font-bold text-slate-700">Mot de passe initial</label>
-                        <button
-                          type="button"
-                          onClick={() => setNewMemberPassword(`Taaru${Math.floor(1000 + Math.random() * 9000)}!`)}
-                          className="text-[10px] text-[#0D5C3A] hover:underline font-bold cursor-pointer"
-                        >
-                          Générer
-                        </button>
+                    {provisionMode === 'manual' ? (
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-xs font-['Outfit'] font-bold text-slate-700">Mot de passe temporaire fort</label>
+                          <button
+                            type="button"
+                            onClick={() => setNewMemberPassword(generateStrongPassword())}
+                            className="text-[10px] text-[#0D5C3A] hover:underline font-bold cursor-pointer"
+                          >
+                            Régénérer
+                          </button>
+                        </div>
+                        <div className="relative">
+                          <input
+                            type={showNewMemberPassword ? "text" : "password"}
+                            required
+                            minLength={8}
+                            placeholder="Min. 8 caractères"
+                            value={newMemberPassword}
+                            onChange={(e) => setNewMemberPassword(e.target.value)}
+                            className="w-full h-10 pl-3 pr-9 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:outline-none focus:bg-white focus:border-[#0D5C3A] font-mono font-bold"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowNewMemberPassword(!showNewMemberPassword)}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                          >
+                            {showNewMemberPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
                       </div>
-                      <div className="relative">
-                        <input
-                          type={showNewMemberPassword ? "text" : "password"}
-                          required
-                          minLength={6}
-                          placeholder="Min. 6 caractères"
-                          value={newMemberPassword}
-                          onChange={(e) => setNewMemberPassword(e.target.value)}
-                          className="w-full h-10 pl-3 pr-9 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:outline-none focus:bg-white focus:border-[#0D5C3A] font-mono font-bold"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowNewMemberPassword(!showNewMemberPassword)}
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
-                        >
-                          {showNewMemberPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                        </button>
+                    ) : (
+                      <div className="flex flex-col justify-center p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200 text-[11px] text-slate-700 font-medium">
+                        <span className="font-bold text-[#0D5C3A] flex items-center gap-1">
+                          <Mail className="w-3.5 h-3.5 text-[#16A34A]" />
+                          Invitation Confidentielle :
+                        </span>
+                        <span>Le membre définira lui-même son mot de passe secret via l'email officiel d'activation.</span>
                       </div>
-                    </div>
+                    )}
 
                     <div className="flex items-end">
                       <button
@@ -2984,7 +3311,7 @@ export default function AdminPortal({ onClose }) {
                         className="w-full h-10 rounded-xl bg-[#0D5C3A] hover:bg-[#0A482E] text-white font-['Outfit'] font-bold text-xs transition-colors cursor-pointer shadow-md shadow-[#0D5C3A]/20 flex items-center justify-center gap-1.5"
                       >
                         <UserPlus className="w-4 h-4" />
-                        <span>Accréditer & Activer le Compte</span>
+                        <span>{provisionMode === 'invite' ? "Envoyer l'Invitation Officielle" : "Accréditer le Membre"}</span>
                       </button>
                     </div>
                   </div>
@@ -2998,10 +3325,14 @@ export default function AdminPortal({ onClose }) {
                         <CheckCircle className="w-5 h-5 text-[#16A34A]" />
                         <div>
                           <h5 className="font-['Outfit'] font-bold text-sm text-slate-900">
-                            Compte prêt à se connecter pour {createdMemberSuccess.name} !
+                            {createdMemberSuccess.mode === 'invite'
+                              ? `Invitation confidentielle expédiée à ${createdMemberSuccess.name} !`
+                              : `Compte prêt avec mot de passe temporaire pour ${createdMemberSuccess.name} !`}
                           </h5>
                           <p className="text-xs text-slate-600">
-                            Le collaborateur peut dès maintenant déverrouiller son espace avec ces identifiants :
+                            {createdMemberSuccess.mode === 'invite'
+                              ? `Un email sécurisé a été expédié à ${createdMemberSuccess.email}. Il va pouvoir définir son propre mot de passe secret en toute confidentialité sans que personne ne le sache.`
+                              : `Transmettez ce mot de passe temporaire sécurisé au collaborateur. Il pourra le modifier dès sa première connexion.`}
                           </p>
                         </div>
                       </div>
@@ -3020,35 +3351,48 @@ export default function AdminPortal({ onClose }) {
                         <span className="font-bold text-[#0D5C3A]">https://taaru-set.vercel.app/?admin</span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-slate-500 font-medium">Identifiant (Email) :</span>
+                        <span className="text-slate-500 font-medium">Email accrédité :</span>
                         <span className="font-bold text-slate-900 select-all">{createdMemberSuccess.email}</span>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-500 font-medium">Mot de passe de session :</span>
-                        <span className="font-mono font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 select-all">
-                          {createdMemberSuccess.password}
-                        </span>
-                      </div>
+                      {createdMemberSuccess.password ? (
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-500 font-medium">Mot de passe temporaire fort :</span>
+                          <span className="font-mono font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 select-all">
+                            {createdMemberSuccess.password}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-500 font-medium">Mot de passe confidentiel :</span>
+                          <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                            Défini personnellement par l'utilisateur via son email
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
                       <button
                         type="button"
                         onClick={() => {
-                          const text = `Bonjour ${createdMemberSuccess.name},\n\nVoici tes accès au portail opérationnel TAARU SET :\n🌐 Lien : https://taaru-set.vercel.app/?admin\n📧 Email : ${createdMemberSuccess.email}\n🔑 Mot de passe : ${createdMemberSuccess.password}\n\nTu peux te connecter dès maintenant.`;
+                          const text = createdMemberSuccess.password
+                            ? `Bonjour ${createdMemberSuccess.name},\n\nVoici tes accès au portail opérationnel TAARU SET :\n🌐 Lien : https://taaru-set.vercel.app/?admin\n📧 Email : ${createdMemberSuccess.email}\n🔑 Mot de passe temporaire : ${createdMemberSuccess.password}\n\nTu pourras changer ton mot de passe dès ta connexion.`
+                            : `Bonjour ${createdMemberSuccess.name},\n\nTu as été accrédité sur le portail TAARU SET :\n🌐 Lien : https://taaru-set.vercel.app/?admin\n📧 Email : ${createdMemberSuccess.email}\n\nUn email sécurisé vient de t'être expédié pour définir ton mot de passe personnel en toute confidentialité. Clique sur le lien reçu dans ta boîte email.`;
                           navigator.clipboard.writeText(text);
-                          alert("Identifiants et message copiés dans le presse-papier !");
+                          alert("Message d'invitation copié dans le presse-papier !");
                         }}
                         className="h-9 px-3.5 rounded-xl bg-[#0D5C3A] hover:bg-[#0A482E] text-white font-['Outfit'] font-bold text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors"
                       >
                         <Copy className="w-3.5 h-3.5" />
-                        <span>Copier les accès complets</span>
+                        <span>Copier le message d'invitation</span>
                       </button>
 
                       {createdMemberSuccess.phone && (
                         <a
                           href={`https://wa.me/${createdMemberSuccess.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
-                            `Bonjour ${createdMemberSuccess.name},\n\nVoici tes accès au portail opérationnel TAARU SET :\n🌐 Lien : https://taaru-set.vercel.app/?admin\n📧 Identifiant : ${createdMemberSuccess.email}\n🔑 Mot de passe : ${createdMemberSuccess.password}\n\nTu peux te connecter dès maintenant pour gérer tes interventions.`
+                            createdMemberSuccess.password
+                              ? `Bonjour ${createdMemberSuccess.name},\n\nVoici tes accès au portail opérationnel TAARU SET :\n🌐 Lien : https://taaru-set.vercel.app/?admin\n📧 Identifiant : ${createdMemberSuccess.email}\n🔑 Mot de passe temporaire : ${createdMemberSuccess.password}\n\nTu peux te connecter dès maintenant pour gérer tes interventions.`
+                              : `Bonjour ${createdMemberSuccess.name},\n\nTu as été accrédité sur le portail TAARU SET :\n🌐 Lien : https://taaru-set.vercel.app/?admin\n📧 Email : ${createdMemberSuccess.email}\n\nUn email t'a été expédié pour définir ton mot de passe personnel en toute confidentialité.`
                           )}`}
                           target="_blank"
                           rel="noopener noreferrer"
@@ -3370,24 +3714,44 @@ export default function AdminPortal({ onClose }) {
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-slate-700">Nouveau mot de passe</label>
+            <div className="space-y-3">
+              <div className="p-3 rounded-2xl bg-emerald-50/70 border border-emerald-200 text-xs space-y-2">
+                <div className="font-bold text-[#0D5C3A] flex items-center gap-1.5">
+                  <Mail className="w-3.5 h-3.5 text-[#16A34A]" />
+                  <span>Option 1 (Recommandée • Confidentielle) :</span>
+                </div>
+                <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
+                  Envoyer un lien officiel par email pour que le collaborateur définisse lui-même son mot de passe en toute confidentialité (zéro connaissance admin).
+                </p>
                 <button
                   type="button"
-                  onClick={() => setNewPasswordInput(`Taaru${Math.floor(1000 + Math.random() * 9000)}!`)}
-                  className="text-[10px] text-[#0D5C3A] hover:underline font-bold cursor-pointer"
+                  onClick={() => handleSendResetEmail(editingPasswordMember.email)}
+                  className="w-full h-9 rounded-xl bg-white hover:bg-emerald-50 text-[#0D5C3A] border border-emerald-300 font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer transition-colors"
                 >
-                  Générer aléatoire
+                  <Mail className="w-3.5 h-3.5" />
+                  <span>Envoyer l'invitation par email</span>
                 </button>
               </div>
-              <input
-                type="text"
-                placeholder="Ex: Taaru2026! (min 6 car.)"
-                value={newPasswordInput}
-                onChange={(e) => setNewPasswordInput(e.target.value)}
-                className="w-full h-11 px-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:bg-white focus:border-[#0D5C3A]"
-              />
+
+              <div className="pt-2 border-t border-slate-100 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700">Option 2 : Mot de passe temporaire fort</label>
+                  <button
+                    type="button"
+                    onClick={() => setNewPasswordInput(generateStrongPassword())}
+                    className="text-[10px] text-[#0D5C3A] hover:underline font-bold cursor-pointer"
+                  >
+                    Générer mot de passe fort
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Min. 8 caractères"
+                  value={newPasswordInput}
+                  onChange={(e) => setNewPasswordInput(e.target.value)}
+                  className="w-full h-10 px-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:bg-white focus:border-[#0D5C3A]"
+                />
+              </div>
             </div>
 
             <div className="pt-2 flex items-center justify-end gap-2">
@@ -3396,7 +3760,7 @@ export default function AdminPortal({ onClose }) {
                 onClick={() => { setEditingPasswordMember(null); setNewPasswordInput(''); }}
                 className="h-10 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer"
               >
-                Annuler
+                Fermer
               </button>
               <button
                 type="button"
@@ -3405,9 +3769,108 @@ export default function AdminPortal({ onClose }) {
                 className="h-10 px-5 rounded-xl bg-[#0D5C3A] hover:bg-[#0A482E] text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Check className="w-4 h-4 text-emerald-300" />
-                <span>Enregistrer & Activer</span>
+                <span>Enregistrer le mot de passe</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODALE AUTONOME : MODIFIER MON MOT DE PASSE (MON PROFIL) */}
+      {isSelfPasswordModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-slate-200 space-y-4 font-['Outfit']">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-emerald-100 text-[#0D5C3A] flex items-center justify-center">
+                  <KeyRound className="w-5 h-5 text-[#16A34A]" />
+                </div>
+                <div>
+                  <h4 className="font-black text-slate-900 text-base">Modifier mon mot de passe</h4>
+                  <p className="text-[11px] text-slate-500 font-medium">Confidentiel • {session?.user?.email}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsSelfPasswordModalOpen(false)}
+                className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {selfPasswordMsg && (
+              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 font-bold flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-[#16A34A] shrink-0" />
+                <span>{selfPasswordMsg}</span>
+              </div>
+            )}
+
+            {selfPasswordError && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800 font-medium flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{selfPasswordError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleUpdateSelfPassword} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Nouveau mot de passe personnel</label>
+                <div className="relative">
+                  <input
+                    type={showSelfPassword ? "text" : "password"}
+                    required
+                    minLength={8}
+                    placeholder="Min. 8 caractères"
+                    value={selfNewPassword}
+                    onChange={(e) => setSelfNewPassword(e.target.value)}
+                    className="w-full h-10 pl-3 pr-9 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:outline-none focus:bg-white focus:border-[#0D5C3A]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowSelfPassword(!showSelfPassword)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    {showSelfPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Confirmer le mot de passe</label>
+                <input
+                  type={showSelfPassword ? "text" : "password"}
+                  required
+                  minLength={8}
+                  placeholder="Confirmez le nouveau mot de passe"
+                  value={selfNewPasswordConfirm}
+                  onChange={(e) => setSelfNewPasswordConfirm(e.target.value)}
+                  className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:outline-none focus:bg-white focus:border-[#0D5C3A]"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsSelfPasswordModalOpen(false)}
+                  className="h-10 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={selfPasswordLoading || !selfNewPassword || selfNewPassword.length < 8}
+                  className="h-10 px-5 rounded-xl bg-[#0D5C3A] hover:bg-[#0A482E] text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md disabled:opacity-50"
+                >
+                  {selfPasswordLoading ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Check className="w-4 h-4 text-emerald-300" />
+                  )}
+                  <span>Enregistrer mon mot de passe</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
