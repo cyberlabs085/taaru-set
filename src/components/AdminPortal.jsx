@@ -3609,7 +3609,7 @@ export default function AdminPortal({ onClose }) {
                     <div className="p-3 rounded-xl bg-white border border-emerald-200 text-xs space-y-1.5 font-['Outfit']">
                       <div className="flex items-center justify-between">
                         <span className="text-slate-500 font-medium">Lien de connexion :</span>
-                        <span className="font-bold text-[#0D5C3A]">https://www.taaruset.com/?admin</span>
+                        <span className="font-bold text-[#0D5C3A] select-all">{getAuthRedirectUrl()}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-slate-500 font-medium">Email accrédité :</span>
@@ -3636,9 +3636,10 @@ export default function AdminPortal({ onClose }) {
                       <button
                         type="button"
                         onClick={() => {
+                          const adminUrl = getAuthRedirectUrl();
                           const text = createdMemberSuccess.password
-                            ? `Bonjour ${createdMemberSuccess.name},\n\nVoici tes accès au portail opérationnel TAARU SET :\n🌐 Lien : https://www.taaruset.com/?admin\n📧 Email : ${createdMemberSuccess.email}\n🔑 Mot de passe temporaire : ${createdMemberSuccess.password}\n\nTu pourras changer ton mot de passe dès ta connexion.`
-                            : `Bonjour ${createdMemberSuccess.name},\n\nTu as été accrédité sur le portail TAARU SET :\n🌐 Lien : https://www.taaruset.com/?admin\n📧 Email : ${createdMemberSuccess.email}\n\nUn email sécurisé vient de t'être expédié pour définir ton mot de passe personnel en toute confidentialité. Clique sur le lien reçu dans ta boîte email.`;
+                            ? `Bonjour ${createdMemberSuccess.name},\n\nVoici tes accès au portail opérationnel TAARU SET :\n🌐 Lien : ${adminUrl}\n📧 Email : ${createdMemberSuccess.email}\n🔑 Mot de passe temporaire : ${createdMemberSuccess.password}\n\nTu pourras changer ton mot de passe dès ta connexion.`
+                            : `Bonjour ${createdMemberSuccess.name},\n\nTu as été accrédité sur le portail TAARU SET :\n🌐 Lien : ${adminUrl}\n📧 Email : ${createdMemberSuccess.email}\n\nUn email sécurisé vient de t'être expédié pour définir ton mot de passe personnel en toute confidentialité. Clique sur le lien reçu dans ta boîte email.`;
                           navigator.clipboard.writeText(text);
                           alert("Message d'invitation copié dans le presse-papier !");
                         }}
@@ -3652,8 +3653,8 @@ export default function AdminPortal({ onClose }) {
                         <a
                           href={`https://wa.me/${createdMemberSuccess.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
                             createdMemberSuccess.password
-                              ? `Bonjour ${createdMemberSuccess.name},\n\nVoici tes accès au portail opérationnel TAARU SET :\n🌐 Lien : https://www.taaruset.com/?admin\n📧 Identifiant : ${createdMemberSuccess.email}\n🔑 Mot de passe temporaire : ${createdMemberSuccess.password}\n\nTu peux te connecter dès maintenant pour gérer tes interventions.`
-                              : `Bonjour ${createdMemberSuccess.name},\n\nTu as été accrédité sur le portail TAARU SET :\n🌐 Lien : https://www.taaruset.com/?admin\n📧 Email : ${createdMemberSuccess.email}\n\nUn email t'a été expédié pour définir ton mot de passe personnel en toute confidentialité.`
+                              ? `Bonjour ${createdMemberSuccess.name},\n\nVoici tes accès au portail opérationnel TAARU SET :\n🌐 Lien : ${getAuthRedirectUrl()}\n📧 Identifiant : ${createdMemberSuccess.email}\n🔑 Mot de passe temporaire : ${createdMemberSuccess.password}\n\nTu peux te connecter dès maintenant pour gérer tes interventions.`
+                              : `Bonjour ${createdMemberSuccess.name},\n\nTu as été accrédité sur le portail TAARU SET :\n🌐 Lien : ${getAuthRedirectUrl()}\n📧 Email : ${createdMemberSuccess.email}\n\nUn email t'a été expédié pour définir ton mot de passe personnel en toute confidentialité.`
                           )}`}
                           target="_blank"
                           rel="noopener noreferrer"
