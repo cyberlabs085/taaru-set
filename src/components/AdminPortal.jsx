@@ -10,7 +10,7 @@ import {
   Menu, ChevronRight, Building2, Car, Briefcase, 
   UserCheck, UserX, ChevronDown, CheckCircle, ShieldCheck, 
   Eye, EyeOff, Copy, FileText, Info, Repeat, CalendarCheck,
-  CheckCircle as CheckIcon, Circle, UserCog, Mail
+  CheckCircle as CheckIcon, Circle, UserCog, Mail, FileSpreadsheet
 } from 'lucide-react';
 
 export default function AdminPortal({ onClose }) {
@@ -108,8 +108,8 @@ export default function AdminPortal({ onClose }) {
   const [newMemberEmail, setNewMemberEmail] = useState('');
   const [newMemberName, setNewMemberName] = useState('');
   const [newMemberPhone, setNewMemberPhone] = useState('');
-  const [provisionMode, setProvisionMode] = useState('invite'); // 'invite' (Zéro-Connaissance / Recommandé) | 'manual'
-  const [newMemberPassword, setNewMemberPassword] = useState('');
+  const [provisionMode, setProvisionMode] = useState('manual'); // 'manual' (Recommandé & 100% Immédiat via WhatsApp) | 'invite'
+  const [newMemberPassword, setNewMemberPassword] = useState(() => generateStrongPassword());
   const [showNewMemberPassword, setShowNewMemberPassword] = useState(false);
   const [newMemberJobTitle, setNewMemberJobTitle] = useState('');
   const [newMemberRole, setNewMemberRole] = useState('agent');
@@ -344,6 +344,22 @@ export default function AdminPortal({ onClose }) {
       supabase.removeChannel(channel);
     };
   }, [session]);
+
+  // Fermeture universelle des modales avec la touche Échap
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setSelectedBookingDetails(null);
+        setIsNewBookingModalOpen(false);
+        setIsSelfPasswordModalOpen(false);
+        setEditingPasswordMember(null);
+        setDeleteConfirmBooking(null);
+        setIsMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // URL de redirection officielle pour l'authentification et les emails (évite tout localhost)
   const getAuthRedirectUrl = () => {
@@ -917,29 +933,43 @@ export default function AdminPortal({ onClose }) {
 
       // 2. Si mode invitation par email (Zéro-Connaissance) :
       // On déclenche l'envoi du lien officiel par email pour que le membre définisse son mot de passe confidentiel
+      let emailSuccess = false;
+      let emailNotice = '';
       if (provisionMode === 'invite') {
         try {
-          await supabase.auth.resetPasswordForEmail(cleanEmail, {
+          const { error: resetErr } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
             redirectTo: getAuthRedirectUrl()
           });
+          if (resetErr) {
+            emailSuccess = false;
+            emailNotice = `Note : L'envoi de l'email automatique a été refusé par le serveur (${resetErr.message}). Transmettez-lui directement ses accès ci-dessous via WhatsApp.`;
+          } else {
+            emailSuccess = true;
+          }
         } catch (mailErr) {
-          console.warn("Notification email d'invitation :", mailErr);
+          emailSuccess = false;
+          emailNotice = `Note : L'envoi automatique d'email n'a pas pu aboutir. Transmettez-lui directement ses accès ci-dessous via WhatsApp.`;
         }
       }
 
       setCreatedMemberSuccess({
         name: cleanName,
         email: cleanEmail,
-        password: provisionMode === 'invite' ? null : effectivePassword,
+        // Toujours fournir le mot de passe généré pour permettre un secours immédiat par WhatsApp
+        password: effectivePassword,
         phone: cleanPhone,
         role: newMemberRole,
-        mode: provisionMode
+        mode: provisionMode,
+        emailSuccess,
+        emailNotice
       });
 
       setTeamMsg(
         provisionMode === 'invite'
-          ? `✓ "${cleanName}" a été accrédité avec succès ! Une invitation officielle a été envoyée par email à "${cleanEmail}" pour lui permettre de créer son propre mot de passe confidentiel.`
-          : `✓ Collaborateur "${cleanName}" accrédité avec succès avec son mot de passe temporaire.`
+          ? (emailSuccess
+              ? `✓ "${cleanName}" a été accrédité avec succès ! Une invitation officielle a été envoyée par email à "${cleanEmail}".`
+              : `✓ "${cleanName}" accrédité ! Mais l'envoi d'email Supabase a échoué. Transmettez-lui les accès générés par WhatsApp ci-dessous.`)
+          : `✓ Collaborateur "${cleanName}" accrédité avec succès ! Transmettez-lui ses accès par WhatsApp.`
       );
 
       setNewMemberEmail('');
@@ -1326,34 +1356,183 @@ export default function AdminPortal({ onClose }) {
     };
   }, [bookings, subscriptions]);
 
-  // Export CSV officiel
+  // 1. Export Excel Professionnel Stylisé & Coloré (.xls compatible Microsoft Excel / Google Sheets)
+  const exportBookingsToExcel = () => {
+    if (bookings.length === 0) {
+      alert("Aucune réservation à exporter.");
+      return;
+    }
+
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const timeStr = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    const totalCA = bookings.reduce((acc, b) => acc + (Number(b.estimated_price_fcfa) || 0), 0);
+
+    const getStatusStyle = (status) => {
+      switch (status) {
+        case 'terminee':
+          return { bg: '#DCFCE7', color: '#166534', label: 'Terminée' };
+        case 'en_cours':
+          return { bg: '#DBEAFE', color: '#1E40AF', label: 'En cours' };
+        case 'confirmee':
+          return { bg: '#E0E7FF', color: '#3730A3', label: 'Confirmée' };
+        case 'annulee':
+          return { bg: '#FEE2E2', color: '#991B1B', label: 'Annulée' };
+        case 'en_attente':
+        default:
+          return { bg: '#FEF3C7', color: '#92400E', label: 'En attente' };
+      }
+    };
+
+    let tableRows = bookings.map((b, idx) => {
+      const st = getStatusStyle(b.status);
+      const rowBg = idx % 2 === 0 ? '#FFFFFF' : '#F8FAF7';
+      const cleanPhone = b.client_phone ? b.client_phone.replace(/\s+/g, ' ') : '';
+      const price = Number(b.estimated_price_fcfa) || 0;
+      const formattedPrice = price.toLocaleString('fr-FR') + ' FCFA';
+      const dateCreation = b.created_at ? new Date(b.created_at).toLocaleDateString('fr-FR') : '';
+      const dateIntervention = b.intervention_date || 'À fixer';
+      const heureIntervention = b.intervention_time || '';
+      const processedBy = b.processed_by_name || 'Non assigné';
+
+      return `
+        <tr style="background-color: ${rowBg};">
+          <td style="padding: 10px; border: 1px solid #E2E8F0; text-align: center; font-weight: bold; color: #64748B;">#${idx + 1}</td>
+          <td style="padding: 10px; border: 1px solid #E2E8F0; font-weight: bold; color: #0F172A;">${b.client_name || ''}</td>
+          <td style="padding: 10px; border: 1px solid #E2E8F0; mso-number-format:'\\@'; color: #334155;">${cleanPhone}</td>
+          <td style="padding: 10px; border: 1px solid #E2E8F0; font-weight: bold; color: #0D5C3A;">${b.service_type || ''}</td>
+          <td style="padding: 10px; border: 1px solid #E2E8F0; color: #475569;">${(b.service_details || '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</td>
+          <td style="padding: 10px; border: 1px solid #E2E8F0; color: #334155;">${b.quarter || ''}</td>
+          <td style="padding: 10px; border: 1px solid #E2E8F0; text-align: center; color: #334155;">${dateIntervention} ${heureIntervention}</td>
+          <td style="padding: 10px; border: 1px solid #E2E8F0; text-align: right; font-weight: bold; color: #0D5C3A; font-family: monospace;">${formattedPrice}</td>
+          <td style="padding: 10px; border: 1px solid #E2E8F0; text-align: center;">
+            <span style="background-color: ${st.bg}; color: ${st.color}; padding: 4px 10px; border-radius: 12px; font-weight: bold; font-size: 11px; display: inline-block;">
+              ${st.label}
+            </span>
+          </td>
+          <td style="padding: 10px; border: 1px solid #E2E8F0; color: #0F172A; font-weight: 500;">${processedBy}</td>
+          <td style="padding: 10px; border: 1px solid #E2E8F0; text-align: center; color: #64748B; font-size: 11px;">${dateCreation}</td>
+        </tr>
+      `;
+    }).join('');
+
+    const excelHtml = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+      <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <!--[if gte mso 9]>
+        <xml>
+          <x:ExcelWorkbook>
+            <x:ExcelWorksheets>
+              <x:ExcelWorksheet>
+                <x:Name>Registre TAARU SET</x:Name>
+                <x:WorksheetOptions>
+                  <x:DisplayGridlines/>
+                </x:WorksheetOptions>
+              </x:ExcelWorksheet>
+            </x:ExcelWorksheets>
+          </x:ExcelWorkbook>
+        </xml>
+        <![endif]-->
+        <style>
+          body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; color: #1E293B; }
+          table { border-collapse: collapse; width: 100%; }
+          th { background-color: #0D5C3A; color: #FFFFFF; font-weight: bold; padding: 12px 10px; text-align: left; border: 1px solid #09482E; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <table style="margin-bottom: 20px;">
+          <tr>
+            <td colspan="11" style="background-color: #0D5C3A; color: #FFFFFF; padding: 18px; font-size: 18px; font-weight: bold; text-align: center;">
+              TAARU SET • REGISTRE OFFICIEL DES COMMANDES & INTERVENTIONS DAKAR
+            </td>
+          </tr>
+          <tr style="background-color: #F1F5F9;">
+            <td colspan="6" style="padding: 8px 12px; font-weight: bold; color: #475569;">
+              Document généré le : ${dateStr} à ${timeStr} • Domaine officiel : www.taaruset.com
+            </td>
+            <td colspan="5" style="padding: 8px 12px; text-align: right; font-weight: bold; color: #0D5C3A;">
+              Total : ${bookings.length} réservations • Chiffre d'affaires : ${totalCA.toLocaleString('fr-FR')} FCFA
+            </td>
+          </tr>
+        </table>
+
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 50px; text-align: center;">N°</th>
+              <th style="width: 180px;">Client</th>
+              <th style="width: 130px;">Téléphone</th>
+              <th style="width: 180px;">Prestation</th>
+              <th style="width: 250px;">Formule & Détails</th>
+              <th style="width: 150px;">Quartier</th>
+              <th style="width: 160px; text-align: center;">Date & Heure</th>
+              <th style="width: 140px; text-align: right;">Montant</th>
+              <th style="width: 130px; text-align: center;">Statut</th>
+              <th style="width: 160px;">Opérateur Traité Par</th>
+              <th style="width: 110px; text-align: center;">Date Enregistrement</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRows}
+          </tbody>
+          <tfoot>
+            <tr style="background-color: #E2E8F0; font-weight: bold;">
+              <td colspan="7" style="padding: 12px; border: 1px solid #CBD5E1; text-align: right; font-size: 13px;">
+                TOTAL GÉNÉRAL DU REGISTRE (${bookings.length} commandes) :
+              </td>
+              <td style="padding: 12px; border: 1px solid #CBD5E1; text-align: right; font-size: 14px; color: #0D5C3A; font-family: monospace;">
+                ${totalCA.toLocaleString('fr-FR')} FCFA
+              </td>
+              <td colspan="3" style="padding: 12px; border: 1px solid #CBD5E1;"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </body>
+      </html>
+    `;
+
+    const blob = new Blob(['\uFEFF' + excelHtml], { type: 'application/vnd.ms-excel;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `TAARU_SET_Registre_${now.toISOString().slice(0, 10)}.xls`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // 2. Export CSV Standard optimisé pour Excel France / Windows (point-virgule et UTF-8 BOM)
   const exportBookingsToCSV = () => {
     if (bookings.length === 0) return;
     const headers = ['ID', 'Date_Creation', 'Client', 'Telephone', 'Service', 'Details', 'Quartier', 'Date_Intervention', 'Heure', 'Montant_FCFA', 'Statut', 'Traite_Par', 'Date_Traitement'];
     const rows = bookings.map(b => [
       b.id,
-      b.created_at,
-      `"${b.client_name?.replace(/"/g, '""') || ''}"`,
-      `"${b.client_phone || ''}"`,
-      `"${b.service_type || ''}"`,
-      `"${b.service_details?.replace(/"/g, '""') || ''}"`,
-      `"${b.quarter || ''}"`,
+      b.created_at ? new Date(b.created_at).toLocaleDateString('fr-FR') : '',
+      `"${(b.client_name || '').replace(/"/g, '""')}"`,
+      `"${(b.client_phone || '').replace(/"/g, '""')}"`,
+      `"${(b.service_type || '').replace(/"/g, '""')}"`,
+      `"${(b.service_details || '').replace(/"/g, '""')}"`,
+      `"${(b.quarter || '').replace(/"/g, '""')}"`,
       `"${b.intervention_date || ''}"`,
       `"${b.intervention_time || ''}"`,
       b.estimated_price_fcfa || 0,
       b.status || 'en_attente',
-      `"${b.processed_by_name || ''}"`,
-      `"${b.processed_at || ''}"`
+      `"${(b.processed_by_name || '').replace(/"/g, '""')}"`,
+      b.processed_at ? new Date(b.processed_at).toLocaleDateString('fr-FR') : ''
     ]);
 
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
+    const csvContent = '\uFEFF' + [headers.join(';'), ...rows.map(e => e.join(';'))].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `taaru_sett_registre_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.href = url;
+    link.download = `TAARU_SET_Donnees_${new Date().toISOString().slice(0, 10)}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   // ---------------------------------------------------------------------------
@@ -1574,27 +1753,29 @@ export default function AdminPortal({ onClose }) {
     <div className="fixed inset-0 z-50 bg-[#F8FAF7] text-slate-800 flex flex-col font-sans overflow-hidden">
       
       {/* ========================================================================= */}
-      {/* 1. TOP BAR INSTITUTIONNELLE                                               */}
+      {/* 1. TOP BAR INSTITUTIONNELLE ÉPURÉE                                         */}
       {/* ========================================================================= */}
-      <header className="h-16 px-4 sm:px-6 bg-white border-b border-slate-200/90 flex items-center justify-between shrink-0 shadow-xs">
-        <div className="flex items-center gap-3">
+      <header className="h-16 px-3.5 sm:px-6 bg-white border-b border-slate-200/90 flex items-center justify-between shrink-0 shadow-xs">
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
           <button
             type="button"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="md:hidden w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-colors"
+            className="md:hidden w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-colors shrink-0 cursor-pointer"
             aria-label="Ouvrir le menu"
           >
             <Menu className="w-5 h-5" />
           </button>
 
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl overflow-hidden shadow-xs border border-emerald-500/20">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl overflow-hidden shadow-xs border border-emerald-500/20 shrink-0">
               <img src={logoOfficialSq} alt="TAARU SET" className="w-full h-full object-cover" />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <span className="font-['Outfit'] font-black text-slate-900 text-base tracking-tight">TAARU <span className="text-[#16A34A]">SET</span></span>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-['Outfit'] font-extrabold border ${getRoleBadge(userRole)}`}>
+                <span className="font-['Outfit'] font-black text-slate-900 text-sm sm:text-base tracking-tight whitespace-nowrap">
+                  TAARU <span className="text-[#16A34A]">SET</span>
+                </span>
+                <span className={`hidden sm:inline-flex px-2 py-0.5 rounded-full text-[10px] font-['Outfit'] font-extrabold border ${getRoleBadge(userRole)}`}>
                   {userRole === 'super_admin' ? 'Super Admin' : userRole === 'admin' ? 'Opérations' : userRole === 'sales' ? 'Commercial' : 'Terrain'}
                 </span>
               </div>
@@ -1605,8 +1786,8 @@ export default function AdminPortal({ onClose }) {
           </div>
         </div>
 
-        {/* Profil connecté & Déconnexion */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        {/* Profil connecté & Actions (Épuré et aéré sur mobile) */}
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <div className="hidden sm:flex flex-col text-right">
             <span className="text-xs font-['Outfit'] font-bold text-slate-900 leading-tight">
               {currentMember?.full_name || session?.user?.email?.split('@')[0]}
@@ -1616,27 +1797,34 @@ export default function AdminPortal({ onClose }) {
             </span>
           </div>
 
-          <div className="w-8 h-8 rounded-xl bg-emerald-100 text-[#0D5C3A] font-['Outfit'] font-black text-xs flex items-center justify-center border border-emerald-200 shadow-xs">
-            {currentMember?.full_name ? currentMember.full_name.slice(0, 2).toUpperCase() : 'TS'}
+          {/* Avatar avec initiales - clic rapide pour modifier mot de passe */}
+          <div 
+            onClick={() => { setIsSelfPasswordModalOpen(true); setSelfPasswordMsg(''); setSelfPasswordError(''); }}
+            className="w-8 h-8 rounded-xl bg-emerald-100 hover:bg-emerald-200 text-[#0D5C3A] font-['Outfit'] font-black text-xs flex items-center justify-center border border-emerald-300 shadow-xs cursor-pointer transition-colors"
+            title="Mon profil & Mot de passe"
+          >
+            {getInitials(currentMember?.full_name)}
           </div>
 
+          {/* Bouton clé mot de passe : visible sur tablette/desktop, intégré dans le drawer sur mobile */}
           <button
             type="button"
             onClick={() => { setIsSelfPasswordModalOpen(true); setSelfPasswordMsg(''); setSelfPasswordError(''); }}
-            className="h-9 px-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#0D5C3A] text-xs font-['Outfit'] font-bold flex items-center gap-1.5 transition-colors cursor-pointer border border-emerald-200"
+            className="hidden sm:flex h-9 px-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#0D5C3A] text-xs font-['Outfit'] font-bold items-center gap-1.5 transition-colors cursor-pointer border border-emerald-200"
             title="Modifier mon mot de passe"
           >
             <KeyRound className="w-3.5 h-3.5 text-[#16A34A]" />
-            <span className="hidden sm:inline">Mon Mot de Passe</span>
+            <span>Mon Mot de Passe</span>
           </button>
 
+          {/* Bouton quitter */}
           <button
             type="button"
             onClick={handleSignOut}
-            className="h-9 px-3 rounded-xl bg-slate-100 hover:bg-rose-50 hover:text-rose-700 text-slate-600 text-xs font-['Outfit'] font-bold flex items-center gap-1.5 transition-colors cursor-pointer border border-slate-200/80"
+            className="h-8.5 w-8.5 sm:w-auto sm:h-9 sm:px-3 rounded-xl bg-slate-100 hover:bg-rose-50 hover:text-rose-700 text-slate-600 text-xs font-['Outfit'] font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-slate-200/80"
             title="Se déconnecter"
           >
-            <LogOut className="w-3.5 h-3.5" />
+            <LogOut className="w-4 h-4" />
             <span className="hidden sm:inline">Quitter</span>
           </button>
         </div>
@@ -1772,20 +1960,31 @@ export default function AdminPortal({ onClose }) {
             </nav>
           </div>
 
-          <div className="space-y-2 pt-4 border-t border-slate-100">
+          <div className="space-y-1.5 pt-3 border-t border-slate-100 font-['Outfit']">
+            <button
+              type="button"
+              onClick={exportBookingsToExcel}
+              className="w-full h-9 px-3 rounded-xl bg-emerald-50 hover:bg-[#0D5C3A] text-[#0D5C3A] hover:text-white border border-emerald-300 text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs"
+              title="Télécharger le registre au format Excel avec couleurs et totaux"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              <span>Exporter en Excel (Couleurs)</span>
+            </button>
+
             <button
               type="button"
               onClick={exportBookingsToCSV}
-              className="w-full h-9 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+              className="w-full h-8 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-[11px] font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+              title="Télécharger en fichier CSV compatible Excel France"
             >
-              <Download className="w-3.5 h-3.5 text-[#0D5C3A]" />
-              <span>Exporter en CSV</span>
+              <Download className="w-3.5 h-3.5 text-slate-500" />
+              <span>Export CSV (Standard)</span>
             </button>
 
             <button
               type="button"
               onClick={onClose}
-              className="w-full h-9 px-3 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+              className="w-full h-8 px-3 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-500 text-[11px] font-medium flex items-center justify-center gap-2 transition-colors cursor-pointer"
             >
               <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
               <span>Voir le site vitrine</span>
@@ -1914,8 +2113,26 @@ export default function AdminPortal({ onClose }) {
               <div className="pt-3 border-t border-slate-100 space-y-2 font-['Outfit']">
                 <button
                   type="button"
+                  onClick={() => { setIsMobileMenuOpen(false); exportBookingsToExcel(); }}
+                  className="w-full h-9 px-4 rounded-xl bg-emerald-50 hover:bg-[#0D5C3A] text-[#0D5C3A] hover:text-white flex items-center justify-center gap-2 text-xs font-bold border border-emerald-300 shadow-2xs"
+                >
+                  <FileSpreadsheet className="w-4 h-4" />
+                  <span>Exporter en Excel (Couleurs)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setIsMobileMenuOpen(false); exportBookingsToCSV(); }}
+                  className="w-full h-8 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center gap-2 text-xs font-semibold"
+                >
+                  <Download className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Export CSV (Standard)</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={onClose}
-                  className="w-full h-10 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center gap-2 text-xs font-bold"
+                  className="w-full h-9 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center gap-2 text-xs font-medium"
                 >
                   <ExternalLink className="w-4 h-4 text-slate-500" />
                   <span>Voir le site vitrine</span>
@@ -2272,19 +2489,19 @@ export default function AdminPortal({ onClose }) {
                 )}
               </div>
 
-              {/* --- VUE DESKTOP : TABLEAU COMPLET (>= md) --- */}
+              {/* --- VUE DESKTOP : TABLEAU COMPLET FLUIDE SANS SCROLL HORIZONTAL (>= md) --- */}
               <div className="hidden md:block border border-slate-200/90 rounded-2xl bg-white overflow-hidden shadow-xs">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 text-slate-600 text-xs font-['Outfit'] font-bold uppercase tracking-wider border-b border-slate-200">
+                    <thead className="bg-slate-50 text-slate-600 text-[11px] font-['Outfit'] font-bold uppercase tracking-wider border-b border-slate-200">
                       <tr className="whitespace-nowrap">
-                        <th className="py-3.5 px-5 min-w-[170px]">Client & Contact</th>
-                        <th className="py-3.5 px-5 min-w-[210px]">Prestation & Détails</th>
-                        <th className="py-3.5 px-5 min-w-[160px]">Quartier & Date</th>
-                        <th className="py-3.5 px-5 min-w-[110px]">Montant</th>
-                        <th className="py-3.5 px-5 min-w-[150px]">Statut</th>
-                        <th className="py-3.5 px-5 min-w-[210px]">Opérateur / Traité par</th>
-                        <th className="py-3.5 px-5 min-w-[260px] text-right">Actions rapides</th>
+                        <th className="py-3 px-3.5 min-w-[135px]">Client</th>
+                        <th className="py-3 px-3.5 min-w-[170px]">Prestation & Formule</th>
+                        <th className="py-3 px-3.5 min-w-[130px]">Quartier & Date</th>
+                        <th className="py-3 px-3.5 min-w-[95px]">Montant</th>
+                        <th className="py-3 px-3.5 min-w-[125px]">Statut</th>
+                        <th className="py-3 px-3.5 min-w-[145px]">Opérateur</th>
+                        <th className="py-3 px-3.5 min-w-[125px] text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-sans">
@@ -2300,10 +2517,10 @@ export default function AdminPortal({ onClose }) {
 
                           return (
                             <tr key={b.id} className="hover:bg-emerald-50/30 transition-colors">
-                              <td className="py-4 px-5 min-w-[170px]">
-                                <div className="font-['Outfit'] font-bold text-slate-900 text-sm whitespace-nowrap">{b.client_name}</div>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <span className="text-slate-600 text-xs font-medium tabular-nums whitespace-nowrap">{b.client_phone}</span>
+                              <td className="py-3 px-3.5 min-w-[135px]">
+                                <div className="font-['Outfit'] font-bold text-slate-900 text-xs whitespace-nowrap">{b.client_name}</div>
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                  <span className="text-slate-500 text-[11px] font-medium tabular-nums whitespace-nowrap">{b.client_phone}</span>
                                   <button
                                     type="button"
                                     onClick={() => handleCopyPhone(b.client_phone, b.id)}
@@ -2311,29 +2528,29 @@ export default function AdminPortal({ onClose }) {
                                     title="Copier le numéro"
                                   >
                                     {copiedId === b.id ? (
-                                      <span className="text-[10px] text-[#16A34A] font-bold">Copié !</span>
+                                      <span className="text-[9px] text-[#16A34A] font-bold">Copié !</span>
                                     ) : (
-                                      <Copy className="w-3.5 h-3.5" />
+                                      <Copy className="w-3 h-3" />
                                     )}
                                   </button>
                                 </div>
                               </td>
 
-                              <td className="py-4 px-5 min-w-[210px] max-w-xs">
-                                <div className="font-bold text-slate-800 text-xs">{b.service_type}</div>
-                                <div className="text-[11px] text-slate-500 truncate mt-0.5">{b.service_details}</div>
+                              <td className="py-3 px-3.5 min-w-[170px] max-w-[210px]">
+                                <div className="font-bold text-slate-800 text-xs truncate" title={b.service_type}>{b.service_type}</div>
+                                <div className="text-[11px] text-slate-500 truncate mt-0.5" title={b.service_details}>{b.service_details}</div>
                                 {isAbonnementBooking(b) && (
-                                  <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-[#0D5C3A] border border-emerald-300 text-[10px] font-['Outfit'] font-extrabold whitespace-nowrap">
+                                  <div className="mt-1 flex items-center gap-1 flex-wrap">
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full bg-emerald-100 text-[#0D5C3A] border border-emerald-300 text-[9px] font-['Outfit'] font-extrabold whitespace-nowrap">
                                       <Repeat className="w-2.5 h-2.5 text-[#16A34A]" />
-                                      <span>Abonnement 4 Passages</span>
+                                      <span>Abonnement 4P</span>
                                     </span>
                                     {(() => {
                                       const sub = findSubscriptionForBooking(b);
                                       if (sub) {
                                         const done = [1, 2, 3, 4].filter(n => sub[`passage_${n}_status`] === 'effectue').length;
                                         return (
-                                          <span className="text-[10px] font-bold text-[#0D5C3A] bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded whitespace-nowrap">
+                                          <span className="text-[9px] font-bold text-[#0D5C3A] bg-emerald-50 border border-emerald-200 px-1 py-0.2 rounded whitespace-nowrap">
                                             {done}/4 validés
                                           </span>
                                         );
@@ -2344,57 +2561,56 @@ export default function AdminPortal({ onClose }) {
                                 )}
                               </td>
 
-                              <td className="py-4 px-5 min-w-[160px] whitespace-nowrap">
-                                <div className="text-slate-800 font-semibold text-xs">{b.quarter}</div>
-                                <div className="text-[11px] text-slate-500 font-medium mt-0.5">
+                              <td className="py-3 px-3.5 min-w-[130px] whitespace-nowrap">
+                                <div className="text-slate-800 font-semibold text-xs truncate max-w-[130px]">{b.quarter}</div>
+                                <div className="text-[10px] text-slate-500 font-medium mt-0.5">
                                   {b.intervention_date || 'Date à fixer'} {b.intervention_time ? `• ${b.intervention_time}` : ''}
                                 </div>
                               </td>
 
-                              <td className="py-4 px-5 min-w-[110px] whitespace-nowrap font-['Outfit'] font-extrabold text-[#0D5C3A] text-sm tabular-nums">
+                              <td className="py-3 px-3.5 min-w-[95px] whitespace-nowrap font-['Outfit'] font-extrabold text-[#0D5C3A] text-xs tabular-nums">
                                 {formatPrice(b.estimated_price_fcfa)}
                               </td>
 
-                              <td className="py-4 px-5 min-w-[150px] whitespace-nowrap">
+                              <td className="py-3 px-3.5 min-w-[125px] whitespace-nowrap">
                                 {b.status === 'terminee' ? (
-                                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 font-['Outfit'] font-bold text-xs border border-slate-300">
-                                    <CheckCircle2 className="w-3.5 h-3.5 text-[#16A34A]" />
-                                    <Lock className="w-3 h-3 text-slate-500" />
-                                    <span>Terminée (Verrouillée)</span>
+                                  <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 font-['Outfit'] font-bold text-[11px] border border-slate-300">
+                                    <CheckCircle2 className="w-3 h-3 text-[#16A34A]" />
+                                    <Lock className="w-2.5 h-2.5 text-slate-400" />
+                                    <span>Clôturée</span>
                                   </div>
                                 ) : (
                                   <select
                                     value={b.status}
                                     onChange={(e) => handleUpdateStatus(b.id, e.target.value)}
-                                    className={`text-xs font-['Outfit'] font-bold py-1 px-3 rounded-lg border focus:outline-none cursor-pointer ${getStatusBadge(b.status)}`}
+                                    className={`text-[11px] font-['Outfit'] font-bold py-1 px-2 rounded-lg border focus:outline-none cursor-pointer ${getStatusBadge(b.status)}`}
                                   >
                                     <option value="en_attente">En attente</option>
                                     <option value="confirmee">Confirmée</option>
                                     <option value="en_cours">En cours</option>
-                                    <option value="terminee">Terminée (Clôturer)</option>
+                                    <option value="terminee">Terminée</option>
                                     <option value="annulee">Annulée</option>
                                   </select>
                                 )}
                               </td>
 
-                              {/* OPÉRATEUR & TRAÇABILITÉ AUDITÉE (DESKTOP PRO) */}
-                              <td className="py-4 px-5 min-w-[210px] whitespace-nowrap">
+                              {/* OPÉRATEUR & TRAÇABILITÉ AUDITÉE (COMPACT & ÉPURÉ) */}
+                              <td className="py-3 px-3.5 min-w-[145px] whitespace-nowrap">
                                 {b.processed_by_name ? (
-                                  <div className="flex items-center gap-2.5">
-                                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-100 to-teal-50 border border-emerald-300/80 text-[#0D5C3A] font-['Outfit'] font-black text-xs flex items-center justify-center shrink-0 shadow-2xs">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-100 to-teal-50 border border-emerald-300/80 text-[#0D5C3A] font-['Outfit'] font-black text-[11px] flex items-center justify-center shrink-0 shadow-2xs">
                                       {getInitials(b.processed_by_name)}
                                     </div>
                                     <div className="min-w-0">
-                                      <div className="flex items-center gap-1.5">
-                                        <span className="font-['Outfit'] font-bold text-slate-900 text-xs truncate max-w-[150px] leading-snug" title={b.processed_by_name}>
+                                      <div className="flex items-center gap-1">
+                                        <span className="font-['Outfit'] font-bold text-slate-900 text-xs truncate max-w-[105px] leading-snug" title={b.processed_by_name}>
                                           {b.processed_by_name}
                                         </span>
-                                        <CheckCircle2 className="w-3.5 h-3.5 text-[#16A34A] shrink-0" />
+                                        <CheckCircle2 className="w-3 h-3 text-[#16A34A] shrink-0" />
                                       </div>
                                       {b.processed_at && (
-                                        <div className="text-[10px] text-slate-400 font-medium mt-0.5 flex items-center gap-1">
-                                          <span>Le {new Date(b.processed_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}</span>
-                                          <span>à {new Date(b.processed_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+                                        <div className="text-[9px] text-slate-400 font-medium">
+                                          {new Date(b.processed_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })} à {new Date(b.processed_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
                                         </div>
                                       )}
                                     </div>
@@ -2403,69 +2619,66 @@ export default function AdminPortal({ onClose }) {
                                   <button
                                     type="button"
                                     onClick={() => handleTakeOverBooking(b.id)}
-                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-[#0D5C3A] text-[#0D5C3A] hover:text-white border border-emerald-300 hover:border-[#0D5C3A] font-['Outfit'] font-bold text-xs shadow-xs hover:shadow-md transition-all cursor-pointer whitespace-nowrap group"
-                                    title="Accepter et prendre en charge cette réservation"
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white hover:bg-[#0D5C3A] text-[#0D5C3A] hover:text-white border border-emerald-300 font-['Outfit'] font-bold text-[11px] shadow-2xs transition-colors cursor-pointer"
+                                    title="Prendre en charge cette réservation"
                                   >
-                                    <UserPlus className="w-3.5 h-3.5 text-[#16A34A] group-hover:text-white transition-colors" />
+                                    <UserPlus className="w-3 h-3 text-[#16A34A]" />
                                     <span>Prendre en charge</span>
                                   </button>
                                 ) : (
-                                  <span className="inline-flex items-center gap-1 text-[11px] text-slate-400 font-medium px-2 py-0.5 rounded-md bg-slate-50 border border-slate-100">
+                                  <span className="text-[10px] text-slate-400 font-medium px-1.5 py-0.5 rounded bg-slate-50 border border-slate-100">
                                     Non assigné
                                   </span>
                                 )}
                               </td>
 
-                              <td className="py-4 px-5 text-right min-w-[260px] whitespace-nowrap">
-                                <div className="flex items-center justify-end gap-1.5 font-['Outfit']">
+                              <td className="py-3 px-3.5 text-right min-w-[125px] whitespace-nowrap">
+                                <div className="flex items-center justify-end gap-1 font-['Outfit']">
                                   {isAbonnementBooking(b) && (
                                     <button
                                       type="button"
                                       onClick={() => handleGoToSubscription(b.client_name)}
-                                      className="h-8 px-2.5 rounded-lg bg-emerald-50 hover:bg-[#0D5C3A] hover:text-white text-[#0D5C3A] border border-emerald-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs"
-                                      title="Suivi de l'abonnement"
+                                      className="h-7 w-7 rounded-lg bg-emerald-50 hover:bg-[#0D5C3A] hover:text-white text-[#0D5C3A] border border-emerald-300 flex items-center justify-center cursor-pointer transition-colors"
+                                      title="Ouvrir le suivi de l'abonnement"
                                     >
                                       <Repeat className="w-3.5 h-3.5" />
-                                      <span>Suivi Abonnement</span>
                                     </button>
                                   )}
 
                                   <button
                                     type="button"
                                     onClick={() => setSelectedBookingDetails(b)}
-                                    className="h-8 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center gap-1 cursor-pointer"
-                                    title="Détails"
+                                    className="h-7 px-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                                    title="Voir les détails complets de la fiche"
                                   >
                                     <FileText className="w-3.5 h-3.5 text-slate-600" />
                                     <span>Détails</span>
                                   </button>
 
                                   <a
-                                    href={`tel:${b.client_phone?.replace(/\s+/g, '')}`}
-                                    className="h-8 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition-colors"
-                                    title="Appeler"
-                                  >
-                                    <Phone className="w-3.5 h-3.5 text-[#0D5C3A]" />
-                                    <span>Appel</span>
-                                  </a>
-
-                                  <a
                                     href={`https://wa.me/${b.client_phone?.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Bonjour ${b.client_name}, nous confirmons votre intervention TAARU SET pour ${b.service_type} à ${b.quarter}.`)}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="h-8 px-2.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-[#0D5C3A] border border-emerald-200 text-xs font-bold flex items-center gap-1.5 transition-colors"
-                                    title="WhatsApp"
+                                    className="h-7 w-7 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-[#0D5C3A] border border-emerald-200 flex items-center justify-center transition-colors"
+                                    title="Contacter sur WhatsApp"
                                   >
-                                    <MessageSquare className="w-3.5 h-3.5" />
-                                    <span>WhatsApp</span>
+                                    <MessageSquare className="w-3.5 h-3.5 text-[#16A34A]" />
+                                  </a>
+
+                                  <a
+                                    href={`tel:${b.client_phone?.replace(/\s+/g, '')}`}
+                                    className="h-7 w-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-colors"
+                                    title="Appeler le client"
+                                  >
+                                    <Phone className="w-3.5 h-3.5 text-slate-600" />
                                   </a>
 
                                   {canDeleteBookings && (
                                     <button
                                       type="button"
                                       onClick={() => handleDeleteBooking(b.id)}
-                                      className="h-8 w-8 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center transition-colors cursor-pointer"
-                                      title="Supprimer"
+                                      className="h-7 w-7 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center transition-colors cursor-pointer"
+                                      title="Supprimer la réservation"
                                     >
                                       <Trash2 className="w-3.5 h-3.5" />
                                     </button>
@@ -3234,31 +3447,7 @@ export default function AdminPortal({ onClose }) {
                       Mode d'attribution du mot de passe
                     </label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                      <button
-                        type="button"
-                        onClick={() => setProvisionMode('invite')}
-                        className={`p-3 rounded-2xl text-left border transition-all cursor-pointer flex items-start gap-2.5 ${
-                          provisionMode === 'invite'
-                            ? 'bg-emerald-50/80 border-[#0D5C3A] ring-1 ring-[#0D5C3A]/30 text-slate-900'
-                            : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-600'
-                        }`}
-                      >
-                        <div className={`w-4 h-4 rounded-full mt-0.5 border flex items-center justify-center shrink-0 ${
-                          provisionMode === 'invite' ? 'border-[#0D5C3A] bg-[#0D5C3A]' : 'border-slate-300 bg-white'
-                        }`}>
-                          {provisionMode === 'invite' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-                        </div>
-                        <div>
-                          <div className="font-['Outfit'] font-bold text-xs text-slate-900 flex items-center gap-1.5">
-                            <span>Invitation Privée par Email</span>
-                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-100 text-[#0D5C3A] font-extrabold uppercase">Zéro Connaissance</span>
-                          </div>
-                          <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
-                            Le membre reçoit un email privé et choisit lui-même son propre mot de passe secret. Idéal pour Mamadou ou la direction (l'admin ne connaît jamais son mot de passe).
-                          </p>
-                        </div>
-                      </button>
-
+                      {/* OPTION 1 : RECOMMANDÉE (WhatsApp / SMS) - 100% FIABLE ET IMMÉDIAT */}
                       <button
                         type="button"
                         onClick={() => {
@@ -3277,11 +3466,38 @@ export default function AdminPortal({ onClose }) {
                           {provisionMode === 'manual' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                         </div>
                         <div>
-                          <div className="font-['Outfit'] font-bold text-xs text-slate-900">
-                            Mot de passe temporaire fort (WhatsApp)
+                          <div className="font-['Outfit'] font-bold text-xs text-slate-900 flex items-center gap-1.5 flex-wrap">
+                            <span>Mot de passe temporaire (WhatsApp / SMS)</span>
+                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-100 text-[#0D5C3A] font-extrabold uppercase">Recommandé • 100% Immédiat</span>
                           </div>
                           <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
-                            Générer un mot de passe temporaire robuste (12 car. chiffrés) à transmettre par WhatsApp. Le membre pourra le modifier dès sa première connexion.
+                            Génère un mot de passe temporaire robuste à transmettre en 1 clic par WhatsApp. Zéro dépendance email, fonctionne instantanément sans blocage. Le collaborateur pourra le changer dès sa connexion.
+                          </p>
+                        </div>
+                      </button>
+
+                      {/* OPTION 2 : INVITATION PAR EMAIL */}
+                      <button
+                        type="button"
+                        onClick={() => setProvisionMode('invite')}
+                        className={`p-3 rounded-2xl text-left border transition-all cursor-pointer flex items-start gap-2.5 ${
+                          provisionMode === 'invite'
+                            ? 'bg-emerald-50/80 border-[#0D5C3A] ring-1 ring-[#0D5C3A]/30 text-slate-900'
+                            : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-600'
+                        }`}
+                      >
+                        <div className={`w-4 h-4 rounded-full mt-0.5 border flex items-center justify-center shrink-0 ${
+                          provisionMode === 'invite' ? 'border-[#0D5C3A] bg-[#0D5C3A]' : 'border-slate-300 bg-white'
+                        }`}>
+                          {provisionMode === 'invite' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                        </div>
+                        <div>
+                          <div className="font-['Outfit'] font-bold text-xs text-slate-900 flex items-center gap-1.5 flex-wrap">
+                            <span>Invitation Privée par Email</span>
+                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-200 text-slate-700 font-extrabold uppercase">Option Email</span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                            Envoie un email automatique pour créer son mot de passe. Nécessite que le quota email Supabase ne soit pas dépassé.
                           </p>
                         </div>
                       </button>
@@ -3370,7 +3586,7 @@ export default function AdminPortal({ onClose }) {
                           </h5>
                           <p className="text-xs text-slate-600">
                             {createdMemberSuccess.mode === 'invite'
-                              ? `Un email sécurisé a été expédié à ${createdMemberSuccess.email}. Il va pouvoir définir son propre mot de passe secret en toute confidentialité sans que personne ne le sache.`
+                              ? `Compte accrédité pour ${createdMemberSuccess.email}. Transmettez-lui ses accès directement par WhatsApp ci-dessous.`
                               : `Transmettez ce mot de passe temporaire sécurisé au collaborateur. Il pourra le modifier dès sa première connexion.`}
                           </p>
                         </div>
@@ -3383,6 +3599,12 @@ export default function AdminPortal({ onClose }) {
                         ✕
                       </button>
                     </div>
+
+                    {createdMemberSuccess.emailNotice && (
+                      <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-medium">
+                        ⚠️ {createdMemberSuccess.emailNotice}
+                      </div>
+                    )}
 
                     <div className="p-3 rounded-xl bg-white border border-emerald-200 text-xs space-y-1.5 font-['Outfit']">
                       <div className="flex items-center justify-between">
@@ -3721,8 +3943,14 @@ export default function AdminPortal({ onClose }) {
 
       {/* MODALE DE GESTION DU MOT DE PASSE D'UN COLLABORATEUR */}
       {editingPasswordMember && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-slate-200 space-y-4 font-['Outfit']">
+        <div 
+          onClick={(e) => { if (e.target === e.currentTarget) { setEditingPasswordMember(null); setNewPasswordInput(''); } }}
+          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-slate-200 space-y-4 font-['Outfit']"
+          >
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <div className="w-9 h-9 rounded-xl bg-emerald-100 text-[#0D5C3A] flex items-center justify-center">
@@ -3817,8 +4045,14 @@ export default function AdminPortal({ onClose }) {
 
       {/* MODALE AUTONOME : MODIFIER MON MOT DE PASSE (MON PROFIL) */}
       {isSelfPasswordModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-slate-200 space-y-4 font-['Outfit']">
+        <div 
+          onClick={(e) => { if (e.target === e.currentTarget) setIsSelfPasswordModalOpen(false); }}
+          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-slate-200 space-y-4 font-['Outfit']"
+          >
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <div className="w-9 h-9 rounded-xl bg-emerald-100 text-[#0D5C3A] flex items-center justify-center">
@@ -3918,10 +4152,17 @@ export default function AdminPortal({ onClose }) {
       {/* 3. MODALE DÉTAILS COMPLETS DE COMMANDE (AUDITÉE & LOGIQUE PARFAITE)       */}
       {/* ========================================================================= */}
       {selectedBookingDetails && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="w-full max-w-lg bg-white rounded-3xl p-6 shadow-2xl space-y-5 border border-slate-200">
+        <div 
+          onClick={(e) => { if (e.target === e.currentTarget) setSelectedBookingDetails(null); }}
+          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg max-h-[90vh] bg-white rounded-3xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+          >
             
-            <div className="flex items-start justify-between pb-3 border-b border-slate-100">
+            {/* EN-TÊTE FIXE STICKY AVEC BOUTON FERMER TRÈS CLAIR */}
+            <div className="p-4 sm:p-5 pb-3 border-b border-slate-100 flex items-start justify-between shrink-0 bg-white z-10">
               <div>
                 <span className="text-[10px] font-['Outfit'] font-bold text-[#0D5C3A] uppercase tracking-wider">Fiche d'Intervention Complète</span>
                 <h3 className="text-xl font-['Outfit'] font-black text-slate-900 mt-0.5">{selectedBookingDetails.client_name}</h3>
@@ -3929,13 +4170,16 @@ export default function AdminPortal({ onClose }) {
               <button
                 type="button"
                 onClick={() => setSelectedBookingDetails(null)}
-                className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center cursor-pointer"
+                className="h-8.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 flex items-center gap-1.5 cursor-pointer text-xs font-['Outfit'] font-bold transition-colors border border-slate-200/80 shadow-2xs"
+                title="Fermer cette fiche (ou touche Échap)"
               >
-                <X className="w-4 h-4" />
+                <X className="w-4 h-4 text-slate-500" />
+                <span>Fermer</span>
               </button>
             </div>
 
-            <div className="space-y-3 text-xs">
+            {/* CORPS DE LA FICHE DÉFILABLE SANS SORTIR DE L'ÉCRAN */}
+            <div className="overflow-y-auto p-4 sm:p-5 space-y-3.5 flex-1 text-xs">
               {(() => {
                 const parsedDetails = parseServiceDetails(selectedBookingDetails.service_details);
                 return (
@@ -4177,10 +4421,9 @@ export default function AdminPortal({ onClose }) {
                   </div>
                 )}
               </div>
-            </div>
 
-            <div className="pt-2 border-t border-slate-100 space-y-3">
-              <div className="flex items-center justify-between gap-3">
+              {/* STATUT DE L'INTERVENTION */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between gap-3">
                 <span className="text-xs font-['Outfit'] font-bold text-slate-700">Statut de la réservation :</span>
                 {selectedBookingDetails.status === 'terminee' ? (
                   <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 font-['Outfit'] font-bold text-xs border border-slate-300">
@@ -4203,20 +4446,24 @@ export default function AdminPortal({ onClose }) {
                 )}
               </div>
 
-              <div className="grid grid-cols-3 gap-2 font-['Outfit']">
+            </div>
+
+            {/* PIED DE PAGE FIXE STICKY AVEC GRAND BOUTON SORTIE EN TOUTE CIRCONSTANCE */}
+            <div className="p-3.5 sm:p-4 border-t border-slate-200 bg-slate-50 shrink-0 space-y-2.5 z-10 font-['Outfit']">
+              <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
                   onClick={() => handleCopyPhone(selectedBookingDetails.client_phone, 'modal')}
-                  className="h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="h-9 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-800 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
                 >
                   {copiedId === 'modal' ? (
                     <>
-                      <Check className="w-4 h-4 text-[#16A34A]" />
+                      <Check className="w-3.5 h-3.5 text-[#16A34A]" />
                       <span>Copié !</span>
                     </>
                   ) : (
                     <>
-                      <Copy className="w-4 h-4 text-slate-600" />
+                      <Copy className="w-3.5 h-3.5 text-slate-600" />
                       <span>Copier N°</span>
                     </>
                   )}
@@ -4224,9 +4471,9 @@ export default function AdminPortal({ onClose }) {
 
                 <a
                   href={`tel:${selectedBookingDetails.client_phone?.replace(/\s+/g, '')}`}
-                  className="h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center justify-center gap-1.5"
+                  className="h-9 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-800 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-2xs"
                 >
-                  <Phone className="w-4 h-4 text-[#0D5C3A]" />
+                  <Phone className="w-3.5 h-3.5 text-[#0D5C3A]" />
                   <span>Appeler</span>
                 </a>
 
@@ -4234,12 +4481,22 @@ export default function AdminPortal({ onClose }) {
                   href={`https://wa.me/${selectedBookingDetails.client_phone?.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Bonjour ${selectedBookingDetails.client_name}, nous confirmons votre intervention TAARU SET pour ${selectedBookingDetails.service_type} à ${selectedBookingDetails.quarter}.`)}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="h-10 rounded-xl bg-[#0D5C3A] hover:bg-[#0A482E] text-white text-xs font-bold flex items-center justify-center gap-1.5"
+                  className="h-9 rounded-xl bg-[#0D5C3A] hover:bg-[#0A482E] text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs transition-colors"
                 >
-                  <MessageSquare className="w-4 h-4 text-emerald-300" />
+                  <MessageSquare className="w-3.5 h-3.5 text-emerald-300" />
                   <span>WhatsApp</span>
                 </a>
               </div>
+
+              {/* BOUTON FERMER LA FICHE MAJEUR */}
+              <button
+                type="button"
+                onClick={() => setSelectedBookingDetails(null)}
+                className="w-full h-10 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-2xs"
+              >
+                <X className="w-4 h-4 text-slate-600" />
+                <span>Fermer la fiche & Retourner au Planning (Échap)</span>
+              </button>
             </div>
 
           </div>
@@ -4250,8 +4507,14 @@ export default function AdminPortal({ onClose }) {
       {/* 4. MODALE NOUVELLE RÉSERVATION MANUELLE                                    */}
       {/* ========================================================================= */}
       {isManualModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl space-y-4 border border-slate-200">
+        <div 
+          onClick={(e) => { if (e.target === e.currentTarget) setIsManualModalOpen(false); }}
+          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl space-y-4 border border-slate-200"
+          >
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="text-lg font-['Outfit'] font-black text-slate-900">Enregistrer une intervention</h3>
               <button
@@ -4368,8 +4631,14 @@ export default function AdminPortal({ onClose }) {
       {/* 5. MODALE NOUVEL ABONNEMENT (4 PASSAGES DU MOIS)                          */}
       {/* ========================================================================= */}
       {isNewSubModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="w-full max-w-lg bg-white rounded-3xl p-6 shadow-2xl space-y-4 border border-slate-200">
+        <div 
+          onClick={(e) => { if (e.target === e.currentTarget) setIsNewSubModalOpen(false); }}
+          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg bg-white rounded-3xl p-6 shadow-2xl space-y-4 border border-slate-200"
+          >
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
                 <span className="text-[10px] font-['Outfit'] font-bold text-[#0D5C3A] uppercase tracking-wider">Formule Récurrente</span>
