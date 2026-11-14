@@ -89,9 +89,15 @@ export default function AdminPortal({ onClose }) {
   const [newMemberEmail, setNewMemberEmail] = useState('');
   const [newMemberName, setNewMemberName] = useState('');
   const [newMemberPhone, setNewMemberPhone] = useState('');
+  const [newMemberPassword, setNewMemberPassword] = useState('Taaru2026!');
+  const [showNewMemberPassword, setShowNewMemberPassword] = useState(false);
   const [newMemberJobTitle, setNewMemberJobTitle] = useState('');
   const [newMemberRole, setNewMemberRole] = useState('agent');
   const [teamMsg, setTeamMsg] = useState('');
+  const [createdMemberSuccess, setCreatedMemberSuccess] = useState(null);
+  const [editingPasswordMember, setEditingPasswordMember] = useState(null);
+  const [newPasswordInput, setNewPasswordInput] = useState('');
+  const [passwordResetSuccessMsg, setPasswordResetSuccessMsg] = useState('');
 
   // --- PERMISSIONS DÉRIVÉES DU RÔLE DE L'UTILISATEUR CONNECTÉ ---
   const userRole = currentMember?.role || 'agent';
@@ -712,7 +718,7 @@ export default function AdminPortal({ onClose }) {
     }
   };
 
-  // Ajout universel d'un collaborateur
+  // Ajout universel d'un collaborateur AVEC PROVISIONNEMENT AUTH DIRECT
   const handleAddTeamMember = async (e) => {
     e.preventDefault();
     if (!canManageTeam) {
@@ -725,34 +731,76 @@ export default function AdminPortal({ onClose }) {
       const cleanEmail = newMemberEmail.trim().toLowerCase();
       const cleanName = newMemberName.trim();
       const cleanPhone = newMemberPhone.trim();
+      const cleanPassword = newMemberPassword.trim();
       const cleanJob = newMemberJobTitle.trim() || (
         newMemberRole === 'super_admin' ? 'Direction Générale (Super Admin)' :
         newMemberRole === 'admin' ? 'Responsable Opérations' :
         newMemberRole === 'sales' ? 'Chargé(e) Clientèle & Commercial' : 'Chef d\'Équipe Terrain'
       );
 
-      const { error } = await supabase.from('taaru_team_members').insert({
-        email: cleanEmail,
-        full_name: cleanName,
-        phone: cleanPhone,
-        job_title: cleanJob,
-        role: newMemberRole,
-        is_active: true
+      if (cleanPassword.length < 6) {
+        setTeamMsg('⛔ Le mot de passe de connexion doit comporter au moins 6 caractères.');
+        return;
+      }
+
+      // Provisionnement complet via RPC PostgreSQL sécurisé
+      const { data, error } = await supabase.rpc('admin_provision_team_member', {
+        p_email: cleanEmail,
+        p_password: cleanPassword,
+        p_full_name: cleanName,
+        p_phone: cleanPhone,
+        p_role: newMemberRole,
+        p_job_title: cleanJob
       });
 
-      if (error) {
-        setTeamMsg(`Erreur : ${error.message}`);
+      if (error || (data && data.success === false)) {
+        setTeamMsg(`Erreur : ${error?.message || data?.error}`);
       } else {
-        setTeamMsg(`Collaborateur "${cleanName}" accrédité avec succès avec le rôle "${newMemberRole}".`);
+        setCreatedMemberSuccess({
+          name: cleanName,
+          email: cleanEmail,
+          password: cleanPassword,
+          phone: cleanPhone,
+          role: newMemberRole
+        });
+        setTeamMsg(`Collaborateur "${cleanName}" accrédité avec succès. Son compte de connexion est immédiatement actif !`);
         setNewMemberEmail('');
         setNewMemberName('');
         setNewMemberPhone('');
         setNewMemberJobTitle('');
         setNewMemberRole('agent');
+        setNewMemberPassword('Taaru2026!');
         loadAllData();
       }
     } catch (err) {
       setTeamMsg(`Erreur inattendue : ${err.message}`);
+    }
+  };
+
+  // Réinitialisation du mot de passe d'un collaborateur
+  const handleResetMemberPassword = async (email, newPassword) => {
+    if (!canManageTeam) return;
+    if (!newPassword || newPassword.length < 6) {
+      alert("Le mot de passe doit comporter au moins 6 caractères.");
+      return;
+    }
+    if (!supabase) return;
+
+    try {
+      const { data, error } = await supabase.rpc('admin_reset_member_password', {
+        p_email: email,
+        p_new_password: newPassword.trim()
+      });
+
+      if (error || (data && data.success === false)) {
+        alert(`Erreur : ${error?.message || data?.error}`);
+      } else {
+        setPasswordResetSuccessMsg(`Mot de passe mis à jour avec succès pour ${email} ! Nouveau mot de passe : ${newPassword.trim()}`);
+        setEditingPasswordMember(null);
+        setNewPasswordInput('');
+      }
+    } catch (e) {
+      alert(`Erreur : ${e.message}`);
     }
   };
 
@@ -1143,6 +1191,16 @@ export default function AdminPortal({ onClose }) {
               <span className="tabular-nums font-black text-amber-700">{lockoutTimer}s</span>
             </div>
           )}
+
+          <div className="p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-200 text-xs text-slate-700 space-y-1 font-['Outfit']">
+            <div className="font-bold text-[#0D5C3A] flex items-center gap-1.5">
+              <ShieldCheck className="w-4 h-4 text-[#16A34A]" />
+              <span>Accès Collaborateurs Accrédités :</span>
+            </div>
+            <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
+              Connectez-vous avec votre adresse email et le mot de passe attribué par l'administrateur (mot de passe initial : <strong className="text-slate-900">Taaru2026!</strong>).
+            </p>
+          </div>
 
           <form onSubmit={handleAuthSubmit} className="space-y-4">
             <div>
@@ -2831,66 +2889,189 @@ export default function AdminPortal({ onClose }) {
                   </div>
                 )}
 
-                <form onSubmit={handleAddTeamMember} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
-                  <div>
-                    <label className="block text-xs font-['Outfit'] font-bold text-slate-700 mb-1">Nom complet</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Ex: Awa Ndiaye"
-                      value={newMemberName}
-                      onChange={(e) => setNewMemberName(e.target.value)}
-                      className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:outline-none focus:bg-white focus:border-[#0D5C3A] font-medium"
-                    />
+                <form onSubmit={handleAddTeamMember} className="space-y-3.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                    <div>
+                      <label className="block text-xs font-['Outfit'] font-bold text-slate-700 mb-1">Nom complet</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Ex: Awa Ndiaye"
+                        value={newMemberName}
+                        onChange={(e) => setNewMemberName(e.target.value)}
+                        className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:outline-none focus:bg-white focus:border-[#0D5C3A] font-medium"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-['Outfit'] font-bold text-slate-700 mb-1">Adresse email de connexion</label>
+                      <input
+                        type="email"
+                        required
+                        placeholder="nom@taaruset.sn ou gmail"
+                        value={newMemberEmail}
+                        onChange={(e) => setNewMemberEmail(e.target.value)}
+                        className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:outline-none focus:bg-white focus:border-[#0D5C3A] font-medium"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-['Outfit'] font-bold text-slate-700 mb-1">Téléphone WhatsApp</label>
+                      <input
+                        type="text"
+                        placeholder="+221 77 ..."
+                        value={newMemberPhone}
+                        onChange={(e) => setNewMemberPhone(e.target.value)}
+                        className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:outline-none focus:bg-white focus:border-[#0D5C3A] font-medium tabular-nums"
+                      />
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-['Outfit'] font-bold text-slate-700 mb-1">Adresse email de connexion</label>
-                    <input
-                      type="email"
-                      required
-                      placeholder="nom@taaruset.sn ou gmail"
-                      value={newMemberEmail}
-                      onChange={(e) => setNewMemberEmail(e.target.value)}
-                      className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:outline-none focus:bg-white focus:border-[#0D5C3A] font-medium"
-                    />
-                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 pt-1">
+                    <div>
+                      <label className="block text-xs font-['Outfit'] font-bold text-slate-700 mb-1">Rôle & Droits accordés</label>
+                      <select
+                        value={newMemberRole}
+                        onChange={(e) => setNewMemberRole(e.target.value)}
+                        className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 focus:outline-none focus:bg-white focus:border-[#0D5C3A] font-bold font-['Outfit']"
+                      >
+                        <option value="agent">Chef d'Équipe Terrain (Planning uniquement)</option>
+                        <option value="sales">Chargé(e) Clientèle (Planning + CRM Clients)</option>
+                        <option value="admin">Responsable Opérations (Planning + CRM + Bilan)</option>
+                        <option value="super_admin">Super-Admin / Direction (Accès total absolu)</option>
+                      </select>
+                    </div>
 
-                  <div>
-                    <label className="block text-xs font-['Outfit'] font-bold text-slate-700 mb-1">Téléphone WhatsApp</label>
-                    <input
-                      type="text"
-                      placeholder="+221 77 ..."
-                      value={newMemberPhone}
-                      onChange={(e) => setNewMemberPhone(e.target.value)}
-                      className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:outline-none focus:bg-white focus:border-[#0D5C3A] font-medium tabular-nums"
-                    />
-                  </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-['Outfit'] font-bold text-slate-700">Mot de passe initial</label>
+                        <button
+                          type="button"
+                          onClick={() => setNewMemberPassword(`Taaru${Math.floor(1000 + Math.random() * 9000)}!`)}
+                          className="text-[10px] text-[#0D5C3A] hover:underline font-bold cursor-pointer"
+                        >
+                          Générer
+                        </button>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type={showNewMemberPassword ? "text" : "password"}
+                          required
+                          minLength={6}
+                          placeholder="Min. 6 caractères"
+                          value={newMemberPassword}
+                          onChange={(e) => setNewMemberPassword(e.target.value)}
+                          className="w-full h-10 pl-3 pr-9 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:outline-none focus:bg-white focus:border-[#0D5C3A] font-mono font-bold"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNewMemberPassword(!showNewMemberPassword)}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                        >
+                          {showNewMemberPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    </div>
 
-                  <div>
-                    <label className="block text-xs font-['Outfit'] font-bold text-slate-700 mb-1">Rôle & Droits accordés</label>
-                    <select
-                      value={newMemberRole}
-                      onChange={(e) => setNewMemberRole(e.target.value)}
-                      className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 focus:outline-none focus:bg-white focus:border-[#0D5C3A] font-bold font-['Outfit']"
-                    >
-                      <option value="agent">Chef d'Équipe Terrain (Planning uniquement)</option>
-                      <option value="sales">Chargé(e) Clientèle (Planning + CRM Clients)</option>
-                      <option value="admin">Responsable Opérations (Planning + CRM + Bilan)</option>
-                      <option value="super_admin">Super-Admin / Direction (Accès total absolu)</option>
-                    </select>
-                  </div>
-
-                  <div className="flex items-end">
-                    <button
-                      type="submit"
-                      className="w-full h-10 rounded-xl bg-[#0D5C3A] hover:bg-[#0A482E] text-white font-['Outfit'] font-bold text-xs transition-colors cursor-pointer shadow-md shadow-[#0D5C3A]/20 flex items-center justify-center gap-1.5"
-                    >
-                      <UserPlus className="w-4 h-4" />
-                      <span>Accréditer le membre</span>
-                    </button>
+                    <div className="flex items-end">
+                      <button
+                        type="submit"
+                        className="w-full h-10 rounded-xl bg-[#0D5C3A] hover:bg-[#0A482E] text-white font-['Outfit'] font-bold text-xs transition-colors cursor-pointer shadow-md shadow-[#0D5C3A]/20 flex items-center justify-center gap-1.5"
+                      >
+                        <UserPlus className="w-4 h-4" />
+                        <span>Accréditer & Activer le Compte</span>
+                      </button>
+                    </div>
                   </div>
                 </form>
+
+                {/* BANNIÈRE SUCCÈS AVEC ACCÈS COPIABLES ET TRANSMISSION WHATSAPP */}
+                {createdMemberSuccess && (
+                  <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-white border-2 border-emerald-400 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="w-5 h-5 text-[#16A34A]" />
+                        <div>
+                          <h5 className="font-['Outfit'] font-bold text-sm text-slate-900">
+                            Compte prêt à se connecter pour {createdMemberSuccess.name} !
+                          </h5>
+                          <p className="text-xs text-slate-600">
+                            Le collaborateur peut dès maintenant déverrouiller son espace avec ces identifiants :
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setCreatedMemberSuccess(null)}
+                        className="text-slate-400 hover:text-slate-600 text-xs font-bold cursor-pointer"
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-white border border-emerald-200 text-xs space-y-1.5 font-['Outfit']">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500 font-medium">Lien de connexion :</span>
+                        <span className="font-bold text-[#0D5C3A]">https://taaru-set.vercel.app/?admin</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500 font-medium">Identifiant (Email) :</span>
+                        <span className="font-bold text-slate-900 select-all">{createdMemberSuccess.email}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500 font-medium">Mot de passe de session :</span>
+                        <span className="font-mono font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 select-all">
+                          {createdMemberSuccess.password}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const text = `Bonjour ${createdMemberSuccess.name},\n\nVoici tes accès au portail opérationnel TAARU SET :\n🌐 Lien : https://taaru-set.vercel.app/?admin\n📧 Email : ${createdMemberSuccess.email}\n🔑 Mot de passe : ${createdMemberSuccess.password}\n\nTu peux te connecter dès maintenant.`;
+                          navigator.clipboard.writeText(text);
+                          alert("Identifiants et message copiés dans le presse-papier !");
+                        }}
+                        className="h-9 px-3.5 rounded-xl bg-[#0D5C3A] hover:bg-[#0A482E] text-white font-['Outfit'] font-bold text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Copier les accès complets</span>
+                      </button>
+
+                      {createdMemberSuccess.phone && (
+                        <a
+                          href={`https://wa.me/${createdMemberSuccess.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
+                            `Bonjour ${createdMemberSuccess.name},\n\nVoici tes accès au portail opérationnel TAARU SET :\n🌐 Lien : https://taaru-set.vercel.app/?admin\n📧 Identifiant : ${createdMemberSuccess.email}\n🔑 Mot de passe : ${createdMemberSuccess.password}\n\nTu peux te connecter dès maintenant pour gérer tes interventions.`
+                          )}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="h-9 px-3.5 rounded-xl bg-emerald-100 hover:bg-emerald-200 text-[#0D5C3A] font-['Outfit'] font-bold text-xs flex items-center gap-1.5 border border-emerald-300 shadow-xs transition-colors"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5" />
+                          <span>Transmettre par WhatsApp ➔</span>
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {passwordResetSuccessMsg && (
+                  <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 font-bold font-['Outfit'] flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-[#16A34A] shrink-0" />
+                      <span>{passwordResetSuccessMsg}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setPasswordResetSuccessMsg('')}
+                      className="text-emerald-700 hover:text-emerald-950 text-xs font-bold cursor-pointer"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* --- VUE MOBILE : CARTES TACTILES COLLABORATEURS (< md) --- */}
@@ -2976,7 +3157,17 @@ export default function AdminPortal({ onClose }) {
                         {m.is_active ? 'Compte Actif' : 'Suspendu'}
                       </span>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => { setEditingPasswordMember(m); setNewPasswordInput(''); }}
+                          className="h-7 px-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-[#0D5C3A] text-[11px] font-bold font-['Outfit'] flex items-center gap-1 cursor-pointer transition-colors"
+                          title="Modifier le mot de passe"
+                        >
+                          <KeyRound className="w-3 h-3 text-[#16A34A]" />
+                          <span>Accès</span>
+                        </button>
+
                         {m.email !== 'ssow2006@gmail.com' ? (
                           <>
                             <button
@@ -3001,7 +3192,7 @@ export default function AdminPortal({ onClose }) {
                             </button>
                           </>
                         ) : (
-                          <span className="text-[10px] font-bold text-slate-400 italic">Direction Générale</span>
+                          <span className="text-[10px] font-bold text-slate-400 italic">Direction</span>
                         )}
                       </div>
                     </div>
@@ -3089,32 +3280,44 @@ export default function AdminPortal({ onClose }) {
                         </td>
 
                         <td className="py-4 px-5 text-right">
-                          {m.email !== 'ssow2006@gmail.com' ? (
-                            <div className="flex items-center justify-end gap-1.5 font-['Outfit']">
-                              <button
-                                type="button"
-                                onClick={() => handleToggleMemberActive(m.id, m.is_active, m.email)}
-                                className={`h-8 px-2.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
-                                  m.is_active
-                                    ? 'bg-amber-50 text-amber-800 hover:bg-amber-100'
-                                    : 'bg-emerald-50 text-[#0D5C3A] hover:bg-emerald-100'
-                                }`}
-                              >
-                                {m.is_active ? 'Suspendre' : 'Réactiver'}
-                              </button>
+                          <div className="flex items-center justify-end gap-1.5 font-['Outfit']">
+                            <button
+                              type="button"
+                              onClick={() => { setEditingPasswordMember(m); setNewPasswordInput(''); }}
+                              className="h-8 px-2.5 rounded-lg bg-slate-100 hover:bg-emerald-50 hover:text-[#0D5C3A] text-slate-700 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 border border-slate-200"
+                              title="Définir un nouveau mot de passe"
+                            >
+                              <KeyRound className="w-3.5 h-3.5 text-[#0D5C3A]" />
+                              <span>Mot de passe</span>
+                            </button>
 
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteTeamMember(m.id, m.email)}
-                                className="h-8 w-8 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center transition-colors cursor-pointer"
-                                title="Supprimer l'accès"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          ) : (
-                            <span className="text-slate-400 text-xs italic font-medium">Direction Générale</span>
-                          )}
+                            {m.email !== 'ssow2006@gmail.com' ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleMemberActive(m.id, m.is_active, m.email)}
+                                  className={`h-8 px-2.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                                    m.is_active
+                                      ? 'bg-amber-50 text-amber-800 hover:bg-amber-100'
+                                      : 'bg-emerald-50 text-[#0D5C3A] hover:bg-emerald-100'
+                                  }`}
+                                >
+                                  {m.is_active ? 'Suspendre' : 'Réactiver'}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteTeamMember(m.id, m.email)}
+                                  className="h-8 w-8 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center transition-colors cursor-pointer"
+                                  title="Supprimer l'accès"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </>
+                            ) : (
+                              <span className="text-slate-400 text-xs italic font-medium px-2">Direction</span>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -3127,6 +3330,82 @@ export default function AdminPortal({ onClose }) {
 
         </main>
       </div>
+
+      {/* MODALE DE GESTION DU MOT DE PASSE D'UN COLLABORATEUR */}
+      {editingPasswordMember && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-slate-200 space-y-4 font-['Outfit']">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-emerald-100 text-[#0D5C3A] flex items-center justify-center">
+                  <KeyRound className="w-5 h-5 text-[#16A34A]" />
+                </div>
+                <div>
+                  <h4 className="font-black text-slate-900 text-base">Modifier le mot de passe</h4>
+                  <p className="text-[11px] text-slate-500 font-medium">Collaborateur : {editingPasswordMember.full_name}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setEditingPasswordMember(null); setNewPasswordInput(''); }}
+                className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">Email de connexion :</span>
+                <span className="font-bold text-slate-900">{editingPasswordMember.email}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">Rôle :</span>
+                <span className="font-semibold text-[#0D5C3A]">{getRoleLabel(editingPasswordMember.role)}</span>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-700">Nouveau mot de passe</label>
+                <button
+                  type="button"
+                  onClick={() => setNewPasswordInput(`Taaru${Math.floor(1000 + Math.random() * 9000)}!`)}
+                  className="text-[10px] text-[#0D5C3A] hover:underline font-bold cursor-pointer"
+                >
+                  Générer aléatoire
+                </button>
+              </div>
+              <input
+                type="text"
+                placeholder="Ex: Taaru2026! (min 6 car.)"
+                value={newPasswordInput}
+                onChange={(e) => setNewPasswordInput(e.target.value)}
+                className="w-full h-11 px-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:bg-white focus:border-[#0D5C3A]"
+              />
+            </div>
+
+            <div className="pt-2 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => { setEditingPasswordMember(null); setNewPasswordInput(''); }}
+                className="h-10 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                disabled={!newPasswordInput || newPasswordInput.length < 6}
+                onClick={() => handleResetMemberPassword(editingPasswordMember.email, newPasswordInput)}
+                className="h-10 px-5 rounded-xl bg-[#0D5C3A] hover:bg-[#0A482E] text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Check className="w-4 h-4 text-emerald-300" />
+                <span>Enregistrer & Activer</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ========================================================================= */}
       {/* 3. MODALE DÉTAILS COMPLETS DE COMMANDE (AUDITÉE & LOGIQUE PARFAITE)       */}
