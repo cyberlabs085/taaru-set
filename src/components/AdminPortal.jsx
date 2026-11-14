@@ -2017,10 +2017,10 @@ export default function AdminPortal({ onClose }) {
                 }`}
               >
                 <div className="flex items-center gap-2.5">
-                  <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
-                  <span>Avis & Notations</span>
+                  <Star className="w-4 h-4" />
+                  <span>Avis Clients</span>
                 </div>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${activeTab === 'reviews' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-800'}`}>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${activeTab === 'reviews' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
                   {reviewsList.length}
                 </span>
               </button>
@@ -2189,10 +2189,10 @@ export default function AdminPortal({ onClose }) {
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
-                      <span>Avis & Notations</span>
+                      <Star className="w-4 h-4" />
+                      <span>Avis Clients</span>
                     </div>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${activeTab === 'reviews' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-800'}`}>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${activeTab === 'reviews' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'}`}>
                       {reviewsList.length}
                     </span>
                   </button>
@@ -2574,16 +2574,26 @@ export default function AdminPortal({ onClose }) {
                             <span className="text-[11px]">WhatsApp</span>
                           </a>
 
-                          <a
-                            href={getReviewWhatsAppUrl(b)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="h-9 px-2 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-800 text-xs font-bold font-['Outfit'] flex items-center justify-center gap-1 shadow-2xs"
-                            title="Demander un avis 5 étoiles sur WhatsApp"
-                          >
-                            <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
-                            <span className="text-[11px]">Avis</span>
-                          </a>
+                          {b.status === 'terminee' ? (
+                            <a
+                              href={getReviewWhatsAppUrl(b)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="h-9 px-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-800 text-xs font-bold font-['Outfit'] flex items-center justify-center gap-1 shadow-2xs transition-colors"
+                              title="Prestation terminée : Demander un avis 5 étoiles sur WhatsApp"
+                            >
+                              <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
+                              <span className="text-[11px]">Avis</span>
+                            </a>
+                          ) : (
+                            <span
+                              className="h-9 px-2 rounded-xl bg-slate-50 border border-slate-200/80 text-slate-300 text-xs font-medium font-['Outfit'] flex items-center justify-center gap-1 cursor-not-allowed select-none opacity-50"
+                              title="Le bouton d'avis s'active uniquement lorsque la prestation est marquée 'Terminée'"
+                            >
+                              <Star className="w-3.5 h-3.5 text-slate-300" />
+                              <span className="text-[11px]">Avis</span>
+                            </span>
+                          )}
 
                           <button
                             type="button"
@@ -2781,16 +2791,28 @@ export default function AdminPortal({ onClose }) {
                                     </button>
                                   )}
 
-                                  <a
-                                    href={getReviewWhatsAppUrl(b)}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="h-7 px-2 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1 text-[11px] font-bold font-['Outfit'] shadow-2xs transition-colors"
-                                    title="Envoyer une demande d'avis 5 étoiles par WhatsApp au client"
-                                  >
-                                    <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
-                                    <span>Avis</span>
-                                  </a>
+                                  {b.status === 'terminee' ? (
+                                    <a
+                                      href={getReviewWhatsAppUrl(b)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="h-7 px-2 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1 text-[11px] font-bold font-['Outfit'] shadow-2xs transition-colors"
+                                      title="Prestation terminée : Demander un avis 5 étoiles par WhatsApp au client"
+                                    >
+                                      <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
+                                      <span>Avis</span>
+                                    </a>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      disabled
+                                      className="h-7 px-2 rounded-lg bg-slate-50 text-slate-300 border border-slate-200/70 flex items-center gap-1 text-[11px] font-medium font-['Outfit'] cursor-not-allowed opacity-50 select-none"
+                                      title="Le bouton d'avis s'active uniquement lorsque la prestation est marquée 'Terminée'"
+                                    >
+                                      <Star className="w-3.5 h-3.5 text-slate-300" />
+                                      <span>Avis</span>
+                                    </button>
+                                  )}
 
                                   <button
                                     type="button"
@@ -4971,28 +4993,55 @@ export default function AdminPortal({ onClose }) {
                 )}
               </div>
 
-              {/* BLOC DEMANDE D'AVIS CLIENT VÉRIFIÉ (WHATSAPP 1-CLIC - Demandé par Mamadou) */}
-              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50/60 border border-amber-200/90 space-y-2.5">
+              {/* BLOC DEMANDE D'AVIS CLIENT VÉRIFIÉ (WHATSAPP 1-CLIC - CONDITIONNÉ À STATUT TERMINÉE) */}
+              <div className={`p-3.5 rounded-2xl border space-y-2.5 transition-colors ${
+                selectedBookingDetails.status === 'terminee'
+                  ? 'bg-gradient-to-r from-amber-50 to-orange-50/60 border-amber-200/90'
+                  : 'bg-slate-50 border-slate-200/80'
+              }`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Star className="w-4 h-4 text-amber-500 fill-amber-400" />
-                    <span className="font-['Outfit'] font-bold text-xs text-amber-950">Avis Client Vérifié & Notation</span>
+                    <Star className={`w-4 h-4 ${selectedBookingDetails.status === 'terminee' ? 'text-amber-500 fill-amber-400' : 'text-slate-400'}`} />
+                    <span className={`font-['Outfit'] font-bold text-xs ${selectedBookingDetails.status === 'terminee' ? 'text-amber-950' : 'text-slate-700'}`}>
+                      Avis Client Vérifié & Notation
+                    </span>
                   </div>
-                  <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold">1-Clic WhatsApp</span>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                    selectedBookingDetails.status === 'terminee'
+                      ? 'bg-emerald-100 text-[#0D5C3A]'
+                      : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    {selectedBookingDetails.status === 'terminee' ? '✓ Prêt à envoyer' : 'Verrouillé'}
+                  </span>
                 </div>
-                <p className="text-[11px] text-amber-900 leading-relaxed">
-                  Envoyez au client son lien d'avis personnalisé sur WhatsApp. Il clique, note de 1 à 5 étoiles en 15 secondes, et son avis s'enregistre automatiquement dans la base et sur le site.
+                
+                <p className="text-[11px] leading-relaxed text-slate-600">
+                  {selectedBookingDetails.status === 'terminee'
+                    ? "La prestation est clôturée ! Envoyez le lien d'avis WhatsApp au client en 1 clic pour qu'il note son expérience (1 à 5 étoiles)."
+                    : "⚠️ Règle de satisfaction : Le bouton WhatsApp d'avis s'activera automatiquement dès que vous aurez marqué cette réservation comme 'Terminée'."}
                 </p>
+
                 <div className="flex items-center gap-2 pt-1">
-                  <a
-                    href={getReviewWhatsAppUrl(selectedBookingDetails)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 h-9 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-['Outfit'] font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-colors"
-                  >
-                    <Star className="w-3.5 h-3.5 fill-white" />
-                    <span>Demander avis sur WhatsApp</span>
-                  </a>
+                  {selectedBookingDetails.status === 'terminee' ? (
+                    <a
+                      href={getReviewWhatsAppUrl(selectedBookingDetails)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 h-9 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-['Outfit'] font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-colors cursor-pointer"
+                    >
+                      <Star className="w-3.5 h-3.5 fill-white" />
+                      <span>Demander avis sur WhatsApp</span>
+                    </a>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled
+                      className="flex-1 h-9 rounded-xl bg-slate-200 text-slate-400 font-['Outfit'] font-bold text-xs flex items-center justify-center gap-1.5 cursor-not-allowed select-none"
+                    >
+                      <Lock className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Disponible dès que le statut est "Terminée"</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -5437,7 +5486,7 @@ export default function AdminPortal({ onClose }) {
           </button>
         )}
 
-        {/* Avis & Notations */}
+        {/* Avis Clients */}
         <button
           type="button"
           onClick={() => setActiveTab('reviews')}
@@ -5446,9 +5495,9 @@ export default function AdminPortal({ onClose }) {
           }`}
         >
           <div className="relative">
-            <Star className="w-5 h-5 text-amber-500 fill-amber-400" />
+            <Star className="w-5 h-5" />
             {reviewsList.length > 0 && (
-              <span className="absolute -top-1 -right-2 w-3.5 h-3.5 rounded-full bg-amber-500 text-white text-[8px] font-bold flex items-center justify-center">
+              <span className="absolute -top-1 -right-2 w-3.5 h-3.5 rounded-full bg-[#0D5C3A] text-white text-[8px] font-bold flex items-center justify-center">
                 {reviewsList.length}
               </span>
             )}
