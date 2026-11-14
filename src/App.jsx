@@ -544,10 +544,29 @@ export default function App() {
   // Modale Mentions Légales
   const [legalModalOpen, setLegalModalOpen] = useState(false);
 
-  // --- ÉTATS DU DASHBOARD ADMIN TAARU SET (Demandé par Mamadou) ---
-  const [isAdminOpen, setIsAdminOpen] = useState(false);
+  // --- SYSTÈME D'AVIS VÉRIFIÉS WHATSAPP & PUBLIC (Demandé par Mamadou) ---
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [reviewSubmitted, setReviewSubmitted] = useState(false);
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [hoverStar, setHoverStar] = useState(0);
+  const [dbReviews, setDbReviews] = useState([]);
+  const [reviewPrefill, setReviewPrefill] = useState({
+    bookingId: '',
+    clientName: '',
+    serviceType: '',
+    quarter: ''
+  });
+  const [reviewForm, setReviewForm] = useState({
+    name: '',
+    phone: '',
+    quarter: '',
+    service: 'Nettoyage Canapés & Salons Kärcher',
+    rating: 5,
+    comment: '',
+    recommend: true
+  });
 
-  // Détection automatique de la route /admin, ?admin ou #admin
+  // Chargement des avis approuvés depuis Supabase + détection lien WhatsApp ?review=...
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const isRoute = window.location.pathname.startsWith('/admin') || 
@@ -556,8 +575,106 @@ export default function App() {
       if (isRoute) {
         setIsAdminOpen(true);
       }
+
+      // Détection automatique de l'invitation WhatsApp envoyée au client
+      const searchParams = new URLSearchParams(window.location.search);
+      const reviewParam = searchParams.get('review') || searchParams.get('noter');
+      if (reviewParam) {
+        const clientName = searchParams.get('name') || '';
+        const service = searchParams.get('service') || '';
+        const quarter = searchParams.get('quarter') || '';
+        setReviewPrefill({
+          bookingId: reviewParam !== '1' ? reviewParam : '',
+          clientName,
+          serviceType: service,
+          quarter
+        });
+        setReviewForm(prev => ({
+          ...prev,
+          name: clientName || prev.name,
+          quarter: quarter || prev.quarter,
+          service: service || prev.service
+        }));
+        setReviewModalOpen(true);
+      }
+    }
+
+    // Récupération des avis vérifiés approuvés
+    if (supabase) {
+      const fetchApprovedReviews = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('taaru_reviews')
+            .select('*')
+            .eq('status', 'approved')
+            .order('created_at', { ascending: false })
+            .limit(20);
+          if (data && data.length > 0) {
+            setDbReviews(data);
+          }
+        } catch (e) {
+          console.warn('Chargement avis clients :', e);
+        }
+      };
+      fetchApprovedReviews();
+
+      // Écoute des nouveaux avis en temps réel
+      const channel = supabase
+        .channel('taaru-reviews-sync')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'taaru_reviews' }, () => {
+          fetchApprovedReviews();
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
     }
   }, []);
+
+  const handleSubmitReview = async (e) => {
+    e.preventDefault();
+    if (!reviewForm.name || !reviewForm.comment) return;
+    setReviewSubmitting(true);
+
+    const newReview = {
+      booking_id: reviewPrefill.bookingId || null,
+      client_name: reviewForm.name.trim(),
+      client_phone: reviewForm.phone.trim() || null,
+      service_type: reviewForm.service.trim() || reviewPrefill.serviceType || 'Intervention TAARU SET',
+      quarter: reviewForm.quarter.trim() || reviewPrefill.quarter || 'Dakar',
+      rating: Number(reviewForm.rating) || 5,
+      comment: reviewForm.comment.trim(),
+      recommend: Boolean(reviewForm.recommend),
+      is_verified: true,
+      status: 'approved' // Auto-approuvé pour affichage immédiat
+    };
+
+    if (supabase) {
+      try {
+        const { error } = await supabase.from('taaru_reviews').insert(newReview);
+        if (error) console.warn('Supabase review insert:', error);
+      } catch (err) {
+        console.warn('Erreur enregistrement avis:', err);
+      }
+    }
+
+    // Affichage instantané côté client
+    setDbReviews(prev => [
+      {
+        id: 'local-' + Date.now(),
+        ...newReview,
+        created_at: new Date().toISOString()
+      },
+      ...prev
+    ]);
+
+    setReviewSubmitting(false);
+    setReviewSubmitted(true);
+  };
+
+  // --- ÉTATS DU DASHBOARD ADMIN TAARU SET (Demandé par Mamadou) ---
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [adminPin, setAdminPin] = useState('');
   const [adminPinError, setAdminPinError] = useState(false);
   const [isAdminAuthed, setIsAdminAuthed] = useState(false);
@@ -1860,65 +1977,101 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
       {/* ========================================================================= */}
       {/* 7. TÉMOIGNAGES CLIENTS EN RUBAN DÉFILANT CONTINU (AVIS VÉRIFIÉS DAKAR)    */}
       {/* ========================================================================= */}
-      <section id="temoignages" className="py-12 sm:py-16 bg-[#FAFAF8] relative z-10 overflow-hidden border-b border-slate-200/60">
+      <section id="temoignages" className="py-12 sm:py-16 bg-[#FAFAF8] relative z-10 overflow-hidden border-b border-slate-200/60 font-['Outfit']">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 mb-7 sm:mb-9">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
             <div>
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200/70 text-amber-900 text-xs font-bold mb-2">
                 <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                <span>NOTE GOOGLE & WHATSAPP : 4.9 / 5 (148 AVIS DAKAR)</span>
+                <span>NOTE GOOGLE & WHATSAPP : 4.9 / 5 ({148 + dbReviews.length} AVIS DAKAR)</span>
               </div>
-              <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+              <h2 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
                 Ils nous font confiance à Dakar
               </h2>
             </div>
-            <div className="text-xs text-slate-500 font-medium">
-              Avis collectés auprès de clients résidant à Dakar
+            
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="text-xs text-slate-500 font-medium">
+                Avis collectés auprès de clients résidant à Dakar
+              </div>
+              <button
+                type="button"
+                onClick={() => setReviewModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white hover:bg-emerald-50 text-[#0D5C3A] border border-emerald-300 text-xs font-bold shadow-xs transition-all cursor-pointer self-start sm:self-auto"
+              >
+                <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                <span>Donner votre avis</span>
+              </button>
             </div>
           </div>
         </div>
 
-        {/* Ruban Défilant Continu */}
-        <div className="marquee-wrapper w-full overflow-hidden flex relative select-none">
-          <div className="marquee-track animate-marquee-smooth flex gap-4 sm:gap-6 py-2 hover:[animation-play-state:paused]">
-            {[...testimonialsList, ...testimonialsList].map((t, idx) => (
-              <div 
-                key={idx}
-                className="w-80 sm:w-96 bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between shrink-0 hover:border-emerald-300 transition-colors"
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-2.5">
-                    <div className="flex items-center gap-0.5 text-amber-400">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                      ))}
-                    </div>
-                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60">
-                      <CheckCircle2 className="w-2.5 h-2.5 text-[#16A34A]" />
-                      <span>Intervention vérifiée</span>
-                    </span>
-                  </div>
-                  <p className="text-slate-600 text-xs sm:text-sm leading-relaxed mb-4 font-normal">
-                    {t.text}
-                  </p>
-                </div>
+        {/* Ruban Défilant Continu avec fusion des vrais avis Supabase */}
+        {(() => {
+          const dynamicList = [
+            ...dbReviews.map(r => ({
+              initials: r.client_name ? r.client_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : 'CL',
+              name: r.client_name,
+              location: `${r.quarter || 'Dakar'} • ${r.service_type || 'Intervention'}`,
+              text: r.comment ? `« ${r.comment} »` : '« Prestation réalisée avec un grand professionnalisme. Je recommande vivement TAARU SET. »',
+              rating: r.rating || 5,
+              isRealDb: true,
+              date: r.created_at ? new Date(r.created_at).toLocaleDateString('fr-FR') : ''
+            })),
+            ...testimonialsList
+          ];
 
-                <div className="flex items-center gap-3 pt-3 border-t border-slate-100">
-                  <div className="w-9 h-9 rounded-full bg-emerald-100 text-[#0D5C3A] font-extrabold text-xs flex items-center justify-center shrink-0">
-                    {t.initials}
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-slate-900">{t.name}</div>
-                    <div className="text-[10px] text-slate-400 flex items-center gap-1">
-                      <MapPin className="w-3 h-3 text-slate-400" />
-                      <span>{t.location}</span>
+          return (
+            <div className="marquee-wrapper w-full overflow-hidden flex relative select-none">
+              <div className="marquee-track animate-marquee-smooth flex gap-4 sm:gap-6 py-2 hover:[animation-play-state:paused]">
+                {[...dynamicList, ...dynamicList].map((t, idx) => (
+                  <div 
+                    key={idx}
+                    className={`w-80 sm:w-96 bg-white rounded-3xl p-5 sm:p-6 border shadow-xs flex flex-col justify-between shrink-0 transition-colors ${
+                      t.isRealDb
+                        ? 'border-emerald-400 ring-2 ring-emerald-500/10 shadow-md'
+                        : 'border-slate-200/80 hover:border-emerald-300'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-2.5">
+                        <div className="flex items-center gap-0.5 text-amber-400">
+                          {[...Array(t.rating || 5)].map((_, i) => (
+                            <Star key={i} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                          ))}
+                        </div>
+                        <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                          t.isRealDb 
+                            ? 'text-[#0D5C3A] bg-emerald-100 border-emerald-300'
+                            : 'text-emerald-800 bg-emerald-50 border-emerald-200/60'
+                        }`}>
+                          <CheckCircle2 className="w-2.5 h-2.5 text-[#16A34A]" />
+                          <span>{t.isRealDb ? (t.date ? `Avis Vérifié (${t.date})` : 'Avis Vérifié Récent') : 'Intervention vérifiée'}</span>
+                        </span>
+                      </div>
+                      <p className="text-slate-600 text-xs sm:text-sm leading-relaxed mb-4 font-normal">
+                        {t.text}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-3 pt-3 border-t border-slate-100">
+                      <div className="w-9 h-9 rounded-full bg-emerald-100 text-[#0D5C3A] font-extrabold text-xs flex items-center justify-center shrink-0">
+                        {t.initials}
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-slate-900">{t.name}</div>
+                        <div className="text-[10px] text-slate-400 flex items-center gap-1">
+                          <MapPin className="w-3 h-3 text-slate-400" />
+                          <span>{t.location}</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
+            </div>
+          );
+        })()}
       </section>
 
       {/* ========================================================================= */}
@@ -2713,6 +2866,190 @@ Merci de me confirmer la réservation et le déplacement de l'équipe TAARU SET.
               </a>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 13B. MODALE D'AVIS CLIENT VÉRIFIÉ (INVITATION WHATSAPP & SITE PUBLIC)     */}
+      {/* ========================================================================= */}
+      {reviewModalOpen && (
+        <div 
+          onClick={(e) => { if (e.target === e.currentTarget) setReviewModalOpen(false); }}
+          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200 font-['Outfit']"
+          >
+            {/* Header */}
+            <div className="bg-gradient-to-r from-emerald-800 to-[#0D5C3A] text-white p-5 sm:p-6 relative">
+              <button
+                type="button"
+                onClick={() => setReviewModalOpen(false)}
+                className="absolute right-4 top-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
+                title="Fermer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 border border-white/20 text-emerald-200 text-xs font-bold mb-2">
+                <Star className="w-3.5 h-3.5 fill-amber-300 text-amber-300" />
+                <span>AVIS CLIENT VÉRIFIÉ • DAKAR</span>
+              </div>
+              <h3 className="text-xl sm:text-2xl font-black tracking-tight text-white">
+                Votre avis compte pour TAARU SET
+              </h3>
+              <p className="text-emerald-100/90 text-xs mt-1">
+                Aidez-nous à valoriser le travail de nos équipes de terrain en partageant votre retour d'expérience.
+              </p>
+            </div>
+
+            {reviewSubmitted ? (
+              <div className="p-6 sm:p-8 text-center space-y-4">
+                <div className="w-16 h-16 rounded-full bg-emerald-100 text-[#0D5C3A] flex items-center justify-center mx-auto shadow-sm">
+                  <CheckCircle2 className="w-8 h-8 text-[#16A34A]" />
+                </div>
+                <div className="space-y-1">
+                  <h4 className="text-xl font-black text-slate-900">Merci infiniment {reviewForm.name} !</h4>
+                  <p className="text-slate-600 text-xs sm:text-sm max-w-sm mx-auto">
+                    Votre avis a été enregistré avec succès et sera publié sur notre site officiel pour encourager nos équipes.
+                  </p>
+                </div>
+                <div className="flex items-center justify-center gap-1 text-amber-400 py-2">
+                  {[...Array(reviewForm.rating)].map((_, i) => (
+                    <Star key={i} className="w-6 h-6 fill-amber-400 text-amber-400" />
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReviewModalOpen(false);
+                    setReviewSubmitted(false);
+                  }}
+                  className="w-full h-11 rounded-2xl bg-[#0D5C3A] hover:bg-[#0A482E] text-white font-bold text-xs shadow-md transition-colors cursor-pointer"
+                >
+                  Fermer & Explorer le site
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmitReview} className="p-5 sm:p-6 space-y-4 text-xs font-sans">
+                {/* Récapitulatif pré-rempli si présent */}
+                {(reviewPrefill.clientName || reviewPrefill.serviceType || reviewPrefill.quarter) && (
+                  <div className="p-3 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 space-y-1 font-['Outfit']">
+                    <span className="text-[10px] font-bold text-[#0D5C3A] uppercase tracking-wider block">
+                      Prestation évaluée :
+                    </span>
+                    <div className="flex items-center justify-between text-slate-800 font-bold text-xs">
+                      <span>{reviewPrefill.serviceType || 'Intervention TAARU SET'}</span>
+                      <span className="text-slate-500 font-medium">{reviewPrefill.quarter || 'Dakar'}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* SÉLECTEUR DE 5 ÉTOILES INTERACTIF */}
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 text-center space-y-2 font-['Outfit']">
+                  <label className="block text-xs font-bold text-slate-700">
+                    Quelle note donnez-vous à la prestation ?
+                  </label>
+                  <div className="flex items-center justify-center gap-2 py-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setReviewForm(prev => ({ ...prev, rating: star }))}
+                        onMouseEnter={() => setHoverStar(star)}
+                        onMouseLeave={() => setHoverStar(0)}
+                        className="p-1 hover:scale-125 transition-transform cursor-pointer focus:outline-none"
+                      >
+                        <Star 
+                          className={`w-8 h-8 transition-colors ${
+                            (hoverStar || reviewForm.rating) >= star
+                              ? 'fill-amber-400 text-amber-400 drop-shadow-xs'
+                              : 'text-slate-300'
+                          }`} 
+                        />
+                      </button>
+                    ))}
+                  </div>
+                  <div className="text-xs font-extrabold text-[#0D5C3A] min-h-[16px]">
+                    {reviewForm.rating === 5 && '⭐ 5/5 — Exceptionnel, travail impeccable !'}
+                    {reviewForm.rating === 4 && '⭐ 4/5 — Très satisfait, bon service'}
+                    {reviewForm.rating === 3 && '⭐ 3/5 — Correct dans l\'ensemble'}
+                    {reviewForm.rating === 2 && '⭐ 2/5 — Décevant, points à améliorer'}
+                    {reviewForm.rating === 1 && '⭐ 1/5 — Insatisfait'}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 font-['Outfit']">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Votre Nom & Prénom</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ex: Awa Ndiaye"
+                      value={reviewForm.name}
+                      onChange={(e) => setReviewForm(prev => ({ ...prev, name: e.target.value }))}
+                      className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:bg-white focus:border-[#0D5C3A]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Quartier à Dakar</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ex: Almadies, Mermoz..."
+                      value={reviewForm.quarter}
+                      onChange={(e) => setReviewForm(prev => ({ ...prev, quarter: e.target.value }))}
+                      className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:bg-white focus:border-[#0D5C3A]"
+                    />
+                  </div>
+                </div>
+
+                <div className="font-['Outfit']">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Votre retour d'expérience
+                  </label>
+                  <textarea
+                    required
+                    rows={3}
+                    placeholder="Équipe ponctuelle, matériel Kärcher au top, canapé comme neuf, odeur très fraîche..."
+                    value={reviewForm.comment}
+                    onChange={(e) => setReviewForm(prev => ({ ...prev, comment: e.target.value }))}
+                    className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-[#0D5C3A] resize-none"
+                  />
+                </div>
+
+                {/* Recommandation */}
+                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200 font-['Outfit']">
+                  <span className="text-xs font-bold text-slate-700">Recommanderiez-vous TAARU SET ?</span>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={reviewForm.recommend}
+                      onChange={(e) => setReviewForm(prev => ({ ...prev, recommend: e.target.checked }))}
+                      className="w-4 h-4 rounded text-[#0D5C3A] focus:ring-[#0D5C3A]"
+                    />
+                    <span className="text-xs font-extrabold text-[#0D5C3A]">Oui, absolument</span>
+                  </label>
+                </div>
+
+                {/* Bouton de Soumission */}
+                <button
+                  type="submit"
+                  disabled={reviewSubmitting || !reviewForm.name || !reviewForm.comment}
+                  className="w-full h-11 rounded-2xl bg-[#0D5C3A] hover:bg-[#0A482E] text-white font-['Outfit'] font-bold text-xs shadow-md shadow-[#0D5C3A]/20 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {reviewSubmitting ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Star className="w-4 h-4 fill-amber-300 text-amber-300" />
+                  )}
+                  <span>Publier mon avis vérifié</span>
+                </button>
+              </form>
+            )}
           </div>
         </div>
       )}

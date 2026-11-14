@@ -10,7 +10,7 @@ import {
   Menu, ChevronRight, Building2, Car, Briefcase, 
   UserCheck, UserX, ChevronDown, CheckCircle, ShieldCheck, 
   Eye, EyeOff, Copy, FileText, Info, Repeat, CalendarCheck,
-  CheckCircle as CheckIcon, Circle, UserCog, Mail, FileSpreadsheet
+  CheckCircle as CheckIcon, Circle, UserCog, Mail, FileSpreadsheet, Star
 } from 'lucide-react';
 
 export default function AdminPortal({ onClose }) {
@@ -145,6 +145,12 @@ export default function AdminPortal({ onClose }) {
   const canViewCRM = isSuperAdmin || userRole === 'admin' || userRole === 'sales';
   const canDeleteBookings = isSuperAdmin || userRole === 'admin';
 
+  // --- AVIS & NOTATIONS CLIENTS VÉRIFIÉS (Demandé par Mamadou) ---
+  const [reviewsList, setReviewsList] = useState([]);
+  const [reviewsFilter, setReviewsFilter] = useState('all'); // 'all' | 'approved' | 'pending'
+  const [reviewsSearch, setReviewsSearch] = useState('');
+  const [copiedReviewLink, setCopiedReviewLink] = useState(false);
+
   // Sécurité navigation
   useEffect(() => {
     if (activeTab === 'team' && !canManageTeam) {
@@ -250,17 +256,19 @@ export default function AdminPortal({ onClose }) {
     if (!supabase) return;
     setLoadingData(true);
     try {
-      const [bookingsRes, clientsRes, teamRes, subsRes] = await Promise.all([
+      const [bookingsRes, clientsRes, teamRes, subsRes, reviewsRes] = await Promise.all([
         supabase.from('taaru_bookings').select('*').order('created_at', { ascending: false }),
         supabase.from('taaru_clients').select('*').order('last_order_at', { ascending: false }),
         supabase.from('taaru_team_members').select('*').order('created_at', { ascending: true }),
-        supabase.from('taaru_subscriptions').select('*').order('created_at', { ascending: false })
+        supabase.from('taaru_subscriptions').select('*').order('created_at', { ascending: false }),
+        supabase.from('taaru_reviews').select('*').order('created_at', { ascending: false })
       ]);
 
       let currentSubs = subsRes.data || [];
       if (bookingsRes.data) setBookings(bookingsRes.data);
       if (clientsRes.data) setClients(clientsRes.data);
       if (teamRes.data) setTeamMembers(teamRes.data);
+      if (reviewsRes && reviewsRes.data) setReviewsList(reviewsRes.data);
 
       // Auto-réconciliation des réservations de formules abonnements vers taaru_subscriptions
       if (bookingsRes.data) {
@@ -338,6 +346,7 @@ export default function AdminPortal({ onClose }) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'taaru_clients' }, () => loadAllData())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'taaru_team_members' }, () => loadAllData())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'taaru_subscriptions' }, () => loadAllData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'taaru_reviews' }, () => loadAllData())
       .subscribe();
 
     return () => {
@@ -716,6 +725,85 @@ export default function AdminPortal({ onClose }) {
     } catch (e) {
       console.error(e);
     }
+  };
+
+  // --- AVIS CLIENTS VÉRIFIÉS : STATISTIQUES & ACTIONS (Demandé par Mamadou) ---
+  const reviewsStats = useMemo(() => {
+    if (!reviewsList || reviewsList.length === 0) {
+      return { total: 0, avg: '5.0', count5: 0, count4: 0, count3: 0, countLow: 0, recommendRate: 100, approvedCount: 0 };
+    }
+    const total = reviewsList.length;
+    const sum = reviewsList.reduce((acc, r) => acc + (Number(r.rating) || 5), 0);
+    const avg = (sum / total).toFixed(1);
+    const count5 = reviewsList.filter(r => Number(r.rating) === 5).length;
+    const count4 = reviewsList.filter(r => Number(r.rating) === 4).length;
+    const count3 = reviewsList.filter(r => Number(r.rating) === 3).length;
+    const countLow = reviewsList.filter(r => Number(r.rating) < 3).length;
+    const recommends = reviewsList.filter(r => r.recommend !== false).length;
+    const recommendRate = Math.round((recommends / total) * 100);
+    const approvedCount = reviewsList.filter(r => r.status === 'approved').length;
+    return { total, avg, count5, count4, count3, countLow, recommendRate, approvedCount };
+  }, [reviewsList]);
+
+  const filteredReviews = useMemo(() => {
+    return reviewsList.filter(r => {
+      if (reviewsFilter === 'approved' && r.status !== 'approved') return false;
+      if (reviewsFilter === 'pending' && r.status === 'approved') return false;
+      if (reviewsSearch) {
+        const q = reviewsSearch.toLowerCase();
+        const name = (r.client_name || '').toLowerCase();
+        const service = (r.service_type || '').toLowerCase();
+        const quarter = (r.quarter || '').toLowerCase();
+        const comment = (r.comment || '').toLowerCase();
+        if (!name.includes(q) && !service.includes(q) && !quarter.includes(q) && !comment.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [reviewsList, reviewsFilter, reviewsSearch]);
+
+  const getReviewWhatsAppUrl = (booking) => {
+    if (!booking?.client_phone) return '#';
+    let cleanPhone = booking.client_phone.replace(/[^0-9]/g, '');
+    if (!cleanPhone.startsWith('221') && cleanPhone.length === 9) cleanPhone = '221' + cleanPhone;
+    const reviewLink = `https://www.taaruset.com/?review=${booking.id}&name=${encodeURIComponent(booking.client_name || '')}&service=${encodeURIComponent(booking.service_type || '')}&quarter=${encodeURIComponent(booking.quarter || '')}`;
+    const message = `Bonjour ${booking.client_name || 'cher client'} ✨,\n\nToute l'équipe TAARU SET vous remercie pour votre confiance lors de votre prestation "${booking.service_type || 'Nettoyage'}" à ${booking.quarter || 'Dakar'} !\n\nVotre avis compte énormément pour nous. Pourriez-vous prendre 15 secondes pour noter la qualité de notre équipe et partager votre retour ?\n\n👉 Cliquez ici pour donner votre note : ${reviewLink}\n\nMerci infiniment et à très bientôt !\nL'équipe TAARU SET Dakar 🇸🇳`;
+    return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+  };
+
+  const getThankYouWhatsAppUrl = (review) => {
+    if (!review?.client_phone) return '#';
+    let cleanPhone = review.client_phone.replace(/[^0-9]/g, '');
+    if (!cleanPhone.startsWith('221') && cleanPhone.length === 9) cleanPhone = '221' + cleanPhone;
+    const message = `Bonjour ${review.client_name} ✨,\n\nUn immense merci pour votre superbe note de ${review.rating}/5 et vos mots chaleureux sur TAARU SET !\n\nToute notre équipe est heureuse de vous savoir satisfait(e). Au plaisir de vous retrouver pour une prochaine intervention !\n\nBien cordialement,\nMamadou & l'équipe TAARU SET 🇸🇳`;
+    return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+  };
+
+  const handleToggleReviewStatus = async (reviewId, currentStatus) => {
+    const nextStatus = currentStatus === 'approved' ? 'pending' : 'approved';
+    setReviewsList(prev => prev.map(r => r.id === reviewId ? { ...r, status: nextStatus } : r));
+    if (!supabase) return;
+    try {
+      await supabase.from('taaru_reviews').update({ status: nextStatus, updated_at: new Date().toISOString() }).eq('id', reviewId);
+    } catch (e) {
+      console.error('Erreur changement statut avis:', e);
+    }
+  };
+
+  const handleDeleteReview = async (reviewId) => {
+    if (!confirm('Supprimer définitivement cet avis du registre officiel TAARU SET ?')) return;
+    setReviewsList(prev => prev.filter(r => r.id !== reviewId));
+    if (!supabase) return;
+    try {
+      await supabase.from('taaru_reviews').delete().eq('id', reviewId);
+    } catch (e) {
+      console.error('Erreur suppression avis:', e);
+    }
+  };
+
+  const handleCopyGeneralReviewLink = () => {
+    navigator.clipboard.writeText('https://www.taaruset.com/?review=nouveau');
+    setCopiedReviewLink(true);
+    setTimeout(() => setCopiedReviewLink(false), 2500);
   };
 
   // Ajout réservation manuelle
@@ -1918,7 +2006,26 @@ export default function AdminPortal({ onClose }) {
                 </button>
               )}
 
-              {/* 4. Statistiques & Bilan */}
+              {/* 4. Avis Clients Vérifiés (Demandé par Mamadou) */}
+              <button
+                type="button"
+                onClick={() => setActiveTab('reviews')}
+                className={`w-full h-11 px-3.5 rounded-xl font-bold text-xs flex items-center justify-between transition-all cursor-pointer ${
+                  activeTab === 'reviews'
+                    ? 'bg-[#0D5C3A] text-white shadow-md shadow-[#0D5C3A]/20'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                  <span>Avis & Notations</span>
+                </div>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${activeTab === 'reviews' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-800'}`}>
+                  {reviewsList.length}
+                </span>
+              </button>
+
+              {/* 5. Statistiques & Bilan */}
               {canViewStats && (
                 <button
                   type="button"
@@ -1937,7 +2044,7 @@ export default function AdminPortal({ onClose }) {
                 </button>
               )}
 
-              {/* 5. Équipe & Droits */}
+              {/* 6. Équipe & Droits */}
               {canManageTeam && (
                 <button
                   type="button"
@@ -2074,6 +2181,22 @@ export default function AdminPortal({ onClose }) {
                     </button>
                   )}
 
+                  <button
+                    type="button"
+                    onClick={() => { setActiveTab('reviews'); setIsMobileMenuOpen(false); }}
+                    className={`w-full h-11 px-4 rounded-xl font-bold flex items-center justify-between transition-colors ${
+                      activeTab === 'reviews' ? 'bg-[#0D5C3A] text-white shadow-sm' : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                      <span>Avis & Notations</span>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${activeTab === 'reviews' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-800'}`}>
+                      {reviewsList.length}
+                    </span>
+                  </button>
+
                   {canViewStats && (
                     <button
                       type="button"
@@ -2175,6 +2298,7 @@ export default function AdminPortal({ onClose }) {
                   {activeTab === 'bookings' && 'Planning des Commandes'}
                   {activeTab === 'subscriptions' && 'Suivi des Abonnements (4 passages)'}
                   {activeTab === 'clients' && 'Répertoire Clients & CRM'}
+                  {activeTab === 'reviews' && 'Avis Clients Vérifiés & Satisfaction'}
                   {activeTab === 'stats' && 'Statistiques & Bilan Financier'}
                   {activeTab === 'team' && 'Équipe & Gestion Universelle des Droits'}
                 </span>
@@ -2183,6 +2307,7 @@ export default function AdminPortal({ onClose }) {
                 {activeTab === 'bookings' && 'Interventions & Réservations Dakar'}
                 {activeTab === 'subscriptions' && 'Suivi des Abonnements & Passages Programmés'}
                 {activeTab === 'clients' && 'Base de Contacts & Historique Clients'}
+                {activeTab === 'reviews' && 'Avis Clients Vérifiés & Modération en Direct'}
                 {activeTab === 'stats' && 'Tableau de Bord de Performance'}
                 {activeTab === 'team' && 'Accréditations & Équipe Opérationnelle'}
               </h1>
@@ -2449,6 +2574,17 @@ export default function AdminPortal({ onClose }) {
                             <span className="text-[11px]">WhatsApp</span>
                           </a>
 
+                          <a
+                            href={getReviewWhatsAppUrl(b)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="h-9 px-2 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-800 text-xs font-bold font-['Outfit'] flex items-center justify-center gap-1 shadow-2xs"
+                            title="Demander un avis 5 étoiles sur WhatsApp"
+                          >
+                            <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
+                            <span className="text-[11px]">Avis</span>
+                          </a>
+
                           <button
                             type="button"
                             onClick={() => setSelectedBookingDetails(b)}
@@ -2644,6 +2780,17 @@ export default function AdminPortal({ onClose }) {
                                       <Repeat className="w-3.5 h-3.5" />
                                     </button>
                                   )}
+
+                                  <a
+                                    href={getReviewWhatsAppUrl(b)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="h-7 px-2 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1 text-[11px] font-bold font-['Outfit'] shadow-2xs transition-colors"
+                                    title="Envoyer une demande d'avis 5 étoiles par WhatsApp au client"
+                                  >
+                                    <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
+                                    <span>Avis</span>
+                                  </a>
 
                                   <button
                                     type="button"
@@ -3939,6 +4086,383 @@ export default function AdminPortal({ onClose }) {
             </div>
           )}
 
+          {/* ========================================================================= */}
+          {/* ONGLET AVIS & NOTATIONS CLIENTS VÉRIFIÉS (DEMANDÉ PAR MAMADOU)             */}
+          {/* ========================================================================= */}
+          {activeTab === 'reviews' && (
+            <div className="space-y-6">
+
+              {/* 1. 4 CARTES STATISTIQUES & LIEN PUBLIC */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                
+                {/* Carte 1 : Note Globale */}
+                <div className="p-5 rounded-2xl bg-white border border-slate-200/90 shadow-sm space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-['Outfit'] font-bold text-slate-500 uppercase tracking-wider">Note Moyenne</span>
+                    <span className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                      <Star className="w-4 h-4 fill-amber-400 text-amber-500" />
+                    </span>
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-['Outfit'] font-black text-slate-900 tracking-tight">{reviewsStats.avg}</span>
+                    <span className="text-xs font-bold text-slate-400">/ 5.0</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-amber-400 text-sm">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Star key={s} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                    ))}
+                    <span className="text-[10px] text-slate-400 font-bold ml-1">({reviewsStats.total} avis)</span>
+                  </div>
+                </div>
+
+                {/* Carte 2 : Taux de Recommandation */}
+                <div className="p-5 rounded-2xl bg-white border border-slate-200/90 shadow-sm space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-['Outfit'] font-bold text-slate-500 uppercase tracking-wider">Recommandation</span>
+                    <span className="w-8 h-8 rounded-xl bg-emerald-50 text-[#0D5C3A] flex items-center justify-center">
+                      <CheckCircle2 className="w-4 h-4 text-[#16A34A]" />
+                    </span>
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-['Outfit'] font-black text-[#0D5C3A] tracking-tight">{reviewsStats.recommendRate}%</span>
+                    <span className="text-xs font-bold text-emerald-600">des clients</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 font-medium">Recommandent TAARU SET à leurs proches</p>
+                </div>
+
+                {/* Carte 3 : Avis Publiés en Ligne */}
+                <div className="p-5 rounded-2xl bg-white border border-slate-200/90 shadow-sm space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-['Outfit'] font-bold text-slate-500 uppercase tracking-wider">En Ligne sur le Site</span>
+                    <span className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                      <Eye className="w-4 h-4 text-blue-600" />
+                    </span>
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-['Outfit'] font-black text-slate-900 tracking-tight">{reviewsStats.approvedCount}</span>
+                    <span className="text-xs font-bold text-slate-400">visibles</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span className="text-[10px] text-slate-500 font-medium">Section Témoignages taaruset.com</span>
+                  </div>
+                </div>
+
+                {/* Carte 4 : Lien Public de Notation */}
+                <div className="p-5 rounded-2xl bg-gradient-to-br from-emerald-50 via-teal-50 to-white border border-emerald-300 shadow-sm space-y-2 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-['Outfit'] font-bold text-[#0D5C3A] uppercase tracking-wider">Lien Public Avis</span>
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-[#0D5C3A] text-[9px] font-extrabold">Partageable</span>
+                    </div>
+                    <p className="text-[11px] text-slate-600 font-medium mt-1">À partager sur WhatsApp ou par SMS à n'importe quel client</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCopyGeneralReviewLink}
+                    className="w-full h-9 rounded-xl bg-[#0D5C3A] hover:bg-[#0A482E] text-white font-['Outfit'] font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+                  >
+                    {copiedReviewLink ? (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Lien Copié !</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Copier le Lien Public</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+              </div>
+
+              {/* 2. BARRE D'ACTIONS, RECHERCHE & FILTRES */}
+              <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={reviewsSearch}
+                    onChange={(e) => setReviewsSearch(e.target.value)}
+                    placeholder="Rechercher par client, quartier, service ou commentaire..."
+                    className="w-full h-10 pl-9 pr-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:outline-none focus:bg-white focus:border-[#0D5C3A] font-medium"
+                  />
+                  {reviewsSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setReviewsSearch('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold cursor-pointer"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1.5 font-['Outfit']">
+                  <button
+                    type="button"
+                    onClick={() => setReviewsFilter('all')}
+                    className={`h-9 px-3 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+                      reviewsFilter === 'all'
+                        ? 'bg-[#0D5C3A] text-white shadow-2xs'
+                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                    }`}
+                  >
+                    Tous ({reviewsList.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReviewsFilter('approved')}
+                    className={`h-9 px-3 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+                      reviewsFilter === 'approved'
+                        ? 'bg-[#0D5C3A] text-white shadow-2xs'
+                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                    }`}
+                  >
+                    En ligne ({reviewsStats.approvedCount})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReviewsFilter('pending')}
+                    className={`h-9 px-3 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+                      reviewsFilter === 'pending'
+                        ? 'bg-[#0D5C3A] text-white shadow-2xs'
+                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                    }`}
+                  >
+                    Masqués ({reviewsList.length - reviewsStats.approvedCount})
+                  </button>
+                </div>
+              </div>
+
+              {/* 3. LISTE DES AVIS (DESKTOP TABLE & MOBILE CARDS) */}
+              {filteredReviews.length === 0 ? (
+                <div className="p-12 rounded-2xl bg-white border border-slate-200 text-center space-y-3">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-500 mx-auto flex items-center justify-center">
+                    <Star className="w-6 h-6 fill-amber-400" />
+                  </div>
+                  <h4 className="font-['Outfit'] font-bold text-base text-slate-900">Aucun avis trouvé</h4>
+                  <p className="text-xs text-slate-500 max-w-md mx-auto">
+                    {reviewsSearch
+                      ? `Aucun retour client ne correspond à "${reviewsSearch}".`
+                      : "Les avis laissés par vos clients apparaîtront ici dès qu'ils auront cliqué sur le lien WhatsApp."}
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
+                  
+                  {/* Vue Mobile : Cartes */}
+                  <div className="md:hidden divide-y divide-slate-100">
+                    {filteredReviews.map((r) => (
+                      <div key={r.id} className="p-4 space-y-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h5 className="font-['Outfit'] font-bold text-sm text-slate-900">{r.client_name}</h5>
+                              {r.is_verified && (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-emerald-100 text-[#0D5C3A] text-[9px] font-extrabold">
+                                  <CheckCircle2 className="w-2.5 h-2.5" />
+                                  <span>Vérifié</span>
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-slate-500">
+                              {r.quarter ? `${r.quarter} • ` : ''}{r.service_type || 'Prestation TAARU SET'}
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-0.5 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg text-amber-800 text-xs font-bold">
+                            <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
+                            <span>{r.rating}/5</span>
+                          </div>
+                        </div>
+
+                        {r.comment && (
+                          <p className="text-xs text-slate-700 italic bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                            "{r.comment}"
+                          </p>
+                        )}
+
+                        <div className="flex items-center justify-between text-[11px] text-slate-400 font-['Outfit'] pt-1">
+                          <span>{new Date(r.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${r.status === 'approved' ? 'bg-emerald-100 text-[#0D5C3A]' : 'bg-slate-100 text-slate-600'}`}>
+                            {r.status === 'approved' ? '✓ Visible en ligne' : 'Masqué du site'}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2 pt-2 border-t border-slate-100 font-['Outfit']">
+                          {r.client_phone && (
+                            <a
+                              href={getThankYouWhatsAppUrl(r)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex-1 h-8 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#0D5C3A] border border-emerald-200 text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs"
+                            >
+                              <MessageSquare className="w-3.5 h-3.5 text-[#16A34A]" />
+                              <span>Remercier (WhatsApp)</span>
+                            </a>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleToggleReviewStatus(r.id, r.status)}
+                            className="h-8 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer"
+                          >
+                            {r.status === 'approved' ? 'Masquer' : 'Publier'}
+                          </button>
+                          {canDeleteBookings && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteReview(r.id)}
+                              className="h-8 w-8 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center cursor-pointer"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Vue Desktop : Tableau Haute Densité */}
+                  <div className="hidden md:block overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-50 border-b border-slate-200/80 font-['Outfit'] text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                        <tr>
+                          <th className="py-3 px-4">Client & Localisation</th>
+                          <th className="py-3 px-4">Prestation Évaluée</th>
+                          <th className="py-3 px-4">Note & Recommandation</th>
+                          <th className="py-3 px-4">Commentaire Client</th>
+                          <th className="py-3 px-4">Date</th>
+                          <th className="py-3 px-4">Visibilité Site</th>
+                          <th className="py-3 px-4 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-sans">
+                        {filteredReviews.map((r, idx) => (
+                          <tr key={r.id} className={`hover:bg-slate-50/80 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}>
+                            
+                            <td className="py-3.5 px-4 font-['Outfit']">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-slate-900 text-sm">{r.client_name}</span>
+                                {r.is_verified && (
+                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-emerald-100 text-[#0D5C3A] text-[9px] font-extrabold">
+                                    <CheckCircle2 className="w-2.5 h-2.5" />
+                                    <span>Vérifié</span>
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[11px] text-slate-500 font-medium">
+                                {r.quarter || 'Dakar'} {r.client_phone ? `• ${r.client_phone}` : ''}
+                              </div>
+                            </td>
+
+                            <td className="py-3.5 px-4">
+                              <span className="font-['Outfit'] font-semibold text-slate-800 text-xs">
+                                {r.service_type || 'Prestation TAARU SET'}
+                              </span>
+                            </td>
+
+                            <td className="py-3.5 px-4 whitespace-nowrap">
+                              <div className="flex items-center gap-1">
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                  <Star
+                                    key={star}
+                                    className={`w-3.5 h-3.5 ${
+                                      star <= (Number(r.rating) || 5)
+                                        ? 'fill-amber-400 text-amber-500'
+                                        : 'fill-slate-200 text-slate-200'
+                                    }`}
+                                  />
+                                ))}
+                                <span className="font-['Outfit'] font-extrabold text-slate-800 text-xs ml-1">{r.rating}/5</span>
+                              </div>
+                              {r.recommend !== false && (
+                                <div className="text-[10px] text-emerald-700 font-bold mt-0.5">
+                                  ✓ Recommande TAARU SET
+                                </div>
+                              )}
+                            </td>
+
+                            <td className="py-3.5 px-4 max-w-xs">
+                              {r.comment ? (
+                                <p className="text-xs text-slate-700 italic line-clamp-2" title={r.comment}>
+                                  "{r.comment}"
+                                </p>
+                              ) : (
+                                <span className="text-slate-400 text-[11px] italic">Aucun commentaire textuel</span>
+                              )}
+                            </td>
+
+                            <td className="py-3.5 px-4 whitespace-nowrap text-[11px] text-slate-500 font-['Outfit']">
+                              {new Date(r.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                            </td>
+
+                            <td className="py-3.5 px-4 whitespace-nowrap font-['Outfit']">
+                              <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-extrabold ${
+                                r.status === 'approved'
+                                  ? 'bg-emerald-100 text-[#0D5C3A] border border-emerald-300/60'
+                                  : 'bg-slate-100 text-slate-600 border border-slate-300/60'
+                              }`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${r.status === 'approved' ? 'bg-[#16A34A]' : 'bg-slate-400'}`}></span>
+                                <span>{r.status === 'approved' ? 'Visible en Ligne' : 'Masqué'}</span>
+                              </span>
+                            </td>
+
+                            <td className="py-3.5 px-4 text-right whitespace-nowrap font-['Outfit']">
+                              <div className="flex items-center justify-end gap-1.5">
+                                {r.client_phone && (
+                                  <a
+                                    href={getThankYouWhatsAppUrl(r)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="h-7 px-2.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-[#0D5C3A] border border-emerald-200 text-[11px] font-bold flex items-center gap-1 transition-colors shadow-2xs"
+                                    title="Envoyer un message de remerciement au client sur WhatsApp"
+                                  >
+                                    <MessageSquare className="w-3 h-3 text-[#16A34A]" />
+                                    <span>Remercier</span>
+                                  </a>
+                                )}
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleReviewStatus(r.id, r.status)}
+                                  className={`h-7 px-2.5 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer ${
+                                    r.status === 'approved'
+                                      ? 'bg-slate-100 hover:bg-amber-50 text-slate-700 hover:text-amber-800 border-slate-200'
+                                      : 'bg-emerald-50 hover:bg-emerald-100 text-[#0D5C3A] border-emerald-300'
+                                  }`}
+                                  title={r.status === 'approved' ? 'Masquer cet avis du site public' : 'Publier cet avis sur le site public'}
+                                >
+                                  {r.status === 'approved' ? 'Masquer' : 'Publier'}
+                                </button>
+
+                                {canDeleteBookings && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteReview(r.id)}
+                                    className="h-7 w-7 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center transition-colors cursor-pointer"
+                                    title="Supprimer cet avis définitivement"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                </div>
+              )}
+
+            </div>
+          )}
+
         </main>
       </div>
 
@@ -4155,15 +4679,15 @@ export default function AdminPortal({ onClose }) {
       {selectedBookingDetails && (
         <div 
           onClick={(e) => { if (e.target === e.currentTarget) setSelectedBookingDetails(null); }}
-          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
+          className="fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-hidden"
         >
           <div 
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-lg max-h-[90vh] bg-white rounded-3xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+            className="w-full sm:max-w-lg h-[92vh] sm:h-auto sm:max-h-[90vh] bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150"
           >
             
             {/* EN-TÊTE FIXE STICKY AVEC BOUTON FERMER TRÈS CLAIR */}
-            <div className="p-4 sm:p-5 pb-3 border-b border-slate-100 flex items-start justify-between shrink-0 bg-white z-10">
+            <div className="p-4 sm:p-5 pb-3 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white z-20 shadow-2xs">
               <div>
                 <span className="text-[10px] font-['Outfit'] font-bold text-[#0D5C3A] uppercase tracking-wider">Fiche d'Intervention Complète</span>
                 <h3 className="text-xl font-['Outfit'] font-black text-slate-900 mt-0.5">{selectedBookingDetails.client_name}</h3>
@@ -4171,11 +4695,11 @@ export default function AdminPortal({ onClose }) {
               <button
                 type="button"
                 onClick={() => setSelectedBookingDetails(null)}
-                className="h-8.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 flex items-center gap-1.5 cursor-pointer text-xs font-['Outfit'] font-bold transition-colors border border-slate-200/80 shadow-2xs"
+                className="h-9 px-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-950 flex items-center gap-1.5 cursor-pointer text-xs font-['Outfit'] font-extrabold transition-colors border border-slate-300 shadow-xs"
                 title="Fermer cette fiche (ou touche Échap)"
               >
-                <X className="w-4 h-4 text-slate-500" />
-                <span>Fermer</span>
+                <X className="w-4 h-4 text-slate-600" />
+                <span>✕ Fermer</span>
               </button>
             </div>
 
@@ -4447,10 +4971,35 @@ export default function AdminPortal({ onClose }) {
                 )}
               </div>
 
+              {/* BLOC DEMANDE D'AVIS CLIENT VÉRIFIÉ (WHATSAPP 1-CLIC - Demandé par Mamadou) */}
+              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50/60 border border-amber-200/90 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Star className="w-4 h-4 text-amber-500 fill-amber-400" />
+                    <span className="font-['Outfit'] font-bold text-xs text-amber-950">Avis Client Vérifié & Notation</span>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold">1-Clic WhatsApp</span>
+                </div>
+                <p className="text-[11px] text-amber-900 leading-relaxed">
+                  Envoyez au client son lien d'avis personnalisé sur WhatsApp. Il clique, note de 1 à 5 étoiles en 15 secondes, et son avis s'enregistre automatiquement dans la base et sur le site.
+                </p>
+                <div className="flex items-center gap-2 pt-1">
+                  <a
+                    href={getReviewWhatsAppUrl(selectedBookingDetails)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 h-9 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-['Outfit'] font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-colors"
+                  >
+                    <Star className="w-3.5 h-3.5 fill-white" />
+                    <span>Demander avis sur WhatsApp</span>
+                  </a>
+                </div>
+              </div>
+
             </div>
 
             {/* PIED DE PAGE FIXE STICKY AVEC GRAND BOUTON SORTIE EN TOUTE CIRCONSTANCE */}
-            <div className="p-3.5 sm:p-4 border-t border-slate-200 bg-slate-50 shrink-0 space-y-2.5 z-10 font-['Outfit']">
+            <div className="p-3.5 sm:p-4 border-t border-slate-200 bg-white shrink-0 space-y-2.5 z-20 font-['Outfit'] shadow-md">
               <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
@@ -4887,6 +5436,25 @@ export default function AdminPortal({ onClose }) {
             <span className="text-[10px] font-bold">Équipe</span>
           </button>
         )}
+
+        {/* Avis & Notations */}
+        <button
+          type="button"
+          onClick={() => setActiveTab('reviews')}
+          className={`flex flex-col items-center justify-center gap-1 w-14 h-12 rounded-xl transition-colors ${
+            activeTab === 'reviews' ? 'text-[#0D5C3A]' : 'text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          <div className="relative">
+            <Star className="w-5 h-5 text-amber-500 fill-amber-400" />
+            {reviewsList.length > 0 && (
+              <span className="absolute -top-1 -right-2 w-3.5 h-3.5 rounded-full bg-amber-500 text-white text-[8px] font-bold flex items-center justify-center">
+                {reviewsList.length}
+              </span>
+            )}
+          </div>
+          <span className="text-[10px] font-bold">Avis</span>
+        </button>
 
         {/* Menu */}
         <button
