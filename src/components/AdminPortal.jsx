@@ -374,11 +374,25 @@ export default function AdminPortal({ onClose }) {
   // - Si la commande a déjà été prise en charge par quelqu'un, ON PRÉSERVE l'opérateur d'origine !
   // - Si elle n'a jamais été prise en charge et qu'on la valide, on l'attribue à l'opérateur courant.
   const handleUpdateStatus = async (bookingId, newStatus) => {
+    const target = bookings.find(b => b.id === bookingId);
+
+    // Verrouillage : si la commande est déjà terminée, interdiction de modifier sauf Super Admin
+    if (target?.status === 'terminee' && !isSuperAdmin) {
+      alert("Cette intervention est déjà définitivement clôturée et archivée. Seul un Super-Admin peut modifier son statut.");
+      return;
+    }
+
+    // Confirmation explicite obligatoire avant de clôturer une commande
+    if (newStatus === 'terminee') {
+      const confirmed = window.confirm(
+        "Êtes-vous certain de vouloir marquer cette intervention comme TERMINÉE ?\n\nUne fois terminée, la commande sera définitivement clôturée et archivée."
+      );
+      if (!confirmed) return;
+    }
+
     const now = new Date().toISOString();
     const updaterName = currentMember?.full_name || session?.user?.email?.split('@')[0] || 'Opérateur TAARU SET';
     const updaterEmail = session?.user?.email || '';
-
-    const target = bookings.find(b => b.id === bookingId);
     const operatorName = target?.processed_by_name || (newStatus !== 'en_attente' ? updaterName : null);
     const operatorEmail = target?.processed_by_email || (newStatus !== 'en_attente' ? updaterEmail : null);
     const operatorAt = target?.processed_at || (newStatus !== 'en_attente' ? now : null);
@@ -619,24 +633,43 @@ export default function AdminPortal({ onClose }) {
 
   // Validation / Annulation d'un passage en 1 clic (OPTIMISTE 0ms)
   const handleTogglePassageStatus = async (subId, passageNum, currentStatus) => {
+    const targetSub = subscriptions.find(s => s.id === subId);
+    if (!targetSub) return;
+
+    // Si l'abonnement est déjà clôturé / validé définitivement, verrouillage
+    if (targetSub.is_closed && !isSuperAdmin) {
+      alert("Cet abonnement a déjà été définitivement clôturé et validé (4/4 passages). Il ne peut plus être modifié.");
+      return;
+    }
+
     const now = new Date().toISOString();
     const updaterName = currentMember?.full_name || session?.user?.email?.split('@')[0] || 'Opérateur TAARU SET';
     const updaterEmail = session?.user?.email || '';
 
-    const newPassageStatus = currentStatus === 'effectue' ? 'en_attente' : 'effectue';
+    const newPassageStatus = currentStatus === 'effectue' ? 'a_venir' : 'effectue';
     const fieldKey = `passage_${passageNum}_status`;
 
-    const targetSub = subscriptions.find(s => s.id === subId);
-    const isComplete = [1, 2, 3, 4].every(n => {
+    const nextDoneCount = [1, 2, 3, 4].filter(n => {
       if (n === passageNum) return newPassageStatus === 'effectue';
       return targetSub?.[`passage_${n}_status`] === 'effectue';
-    });
+    }).length;
+
+    // RÈGLES DE STATUT AUTOMATIQUE SELON LE NOMBRE DE PASSAGES :
+    // 0 passage : 'actif'
+    // 1, 2, 3 passages : 'en_cours'
+    // 4 passages : 'en_cours' (en attente du bouton de clôture définitive) ou 'complete' si clôturé
+    let nextStatus = 'actif';
+    if (nextDoneCount >= 1 && nextDoneCount < 4) {
+      nextStatus = 'en_cours';
+    } else if (nextDoneCount === 4) {
+      nextStatus = targetSub.is_closed ? 'complete' : 'en_cours';
+    }
 
     // Mise à jour locale optimiste immédiate (0ms)
     setSubscriptions(prev => prev.map(s => s.id === subId ? {
       ...s,
       [fieldKey]: newPassageStatus,
-      status: isComplete ? 'complete' : 'actif',
+      status: nextStatus,
       processed_by_name: updaterName,
       processed_by_email: updaterEmail,
       processed_at: now
@@ -648,7 +681,7 @@ export default function AdminPortal({ onClose }) {
         .from('taaru_subscriptions')
         .update({
           [fieldKey]: newPassageStatus,
-          status: isComplete ? 'complete' : 'actif',
+          status: nextStatus,
           updated_at: now,
           processed_by_name: updaterName,
           processed_by_email: updaterEmail,
@@ -862,6 +895,121 @@ export default function AdminPortal({ onClose }) {
     setSubFilter('all');
     if (selectedBookingDetails) {
       setSelectedBookingDetails(null);
+    }
+  };
+
+  // Décomposition propre des détails de commande pour éviter les blocs de texte bruts
+  const parseServiceDetails = (rawDetails) => {
+    if (!rawDetails) return { plan: '', dates: [], time: '', raw: '' };
+
+    let plan = rawDetails;
+    let dates = [];
+    let time = '';
+
+    // Détecter et extraire le créneau horaire
+    const timeMatch = rawDetails.match(/à\s+([A-Za-zÀ-ÿ0-9\s\(\)\:\-]+)$/i);
+    if (timeMatch) {
+      time = timeMatch[1].trim();
+      plan = plan.replace(timeMatch[0], '').trim();
+    }
+
+    // Détecter et extraire les dates programmées
+    const datesMatch = rawDetails.match(/\[Dates:\s*([^\]]+)\]/i);
+    if (datesMatch) {
+      dates = datesMatch[1].split(',').map(d => d.trim());
+      plan = plan.replace(datesMatch[0], '').trim();
+    }
+
+    // Nettoyer les mentions redondantes
+    plan = plan.replace(/\s*-\s*Abonnement\s*:\s*4 dates libres/i, '')
+               .replace(/\s*-\s*Abonnement\s*:/i, '')
+               .replace(/\s*-\s*Demain/i, '')
+               .trim();
+
+    return { plan, dates, time, raw: rawDetails };
+  };
+
+  // Clôture définitive du mois d'abonnement (4/4 validés)
+  const handleConfirmCloseSubscription = async (subId) => {
+    const targetSub = subscriptions.find(s => s.id === subId);
+    if (!targetSub) return;
+
+    const confirmed = window.confirm(
+      `Confirmez-vous la clôture définitive de l'abonnement de ${targetSub.client_name} (4/4 passages validés) ?\n\n• Les 4 passages seront définitivement validés et verrouillés\n• La commande sur le Planning passera automatiquement en TERMINÉE\n• Ce mois sera archivé comme 100% complété.`
+    );
+    if (!confirmed) return;
+
+    const now = new Date().toISOString();
+    const updaterName = currentMember?.full_name || session?.user?.email?.split('@')[0] || 'Opérateur TAARU SET';
+    const updaterEmail = session?.user?.email || '';
+
+    // 1. Verrouiller la fiche abonnement
+    setSubscriptions(prev => prev.map(s => s.id === subId ? {
+      ...s,
+      status: 'complete',
+      is_closed: true,
+      processed_by_name: updaterName,
+      processed_by_email: updaterEmail,
+      processed_at: now
+    } : s));
+
+    // 2. Trouver et marquer automatiquement la commande du planning en 'terminee'
+    const cleanPhone = targetSub.client_phone ? targetSub.client_phone.replace(/[^0-9]/g, '') : '';
+    const cleanName = targetSub.client_name ? targetSub.client_name.trim().toLowerCase() : '';
+
+    const matchingBooking = bookings.find(b => {
+      const bP = b.client_phone ? b.client_phone.replace(/[^0-9]/g, '') : '';
+      const bN = b.client_name ? b.client_name.trim().toLowerCase() : '';
+      return (cleanPhone && bP && cleanPhone === bP) || (cleanName && bN && (cleanName.includes(bN) || bN.includes(cleanName)));
+    });
+
+    if (matchingBooking) {
+      setBookings(prev => prev.map(b => b.id === matchingBooking.id ? {
+        ...b,
+        status: 'terminee',
+        updated_at: now,
+        processed_by_name: b.processed_by_name || updaterName,
+        processed_by_email: b.processed_by_email || updaterEmail,
+        processed_at: b.processed_at || now
+      } : b));
+
+      if (selectedBookingDetails?.id === matchingBooking.id) {
+        setSelectedBookingDetails(prev => ({
+          ...prev,
+          status: 'terminee',
+          updated_at: now,
+          processed_by_name: prev.processed_by_name || updaterName,
+          processed_by_email: prev.processed_by_email || updaterEmail,
+          processed_at: prev.processed_at || now
+        }));
+      }
+
+      if (supabase) {
+        await supabase
+          .from('taaru_bookings')
+          .update({
+            status: 'terminee',
+            updated_at: now,
+            processed_by_name: matchingBooking.processed_by_name || updaterName,
+            processed_by_email: matchingBooking.processed_by_email || updaterEmail,
+            processed_at: matchingBooking.processed_at || now
+          })
+          .eq('id', matchingBooking.id);
+      }
+    }
+
+    if (supabase) {
+      await supabase
+        .from('taaru_subscriptions')
+        .update({
+          status: 'complete',
+          is_closed: true,
+          updated_at: now,
+          processed_by_name: updaterName,
+          processed_by_email: updaterEmail,
+          processed_at: now
+        })
+        .eq('id', subId);
     }
   };
 
@@ -1586,30 +1734,44 @@ export default function AdminPortal({ onClose }) {
 
                         <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/60 text-xs space-y-1">
                           <div className="font-bold text-slate-800">{b.service_type}</div>
-                          {b.service_details && b.service_details !== b.service_type && (
-                            <div className="text-slate-600 text-[11px] leading-relaxed line-clamp-2">{b.service_details}</div>
-                          )}
+                          {(() => {
+                            const parsed = parseServiceDetails(b.service_details);
+                            return (
+                              <div className="text-slate-600 text-[11px] leading-relaxed">
+                                {parsed.plan || b.service_details}
+                              </div>
+                            );
+                          })()}
                           <div className="flex items-center gap-1.5 text-[11px] text-slate-500 pt-1 font-medium">
                             <Calendar className="w-3.5 h-3.5 text-[#0D5C3A]" />
                             <span>{b.intervention_date || 'Date à définir'} {b.intervention_time ? `• ${b.intervention_time}` : ''}</span>
                           </div>
                         </div>
 
-                        {/* MODULE SUIVI ABONNEMENT EN DIRECT SUR PLANNING (MOBILE) */}
+                        {/* MODULE SUIVI ABONNEMENT EN DIRECT SUR PLANNING (MOBILE AÉRÉ) */}
                         {isAbonnementBooking(b) && (
                           <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50/50 to-white border border-emerald-300 text-xs space-y-2.5">
-                            <div className="flex items-center justify-between">
-                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-[#0D5C3A] text-white font-['Outfit'] font-black text-[10px] uppercase tracking-wide shadow-xs">
+                            <div className="flex flex-wrap items-center justify-between gap-1.5">
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#0D5C3A] text-white font-['Outfit'] font-black text-[10px] uppercase tracking-wide shadow-xs shrink-0">
                                 <Repeat className="w-3 h-3 text-emerald-300" />
-                                <span>Formule Abonnement (4 Passages)</span>
+                                <span>Abonnement Mensuel</span>
                               </span>
                               {(() => {
                                 const sub = findSubscriptionForBooking(b);
                                 if (sub) {
                                   const done = [1, 2, 3, 4].filter(n => sub[`passage_${n}_status`] === 'effectue').length;
+                                  const isClosed = sub.is_closed || sub.status === 'complete';
                                   return (
-                                    <span className="font-['Outfit'] font-bold text-[#0D5C3A] text-xs">
-                                      {done}/4 passés
+                                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-['Outfit'] font-bold border ${
+                                      isClosed
+                                        ? 'bg-slate-100 text-slate-700 border-slate-300'
+                                        : done === 4
+                                        ? 'bg-amber-100 text-amber-900 border-amber-300 animate-pulse'
+                                        : done > 0
+                                        ? 'bg-emerald-100 text-[#0D5C3A] border-emerald-300'
+                                        : 'bg-slate-100 text-slate-600 border-slate-200'
+                                    }`}>
+                                      {isClosed ? '✓ Mois Clôturé (4/4)' : done === 4 ? '4/4 Validés • À clôturer' : `${done}/4 validés • ${done > 0 ? 'En cours' : 'À venir'}`}
                                     </span>
                                   );
                                 }
@@ -1704,17 +1866,34 @@ export default function AdminPortal({ onClose }) {
 
                         {/* Statut sélecteur et Bouton Prendre en charge STRICTEMENT CONDITIONNÉ */}
                         <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100">
-                          <select
-                            value={b.status}
-                            onChange={(e) => handleUpdateStatus(b.id, e.target.value)}
-                            className={`text-xs font-['Outfit'] font-bold py-1.5 px-3 rounded-xl border focus:outline-none cursor-pointer ${getStatusBadge(b.status)}`}
-                          >
-                            <option value="en_attente">En attente</option>
-                            <option value="confirmee">Confirmée</option>
-                            <option value="en_cours">En cours</option>
-                            <option value="terminee">Terminée</option>
-                            <option value="annulee">Annulée</option>
-                          </select>
+                          {b.status === 'terminee' ? (
+                            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 font-['Outfit'] font-bold text-xs border border-slate-300">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-[#16A34A]" />
+                              <span>Terminée & Clôturée</span>
+                              {isSuperAdmin && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleUpdateStatus(b.id, 'en_cours')}
+                                  className="ml-1 text-[10px] text-slate-400 hover:text-rose-600 underline cursor-pointer"
+                                  title="Super Admin: Réouvrir la commande"
+                                >
+                                  (Réouvrir)
+                                </button>
+                              )}
+                            </div>
+                          ) : (
+                            <select
+                              value={b.status}
+                              onChange={(e) => handleUpdateStatus(b.id, e.target.value)}
+                              className={`text-xs font-['Outfit'] font-bold py-1.5 px-3 rounded-xl border focus:outline-none cursor-pointer ${getStatusBadge(b.status)}`}
+                            >
+                              <option value="en_attente">En attente</option>
+                              <option value="confirmee">Confirmée</option>
+                              <option value="en_cours">En cours</option>
+                              <option value="terminee">Terminée (Clôturer)</option>
+                              <option value="annulee">Annulée</option>
+                            </select>
+                          )}
 
                           {/* AFFICHÉ UNIQUEMENT SI EN ATTENTE ET PAS ENCORE ATTRIBUÉ */}
                           {canTakeOver && (
@@ -1819,17 +1998,34 @@ export default function AdminPortal({ onClose }) {
                               </td>
 
                               <td className="py-4 px-5">
-                                <select
-                                  value={b.status}
-                                  onChange={(e) => handleUpdateStatus(b.id, e.target.value)}
-                                  className={`text-xs font-['Outfit'] font-bold py-1 px-3 rounded-lg border focus:outline-none cursor-pointer ${getStatusBadge(b.status)}`}
-                                >
-                                  <option value="en_attente">En attente</option>
-                                  <option value="confirmee">Confirmée</option>
-                                  <option value="en_cours">En cours</option>
-                                  <option value="terminee">Terminée</option>
-                                  <option value="annulee">Annulée</option>
-                                </select>
+                                {b.status === 'terminee' ? (
+                                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 font-['Outfit'] font-bold text-xs border border-slate-300">
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-[#16A34A]" />
+                                    <span>Terminée & Clôturée</span>
+                                    {isSuperAdmin && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleUpdateStatus(b.id, 'en_cours')}
+                                        className="ml-1 text-[10px] text-slate-400 hover:text-rose-600 underline cursor-pointer"
+                                        title="Super Admin: Réouvrir la commande"
+                                      >
+                                        (Réouvrir)
+                                      </button>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <select
+                                    value={b.status}
+                                    onChange={(e) => handleUpdateStatus(b.id, e.target.value)}
+                                    className={`text-xs font-['Outfit'] font-bold py-1 px-3 rounded-lg border focus:outline-none cursor-pointer ${getStatusBadge(b.status)}`}
+                                  >
+                                    <option value="en_attente">En attente</option>
+                                    <option value="confirmee">Confirmée</option>
+                                    <option value="en_cours">En cours</option>
+                                    <option value="terminee">Terminée (Clôturer)</option>
+                                    <option value="annulee">Annulée</option>
+                                  </select>
+                                )}
                               </td>
 
                               {/* OPÉRATEUR & TRAÇABILITÉ AUDITÉE */}
@@ -2008,6 +2204,8 @@ export default function AdminPortal({ onClose }) {
                   <div className="md:hidden space-y-3">
                     {filteredSubscriptions.map((sub) => {
                       const completedPassages = [1, 2, 3, 4].filter(n => sub[`passage_${n}_status`] === 'effectue').length;
+                      const isClosed = sub.is_closed || sub.status === 'complete';
+                      const isDisabled = isClosed && !isSuperAdmin;
 
                       return (
                         <div
@@ -2018,10 +2216,16 @@ export default function AdminPortal({ onClose }) {
                             <div>
                               <div className="flex items-center gap-2">
                                 <h4 className="font-['Outfit'] font-bold text-base text-slate-900">{sub.client_name}</h4>
-                                <span className={`px-2 py-0.2 rounded-full text-[10px] font-['Outfit'] font-bold border ${
-                                  sub.status === 'actif' ? 'bg-emerald-50 text-[#0D5C3A] border-emerald-200' : 'bg-slate-100 text-slate-600'
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-['Outfit'] font-bold border ${
+                                  isClosed
+                                    ? 'bg-slate-100 text-slate-700 border-slate-300'
+                                    : completedPassages === 4
+                                    ? 'bg-amber-100 text-amber-900 border-amber-300 animate-pulse'
+                                    : completedPassages > 0
+                                    ? 'bg-emerald-50 text-[#0D5C3A] border-emerald-200'
+                                    : 'bg-slate-100 text-slate-600 border-slate-200'
                                 }`}>
-                                  {sub.status === 'actif' ? 'En cours' : 'Terminé'}
+                                  {isClosed ? '✓ Mois Clôturé (4/4)' : completedPassages === 4 ? '4/4 Validés • À clôturer' : completedPassages > 0 ? `En cours (${completedPassages}/4)` : 'À venir (0/4)'}
                                 </span>
                               </div>
                               <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
@@ -2081,8 +2285,8 @@ export default function AdminPortal({ onClose }) {
                           </div>
 
                           {/* LES 4 PASSAGES TACTILES COMPACTS SANS SCROLL */}
-                          <div className="pt-2 border-t border-slate-100">
-                            <div className="flex items-center justify-between text-[11px] font-['Outfit'] font-bold text-slate-600 mb-2">
+                          <div className="pt-2 border-t border-slate-100 space-y-2">
+                            <div className="flex items-center justify-between text-[11px] font-['Outfit'] font-bold text-slate-600">
                               <span>4 Passages du mois :</span>
                               <span className="text-[#0D5C3A] tabular-nums">{completedPassages}/4 validés</span>
                             </div>
@@ -2096,12 +2300,16 @@ export default function AdminPortal({ onClose }) {
                                   <button
                                     key={num}
                                     type="button"
-                                    onClick={() => handleTogglePassageStatus(sub.id, num, sub[`passage_${num}_status`])}
-                                    className={`py-2 px-1 rounded-xl text-center text-xs font-['Outfit'] font-bold border transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5 ${
+                                    disabled={isDisabled}
+                                    onClick={() => !isDisabled && handleTogglePassageStatus(sub.id, num, sub[`passage_${num}_status`])}
+                                    className={`py-2 px-1 rounded-xl text-center text-xs font-['Outfit'] font-bold border transition-all flex flex-col items-center justify-center gap-0.5 ${
+                                      isDisabled ? 'cursor-not-allowed opacity-90' : 'cursor-pointer'
+                                    } ${
                                       isDone
                                         ? 'bg-emerald-50 border-emerald-300 text-[#0D5C3A] shadow-xs'
                                         : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-600'
                                     }`}
+                                    title={isDisabled ? "Abonnement clôturé (verrouillé)" : "Cliquer pour valider/annuler"}
                                   >
                                     <div className="flex items-center gap-1">
                                       {isDone ? (
@@ -2118,6 +2326,25 @@ export default function AdminPortal({ onClose }) {
                                 );
                               })}
                             </div>
+
+                            {/* BOUTON DE CLÔTURE DÉFINITIVE DU MOIS SI 4/4 ATTEINTS */}
+                            {completedPassages === 4 && !isClosed && (
+                              <button
+                                type="button"
+                                onClick={() => handleConfirmCloseSubscription(sub.id)}
+                                className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-[#0D5C3A] hover:from-emerald-700 hover:to-[#094129] text-white font-['Outfit'] font-black text-xs flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition-all animate-pulse"
+                              >
+                                <CheckCircle2 className="w-4 h-4 text-emerald-200" />
+                                <span>🔒 Confirmer & Clôturer Définitivement le Mois (4/4)</span>
+                              </button>
+                            )}
+
+                            {isClosed && (
+                              <div className="py-1.5 px-3 rounded-xl bg-emerald-50 border border-emerald-200 text-[#0D5C3A] text-center font-['Outfit'] font-bold text-xs flex items-center justify-center gap-1.5">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-[#16A34A]" />
+                                <span>Mois 100% complété & clôturé (4/4 validés)</span>
+                              </div>
+                            )}
                           </div>
 
                           <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 font-medium">
@@ -2157,6 +2384,8 @@ export default function AdminPortal({ onClose }) {
                       <tbody className="divide-y divide-slate-100 font-sans">
                         {filteredSubscriptions.map((sub) => {
                           const completedPassages = [1, 2, 3, 4].filter(n => sub[`passage_${n}_status`] === 'effectue').length;
+                          const isClosed = sub.is_closed || sub.status === 'complete';
+                          const isDisabled = isClosed && !isSuperAdmin;
 
                           return (
                             <tr key={sub.id} className="hover:bg-emerald-50/20 transition-colors">
@@ -2200,37 +2429,63 @@ export default function AdminPortal({ onClose }) {
                                     {completedPassages}/4
                                   </span>
                                 </div>
+                                {isClosed ? (
+                                  <span className="inline-block mt-1 text-[10px] font-['Outfit'] font-bold text-[#0D5C3A] bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                                    ✓ Clôturé
+                                  </span>
+                                ) : completedPassages === 4 ? (
+                                  <span className="inline-block mt-1 text-[10px] font-['Outfit'] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200 animate-pulse">
+                                    4/4 À clôturer
+                                  </span>
+                                ) : null}
                               </td>
 
                               <td className="py-3.5 px-5 text-center">
-                                <div className="inline-flex items-center gap-1.5">
-                                  {[1, 2, 3, 4].map((num) => {
-                                    const isDone = sub[`passage_${num}_status`] === 'effectue';
-                                    const dateLabel = sub[`passage_${num}_date`] || `P${num}`;
+                                <div className="inline-flex flex-col items-center gap-1.5">
+                                  <div className="inline-flex items-center gap-1.5">
+                                    {[1, 2, 3, 4].map((num) => {
+                                      const isDone = sub[`passage_${num}_status`] === 'effectue';
+                                      const dateLabel = sub[`passage_${num}_date`] || `P${num}`;
 
-                                    return (
-                                      <button
-                                        key={num}
-                                        type="button"
-                                        onClick={() => handleTogglePassageStatus(sub.id, num, sub[`passage_${num}_status`])}
-                                        className={`h-8 px-2.5 rounded-lg text-xs font-['Outfit'] font-bold flex items-center gap-1 border transition-all cursor-pointer ${
-                                          isDone
-                                            ? 'bg-emerald-50 hover:bg-emerald-100 border-emerald-300 text-[#0D5C3A] shadow-xs'
-                                            : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-600'
-                                        }`}
-                                      >
-                                        {isDone ? (
-                                          <CheckCircle2 className="w-3.5 h-3.5 text-[#16A34A]" />
-                                        ) : (
-                                          <Circle className="w-3.5 h-3.5 text-slate-400" />
-                                        )}
-                                        <span>P{num}</span>
-                                        <span className="text-[10px] text-slate-400 font-medium">
-                                          {dateLabel.replace(/Passage \d/, '').trim()}
-                                        </span>
-                                      </button>
-                                    );
-                                  })}
+                                      return (
+                                        <button
+                                          key={num}
+                                          type="button"
+                                          disabled={isDisabled}
+                                          onClick={() => !isDisabled && handleTogglePassageStatus(sub.id, num, sub[`passage_${num}_status`])}
+                                          className={`h-8 px-2.5 rounded-lg text-xs font-['Outfit'] font-bold flex items-center gap-1 border transition-all ${
+                                            isDisabled ? 'cursor-not-allowed opacity-90' : 'cursor-pointer'
+                                          } ${
+                                            isDone
+                                              ? 'bg-emerald-50 hover:bg-emerald-100 border-emerald-300 text-[#0D5C3A] shadow-xs'
+                                              : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-600'
+                                          }`}
+                                          title={isDisabled ? "Abonnement clôturé (verrouillé)" : "Cliquer pour valider/annuler"}
+                                        >
+                                          {isDone ? (
+                                            <CheckCircle2 className="w-3.5 h-3.5 text-[#16A34A]" />
+                                          ) : (
+                                            <Circle className="w-3.5 h-3.5 text-slate-400" />
+                                          )}
+                                          <span>P{num}</span>
+                                          <span className="text-[10px] text-slate-400 font-medium">
+                                            {dateLabel.replace(/Passage \d/, '').trim()}
+                                          </span>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+
+                                  {completedPassages === 4 && !isClosed && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleConfirmCloseSubscription(sub.id)}
+                                      className="h-7 px-3 rounded-lg bg-[#0D5C3A] hover:bg-[#0A482E] text-white font-['Outfit'] font-bold text-[11px] flex items-center gap-1 shadow-xs cursor-pointer animate-pulse transition-all mt-1"
+                                    >
+                                      <CheckCircle2 className="w-3 h-3 text-emerald-300" />
+                                      <span>🔒 Clôturer le mois (4/4)</span>
+                                    </button>
+                                  )}
                                 </div>
                               </td>
 
@@ -2895,27 +3150,64 @@ export default function AdminPortal({ onClose }) {
             </div>
 
             <div className="space-y-3 text-xs">
-              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500 font-medium">Service / Formule :</span>
-                  <span className="font-bold text-slate-900 text-right">{selectedBookingDetails.service_type}</span>
-                </div>
-                <div className="flex items-start justify-between gap-4 pt-1 border-t border-slate-200/60">
-                  <span className="text-slate-500 font-medium">Détails de la demande :</span>
-                  <span className="font-semibold text-slate-800 text-right">{selectedBookingDetails.service_details}</span>
-                </div>
-                <div className="flex items-center justify-between pt-1 border-t border-slate-200/60">
-                  <span className="text-slate-500 font-medium">Montant convenu :</span>
-                  <span className="font-['Outfit'] font-black text-base text-[#0D5C3A] tabular-nums">
-                    {formatPrice(selectedBookingDetails.estimated_price_fcfa)}
-                  </span>
-                </div>
-              </div>
+              {(() => {
+                const parsedDetails = parseServiceDetails(selectedBookingDetails.service_details);
+                return (
+                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500 font-medium">Service principal :</span>
+                      <span className="font-bold text-slate-900">{selectedBookingDetails.service_type}</span>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-200/60 flex items-start justify-between gap-3">
+                      <span className="text-slate-500 font-medium shrink-0">Formule demandée :</span>
+                      <span className="font-bold text-slate-800 text-right">
+                        {parsedDetails.plan || selectedBookingDetails.service_details}
+                      </span>
+                    </div>
+
+                    {parsedDetails.time && (
+                      <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between">
+                        <span className="text-slate-500 font-medium">Créneau d'intervention :</span>
+                        <span className="font-bold text-slate-800 bg-white px-2.5 py-0.5 rounded-lg border border-slate-200 text-[11px]">
+                          {parsedDetails.time}
+                        </span>
+                      </div>
+                    )}
+
+                    {parsedDetails.dates && parsedDetails.dates.length > 0 && (
+                      <div className="pt-2 border-t border-slate-200/60 space-y-1.5">
+                        <div className="flex items-center justify-between text-slate-500 font-medium text-[11px]">
+                          <span>Dates retenues des 4 passages :</span>
+                          <span className="text-[10px] text-[#0D5C3A] font-bold">{parsedDetails.dates.length}/4 dates</span>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 pt-0.5">
+                          {parsedDetails.dates.map((d, i) => (
+                            <div key={i} className="px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-[#0D5C3A] text-center font-['Outfit'] font-bold text-[11px]">
+                              {d}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-200/60">
+                      <span className="text-slate-500 font-medium">Montant convenu :</span>
+                      <span className="font-['Outfit'] font-black text-base text-[#0D5C3A] tabular-nums">
+                        {formatPrice(selectedBookingDetails.estimated_price_fcfa)}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* ENCADRÉ SPÉCIFIQUE SI C'EST UN ABONNEMENT */}
               {isAbonnementBooking(selectedBookingDetails) && (() => {
                 const sub = findSubscriptionForBooking(selectedBookingDetails);
                 const done = sub ? [1, 2, 3, 4].filter(n => sub[`passage_${n}_status`] === 'effectue').length : 0;
+                const isClosed = sub?.is_closed || sub?.status === 'complete';
+                const isDisabled = isClosed && !isSuperAdmin;
+
                 return (
                   <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50 via-teal-50/40 to-white border border-emerald-300 space-y-3">
                     <div className="flex items-center justify-between">
@@ -2929,8 +3221,16 @@ export default function AdminPortal({ onClose }) {
                         </div>
                       </div>
                       {sub && (
-                        <span className="font-['Outfit'] font-black text-xs text-[#0D5C3A] bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200">
-                          {done}/4 passés
+                        <span className={`font-['Outfit'] font-black text-xs px-2.5 py-0.5 rounded-full border ${
+                          isClosed
+                            ? 'bg-slate-100 text-slate-700 border-slate-300'
+                            : done === 4
+                            ? 'bg-amber-100 text-amber-900 border-amber-300 animate-pulse'
+                            : done > 0
+                            ? 'bg-emerald-100 text-[#0D5C3A] border-emerald-200'
+                            : 'bg-slate-100 text-slate-600 border-slate-200'
+                        }`}>
+                          {isClosed ? '✓ Mois Clôturé (4/4)' : `${done}/4 Validés`}
                         </span>
                       )}
                     </div>
@@ -2945,12 +3245,16 @@ export default function AdminPortal({ onClose }) {
                               <button
                                 key={num}
                                 type="button"
-                                onClick={() => handleTogglePassageStatus(sub.id, num, sub[`passage_${num}_status`])}
-                                className={`p-2 rounded-xl text-center text-xs font-['Outfit'] font-bold border transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer ${
+                                disabled={isDisabled}
+                                onClick={() => !isDisabled && handleTogglePassageStatus(sub.id, num, sub[`passage_${num}_status`])}
+                                className={`p-2 rounded-xl text-center text-xs font-['Outfit'] font-bold border transition-all flex flex-col items-center justify-center gap-0.5 ${
+                                  isDisabled ? 'cursor-not-allowed opacity-90' : 'cursor-pointer'
+                                } ${
                                   isDone
                                     ? 'bg-emerald-100 text-[#0D5C3A] border-emerald-300 shadow-xs'
                                     : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                                 }`}
+                                title={isDisabled ? "Abonnement clôturé (verrouillé)" : "Cliquer pour valider/annuler"}
                               >
                                 <div className="flex items-center gap-1">
                                   {isDone ? <CheckCircle2 className="w-3 h-3 text-[#16A34A]" /> : <Circle className="w-3 h-3 text-slate-400" />}
@@ -2963,6 +3267,25 @@ export default function AdminPortal({ onClose }) {
                             );
                           })}
                         </div>
+
+                        {/* BOUTON CLÔTURE DÉFINITIVE DU MOIS SI 4/4 ATTEINTS */}
+                        {done === 4 && !isClosed && (
+                          <button
+                            type="button"
+                            onClick={() => handleConfirmCloseSubscription(sub.id)}
+                            className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-[#0D5C3A] hover:from-emerald-700 hover:to-[#094129] text-white font-['Outfit'] font-black text-xs flex items-center justify-center gap-2 shadow-md cursor-pointer transition-all animate-pulse"
+                          >
+                            <CheckCircle2 className="w-4 h-4 text-emerald-200" />
+                            <span>🔒 Valider & Clôturer Définitivement le Mois (4/4 Passages)</span>
+                          </button>
+                        )}
+
+                        {isClosed && (
+                          <div className="py-2 px-3 rounded-xl bg-emerald-100/70 border border-emerald-300 text-[#0D5C3A] text-center font-['Outfit'] font-bold text-xs flex items-center justify-center gap-1.5">
+                            <CheckCircle2 className="w-4 h-4 text-[#16A34A]" />
+                            <span>Ce mois d'abonnement est 100% complété et clôturé</span>
+                          </div>
+                        )}
 
                         <button
                           type="button"
@@ -3073,17 +3396,34 @@ export default function AdminPortal({ onClose }) {
             <div className="pt-2 border-t border-slate-100 space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <span className="text-xs font-['Outfit'] font-bold text-slate-700">Statut de la réservation :</span>
-                <select
-                  value={selectedBookingDetails.status}
-                  onChange={(e) => handleUpdateStatus(selectedBookingDetails.id, e.target.value)}
-                  className={`text-xs font-['Outfit'] font-bold py-2 px-3 rounded-xl border cursor-pointer ${getStatusBadge(selectedBookingDetails.status)}`}
-                >
-                  <option value="en_attente">En attente</option>
-                  <option value="confirmee">Confirmée</option>
-                  <option value="en_cours">En cours</option>
-                  <option value="terminee">Terminée</option>
-                  <option value="annulee">Annulée</option>
-                </select>
+                {selectedBookingDetails.status === 'terminee' ? (
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 font-['Outfit'] font-bold text-xs border border-slate-300">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-[#16A34A]" />
+                    <span>Terminée & Clôturée</span>
+                    {isSuperAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateStatus(selectedBookingDetails.id, 'en_cours')}
+                        className="ml-1 text-[10px] text-slate-400 hover:text-rose-600 underline cursor-pointer"
+                        title="Super Admin: Réouvrir"
+                      >
+                        (Réouvrir)
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <select
+                    value={selectedBookingDetails.status}
+                    onChange={(e) => handleUpdateStatus(selectedBookingDetails.id, e.target.value)}
+                    className={`text-xs font-['Outfit'] font-bold py-2 px-3 rounded-xl border cursor-pointer ${getStatusBadge(selectedBookingDetails.status)}`}
+                  >
+                    <option value="en_attente">En attente</option>
+                    <option value="confirmee">Confirmée</option>
+                    <option value="en_cours">En cours</option>
+                    <option value="terminee">Terminée (Clôturer définitivement)</option>
+                    <option value="annulee">Annulée</option>
+                  </select>
+                )}
               </div>
 
               <div className="grid grid-cols-3 gap-2 font-['Outfit']">
