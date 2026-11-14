@@ -345,6 +345,17 @@ export default function AdminPortal({ onClose }) {
     };
   }, [session]);
 
+  // URL de redirection officielle pour l'authentification et les emails (évite tout localhost)
+  const getAuthRedirectUrl = () => {
+    if (typeof window !== 'undefined' && window.location.origin.includes('taaru-set.vercel.app')) {
+      return 'https://taaru-set.vercel.app/?admin';
+    }
+    if (typeof window !== 'undefined' && !window.location.hostname.includes('localhost')) {
+      return `${window.location.origin}/?admin`;
+    }
+    return 'https://taaru-set.vercel.app/?admin';
+  };
+
   // Connexion sécurisée
   const handleAuthSubmit = async (e) => {
     e.preventDefault();
@@ -380,7 +391,7 @@ export default function AdminPortal({ onClose }) {
 
       if (isResetMode) {
         const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
-          redirectTo: window.location.origin + '/?admin'
+          redirectTo: getAuthRedirectUrl()
         });
         if (error) throw error;
         setAuthSuccessMsg(`✓ Un lien officiel et sécurisé a été expédié à "${cleanEmail}". Ouvrez votre boîte de réception et cliquez sur le lien pour définir votre mot de passe confidentiel.`);
@@ -507,7 +518,7 @@ export default function AdminPortal({ onClose }) {
     if (!supabase) return;
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-        redirectTo: window.location.origin + '/?admin'
+        redirectTo: getAuthRedirectUrl()
       });
       if (error) throw error;
       setPasswordResetSuccessMsg(`✓ Un lien officiel et confidentiel a été expédié à "${email}". Le collaborateur peut cliquer dessus pour définir son mot de passe personnel.`);
@@ -912,7 +923,7 @@ export default function AdminPortal({ onClose }) {
       if (provisionMode === 'invite') {
         try {
           await supabase.auth.resetPasswordForEmail(cleanEmail, {
-            redirectTo: window.location.origin + '/?admin'
+            redirectTo: getAuthRedirectUrl()
           });
         } catch (mailErr) {
           console.warn("Notification email d'invitation :", mailErr);
